@@ -31,7 +31,7 @@ export function buildProgram(): Command {
     .argument('<库路径>')
     .argument('<文档名>')
     .requiredOption('-m, --message <信息>')
-    .option('--author <作者>', 'unknown')
+    .option('--author <作者>', '作者名（默认 unknown）', 'unknown')
     .option('--branch <分支>')
     .action(async (p: string, doc: string, opts: { message: string; author: string; branch?: string }) => {
       const repo = await Repo.open(p)

@@ -17,6 +17,15 @@ describe('canonicalize', () => {
   it('键排序后与键序无关', () => {
     expect(canonicalize({ b: 1, a: { d: 2, c: 3 } })).toBe(canonicalize({ a: { c: 3, d: 2 }, b: 1 }))
   })
+
+  it('undefined 值不写入字面量 undefined（往返仍可解析）', async () => {
+    const cid = await writeCommit(ctx, {
+      parents: [], tree: 't', message: '无作者',
+      author: undefined as unknown as string, createdAt: '2026-09-28T00:00:00Z',
+    })
+    const c = await readCommit(ctx, cid)
+    expect(c.message).toBe('无作者')
+  })
 })
 
 describe('Commit/Tree', () => {

@@ -15,10 +15,12 @@ export interface Tree {
 }
 
 export function canonicalize(v: unknown): string {
-  if (v === null || typeof v !== 'object') return JSON.stringify(v)
+  if (v === null || v === undefined) return 'null'
+  if (typeof v !== 'object') return JSON.stringify(v)
   if (Array.isArray(v)) return `[${v.map(canonicalize).join(',')}]`
   const o = v as Record<string, unknown>
-  const keys = Object.keys(o).sort()
+  // 与 JSON.stringify 语义一致：跳过 undefined 值的键，否则会写入字面量 undefined 导致对象不可解析
+  const keys = Object.keys(o).sort().filter(k => o[k] !== undefined)
   return `{${keys.map(k => `${JSON.stringify(k)}:${canonicalize(o[k])}`).join(',')}}`
 }
 
