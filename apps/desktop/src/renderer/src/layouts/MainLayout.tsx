@@ -5,8 +5,10 @@ import { TimelinePanel } from '@renderer/components/TimelinePanel'
 import { PreviewPanel } from '@renderer/components/PreviewPanel'
 import { SettingsPage } from '@renderer/components/SettingsPage'
 import { EditLoopCard } from '@renderer/components/EditLoopCard'
+import { useWatcherEvents } from '@renderer/hooks/useWatcherEvents'
 
 export function MainLayout() {
+  useWatcherEvents()
   const { rightPanel, pendingCommitDocName } = useUiStore()
 
   return (
