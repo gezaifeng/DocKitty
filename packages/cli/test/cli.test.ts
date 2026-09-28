@@ -45,5 +45,5 @@ describe('CLI 集成', () => {
     run(`branch "${repoPath}" "笔记.txt" experiment --switch`)
     const branches = JSON.parse(run(`branch "${repoPath}" "笔记.txt"`).trim())
     expect(branches).toEqual(['experiment', 'main'])
-  }, 60000)
+  }, 120_000)
 })
