@@ -1,5 +1,6 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
+import { recoverJournal } from './journal.js'
 
 export const FORMAT_VERSION = 1
 
@@ -35,7 +36,9 @@ export class Repo {
     if (config.formatVersion < FORMAT_VERSION) {
       throw new Error(`仓库格式版本过旧（${config.formatVersion}），需要迁移工具（M2 提供）`)
     }
-    return new Repo(root)
+    const repo = new Repo(root)
+    await recoverJournal(repo)
+    return repo
   }
 
   objectsDir(sub: 'blobs' | 'chunks' | 'ooxml'): string {

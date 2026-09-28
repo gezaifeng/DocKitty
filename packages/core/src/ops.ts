@@ -6,6 +6,7 @@ import { docIdOf, readCurrentBranch, writeCurrentBranch, readHead, writeHead } f
 import { encodeFile, getManifest, getManifestByContent, materializeFile, putManifest } from './ingest/index.js'
 import { readCommit, readTree, writeCommit, writeTree, type Commit, type Tree } from './model.js'
 import { readFileBlocks, teeHash, writeFileAtomic } from './fsutil.js'
+import { openJournal, closeJournal } from './journal.js'
 
 export interface CommitResult {
   docId: string
@@ -34,64 +35,69 @@ async function collectDocPaths(abs: string, rel: string, out: string[]): Promise
 export async function commitDoc(repo: Repo, docName: string, opts: { message: string; author: string; branch?: string }): Promise<CommitResult> {
   const docId = docIdOf(docName)
   const branch = opts.branch ?? await readCurrentBranch(repo, docId)
-  const ctx = StorageContext.forRepo(repo)
-  const docAbs = path.join(repo.root, 'workspace', docName)
+  const journalId = await openJournal(repo, 'commit', docName, branch)
   try {
-    await fs.stat(docAbs)
-  } catch {
-    throw new Error(`workspace 中不存在文档：${docName}`)
-  }
+    const ctx = StorageContext.forRepo(repo)
+    const docAbs = path.join(repo.root, 'workspace', docName)
+    try {
+      await fs.stat(docAbs)
+    } catch {
+      throw new Error(`workspace 中不存在文档：${docName}`)
+    }
 
-  // 当前 head 的 tree（可能不存在 = 首次提交）
-  const headId = await readHead(repo, docId, branch)
-  let prevTree: Tree = { entries: {} }
-  if (headId) {
-    prevTree = await readTree(ctx, (await readCommit(ctx, headId)).tree)
-  }
+    const headId = await readHead(repo, docId, branch)
+    let prevTree: Tree = { entries: {} }
+    if (headId) {
+      prevTree = await readTree(ctx, (await readCommit(ctx, headId)).tree)
+    }
 
-  // 收集 workspace 中该文档的所有路径
-  const paths: string[] = []
-  await collectDocPaths(docAbs, '', paths)
-  if (paths.length === 0) throw new Error(`workspace 中文档为空：${docName}`)
+    const paths: string[] = []
+    await collectDocPaths(docAbs, '', paths)
+    if (paths.length === 0) throw new Error(`workspace 中文档为空：${docName}`)
 
-  const entries: Tree['entries'] = {}
-  const changed: string[] = []
-  for (const rel of paths.sort()) {
-    const abs = path.join(docAbs, rel)
-    const fileSha = await sha256File(abs)
-    const prevManifestId = prevTree.entries[rel]
-    let manifestId = prevManifestId ?? null
+    const entries: Tree['entries'] = {}
+    const changed: string[] = []
+    for (const rel of paths.sort()) {
+      const abs = path.join(docAbs, rel)
+      const fileSha = await sha256File(abs)
+      const prevManifestId = prevTree.entries[rel]
+      let manifestId = prevManifestId ?? null
 
-    if (manifestId) {
-      const prevManifest = await getManifest(ctx, manifestId)
-      if (prevManifest.sha256 !== fileSha) {
-        manifestId = await putManifest(ctx, await encodeFile(ctx, abs, prevManifest))
+      if (manifestId) {
+        const prevManifest = await getManifest(ctx, manifestId)
+        if (prevManifest.sha256 !== fileSha) {
+          manifestId = await putManifest(ctx, await encodeFile(ctx, abs, prevManifest))
+          changed.push(rel ? docName + '/' + rel : docName)
+        }
+      } else {
+        const existing = await getManifestByContent(ctx, fileSha)
+        manifestId = existing ? await putManifest(ctx, existing) : await putManifest(ctx, await encodeFile(ctx, abs))
         changed.push(rel ? docName + '/' + rel : docName)
       }
-    } else {
-      // 新增路径：先查全文件快速路径（内容相同的全局去重）
-      const existing = await getManifestByContent(ctx, fileSha)
-      manifestId = existing ? await putManifest(ctx, existing) : await putManifest(ctx, await encodeFile(ctx, abs))
-      changed.push(rel ? docName + '/' + rel : docName)
+      entries[rel] = manifestId!
     }
-    entries[rel] = manifestId!
-  }
 
-  if (changed.length === 0) {
-    return { docId, branch, commitId: null, changed }
-  }
+    if (changed.length === 0) {
+      await closeJournal(repo, journalId)
+      return { docId, branch, commitId: null, changed }
+    }
 
-  const treeId = await writeTree(ctx, { entries })
-  const commit: Commit = {
-    parents: headId ? [headId] : [],
-    tree: treeId,
-    message: opts.message,
-    author: opts.author,
-    createdAt: new Date().toISOString(),
+    const treeId = await writeTree(ctx, { entries })
+    const commit: Commit = {
+      parents: headId ? [headId] : [],
+      tree: treeId,
+      message: opts.message,
+      author: opts.author,
+      createdAt: new Date().toISOString(),
+    }
+    const cid = await writeCommit(ctx, commit)
+    await writeHead(repo, docId, branch, cid)
+    await closeJournal(repo, journalId)
+    return { docId, branch, commitId: cid, changed }
+  } catch (e) {
+    // journal 条目故意留下：下次 Repo.open() 触发 recoverJournal 清理
+    throw e
   }
-  const cid = await writeCommit(ctx, commit)
-  await writeHead(repo, docId, branch, cid)
-  return { docId, branch, commitId: cid, changed }
 }
 
 export async function checkoutDoc(repo: Repo, docName: string, opts: { branch?: string; commitId?: string }): Promise<{ docId: string; commitId: string }> {
