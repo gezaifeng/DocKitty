@@ -1,0 +1,26 @@
+appId: com.wordgit.app
+productName: word_git
+directories:
+  output: dist
+
+win:
+  target:
+    - nsis
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  installerIcon: resources/icon.ico
+  uninstallerIcon: resources/icon.ico
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+
+files:
+  - out/**/*
+  - "!node_modules"
+
+extraResources:
+  - from: resources/
+    to: resources/
+    filter:
+      - "**/*"
