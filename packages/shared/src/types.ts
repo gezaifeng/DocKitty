@@ -2,7 +2,7 @@ import type { z } from 'zod'
 import type {
   DocInfoSchema, CommitNodeSchema, CommitResultSchema,
   QuarantineEntrySchema, StatsStorageRes, ScrubResultSchema,
-  WatcherChangeEvent,
+  WatcherChangeEvent, DiffResultSchema,
 } from './schemas.js'
 
 export type DocInfo = z.infer<typeof DocInfoSchema>
@@ -12,6 +12,7 @@ export type QuarantineEntry = z.infer<typeof QuarantineEntrySchema>
 export type StorageStats = z.infer<typeof StatsStorageRes>
 export type ScrubResult = z.infer<typeof ScrubResultSchema>
 export type WatcherChangeEvent = z.infer<typeof WatcherChangeEvent>
+export type DiffResult = z.infer<typeof DiffResultSchema>
 
 export interface IpcApi {
   repo: {
@@ -27,6 +28,7 @@ export interface IpcApi {
     create(docName: string, message: string, author: string, branch?: string): Promise<CommitResult>
     list(docName: string, branch?: string): Promise<CommitNode[]>
     checkout(docName: string, opts: { commitId?: string; branch?: string }): Promise<{ docId: string; commitId: string }>
+    diffText(docName: string, commitIdA: string, commitIdB: string): Promise<DiffResult[]>
   }
   branch: {
     create(docName: string, branch: string, from?: { fromBranch?: string; fromCommitId?: string }): Promise<void>

@@ -113,3 +113,14 @@ export const WatcherChangeEvent = z.object({
   docName: z.string(),
   workspacePath: z.string(),
 })
+
+export const CommitDiffTextReq = z.object({
+  docName: z.string().min(1),
+  commitIdA: z.string().min(1),
+  commitIdB: z.string().min(1),
+})
+
+export const DiffResultSchema = z.object({
+  type: z.enum(['equal', 'insert', 'delete']),
+  text: z.string(),
+})

@@ -38,6 +38,7 @@
     "electron": "^32.0.0",
     "electron-builder": "^25.0.0",
     "electron-vite": "^3.0.0",
+    "fflate": "^0.8.2",
     "jsdom": "^25.0.0",
     "lucide-react": "^0.460.0",
     "react": "^19.0.0",

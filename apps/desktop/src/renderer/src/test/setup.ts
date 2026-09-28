@@ -23,6 +23,7 @@ const mockApi = {
     create: vi.fn(),
     list: vi.fn().mockResolvedValue([]),
     checkout: vi.fn(),
+    diffText: vi.fn().mockResolvedValue([]),
   },
   branch: {
     create: vi.fn(),

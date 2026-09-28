@@ -17,6 +17,8 @@ const api: IpcApi = {
     list: (docName, branch) => ipcRenderer.invoke('commit.list', { docName, branch }),
     checkout: (docName, opts) =>
       ipcRenderer.invoke('commit.checkout', { docName, ...opts }),
+    diffText: (docName, commitIdA, commitIdB) =>
+      ipcRenderer.invoke('commit:diffText', { docName, commitIdA, commitIdB }),
   },
   branch: {
     create: (docName, branch, from) =>

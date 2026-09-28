@@ -22,4 +22,5 @@ export const CH = {
   DIALOG_PICK_FILE:     'dialog.pickFile',
   DIALOG_SAVE_PATH:     'dialog.savePath',
   WATCHER_CHANGE:       'watcher.change',
+  COMMIT_DIFF_TEXT:     'commit:diffText',
 } as const
