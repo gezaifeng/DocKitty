@@ -3,9 +3,9 @@ import path from 'node:path'
 import type { Repo } from './repo.js'
 import { StorageContext } from './storageContext.js'
 import { docIdOf, readCurrentBranch, readHead, writeHead } from './refs.js'
-import { encodeFile, getManifest, getManifestByContent, putManifest } from './ingest/index.js'
+import { encodeFile, getManifest, getManifestByContent, materializeFile, putManifest } from './ingest/index.js'
 import { readCommit, readTree, writeCommit, writeTree, type Commit, type Tree } from './model.js'
-import { readFileBlocks, teeHash } from './fsutil.js'
+import { readFileBlocks, teeHash, writeFileAtomic } from './fsutil.js'
 
 export interface CommitResult {
   docId: string
@@ -93,4 +93,34 @@ export async function commitDoc(repo: Repo, docName: string, opts: { message: st
   const cid = await writeCommit(ctx, commit)
   await writeHead(repo, docId, branch, cid)
   return { docId, branch, commitId: cid, changed }
+}
+
+export async function checkoutDoc(repo: Repo, docName: string, opts: { branch?: string; commitId?: string }): Promise<{ docId: string; commitId: string }> {
+  const docId = docIdOf(docName)
+  const ctx = StorageContext.forRepo(repo)
+  const branch = opts.branch ?? await readCurrentBranch(repo, docId)
+  const commitId = opts.commitId ?? await readHead(repo, docId, branch)
+  if (!commitId) throw new Error(`没有可检出的提交（branch=${branch}）`)
+
+  const commit = await readCommit(ctx, commitId)
+  const tree = await readTree(ctx, commit.tree)
+  const docAbs = path.join(repo.root, 'workspace', docName)
+  // tree 键为 workspace 相对路径（Task 9），转回文档内相对路径
+  const docRel = (key: string): string => key === docName ? '' : key.slice(docName.length + 1)
+
+  // 物化全部条目（原子写；writeFileAtomic 自建父目录）
+  for (const [key, manifestId] of Object.entries(tree.entries)) {
+    const m = await getManifest(ctx, manifestId)
+    const data = await materializeFile(ctx, m)
+    await writeFileAtomic(path.join(docAbs, docRel(key)), data)
+  }
+
+  // 删除工作区中不属于该 tree 的多余文件（目录型文档）
+  const keep = new Set(Object.keys(tree.entries).map(docRel))
+  const present: string[] = []
+  await collectDocPaths(docAbs, '', present)
+  for (const rel of present) {
+    if (!keep.has(rel)) await fs.rm(path.join(docAbs, rel))
+  }
+  return { docId, commitId }
 }
