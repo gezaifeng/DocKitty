@@ -33,7 +33,7 @@ function docxParts(documentXml: string): Record<string, Uint8Array> {
 }
 
 export function makeDocxBuf(paragraphs: string[]): Uint8Array {
-  return zipSync(docxParts(makeDocxXml(paragraphs)), { mtime: new Date(0) })
+  return zipSync(docxParts(makeDocxXml(paragraphs)), { mtime: new Date(1980, 0, 1) })
 }
 
 export function editDocxAddParagraph(buf: Uint8Array, text: string): Uint8Array {
@@ -43,5 +43,5 @@ export function editDocxAddParagraph(buf: Uint8Array, text: string): Uint8Array 
   const xml = dec.decode(parts['word/document.xml'])
   parts['word/document.xml'] = enc.encode(
     xml.replace('</w:body>', `<w:p><w:r><w:t>${escapeXml(text)}</w:t></w:r></w:p></w:body>`))
-  return zipSync(parts, { mtime: new Date(0) })
+  return zipSync(parts, { mtime: new Date(1980, 0, 1) })
 }
