@@ -10,3 +10,5 @@ export type { StoredRef, GenericManifest, OoxmlEntry, OoxmlManifest, FileManifes
 export { encodeGeneric, materializeGeneric } from './ingest/generic.js'
 export { isOoxml, encodeOoxml, decodeOoxml } from './ingest/ooxml.js'
 export { encodeFile, materializeFile, putManifest, getManifest, getManifestByContent } from './ingest/index.js'
+export { canonicalize, commitId, treeId, writeCommit, readCommit, writeTree, readTree } from './model.js'
+export type { Commit, Tree } from './model.js'
