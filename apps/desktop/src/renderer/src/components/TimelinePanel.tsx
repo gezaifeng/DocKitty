@@ -1,5 +1,6 @@
 // apps/desktop/src/renderer/src/components/TimelinePanel.tsx
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { motion, AnimatePresence } from 'framer-motion'
 import { api } from '@renderer/lib/ipc'
 import { keys } from '@renderer/lib/queryKeys'
 import { useUiStore } from '@renderer/store/uiStore'
@@ -21,9 +22,22 @@ interface CommitEntryProps {
   onRestore(): void
 }
 
+const commitItemVariants = {
+  initial: { opacity: 0, x: -8 },
+  animate: { opacity: 1, x: 0 },
+  exit: { opacity: 0, x: -8 },
+}
+
 function CommitEntry({ commit, isLatest, onRestore }: CommitEntryProps) {
   return (
-    <div className="flex gap-3 py-3">
+    <motion.div
+      variants={commitItemVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      transition={{ duration: 0.18, ease: 'easeOut' }}
+      className="flex gap-3 py-3"
+    >
       {/* Timeline dot */}
       <div className="flex flex-col items-center w-4 shrink-0 mt-1">
         <div
@@ -55,7 +69,7 @@ function CommitEntry({ commit, isLatest, onRestore }: CommitEntryProps) {
           </Button>
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
@@ -103,19 +117,21 @@ export function TimelinePanel() {
             <p className="text-center text-muted-foreground text-sm py-8">暂无版本历史</p>
           )}
 
-          {commits?.map((commit, idx) => (
-            <div key={commit.id}>
-              <CommitEntry
-                commit={commit}
-                docName={selectedDocName}
-                isLatest={idx === 0}
-                onRestore={() => restoreMutation.mutate(commit.id)}
-              />
-              {idx < commits.length - 1 && (
-                <div className="ml-[22px] border-l border-dashed border-muted-foreground/30 h-2" />
-              )}
-            </div>
-          ))}
+          <AnimatePresence initial={false}>
+            {commits?.map((commit, idx) => (
+              <div key={commit.id}>
+                <CommitEntry
+                  commit={commit}
+                  docName={selectedDocName}
+                  isLatest={idx === 0}
+                  onRestore={() => restoreMutation.mutate(commit.id)}
+                />
+                {idx < commits.length - 1 && (
+                  <div className="ml-[22px] border-l border-dashed border-muted-foreground/30 h-2" />
+                )}
+              </div>
+            ))}
+          </AnimatePresence>
         </div>
       </ScrollArea>
     </div>

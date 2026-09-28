@@ -1,4 +1,5 @@
 // apps/desktop/src/renderer/src/components/DocCard.tsx
+import { motion } from 'framer-motion'
 import { cn } from '@renderer/lib/utils'
 import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
@@ -21,9 +22,16 @@ function formatDate(iso: string | null): string {
   })
 }
 
+const fadeInUp = {
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.2, ease: 'easeOut' },
+}
+
 export function DocCard({ doc, selected, onSelect, onEdit }: DocCardProps) {
   return (
-    <div
+    <motion.div
+      {...fadeInUp}
       className={cn(
         'p-3 rounded-lg border cursor-pointer transition-colors',
         selected
@@ -59,6 +67,6 @@ export function DocCard({ doc, selected, onSelect, onEdit }: DocCardProps) {
           编辑
         </Button>
       </div>
-    </div>
+    </motion.div>
   )
 }

@@ -1,5 +1,6 @@
 // apps/desktop/src/renderer/src/components/EditLoopCard.tsx
 import { useState } from 'react'
+import { motion } from 'framer-motion'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@renderer/lib/ipc'
 import { keys } from '@renderer/lib/queryKeys'
@@ -8,6 +9,12 @@ import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
 
 const QUICK_TAGS = ['导师反馈修改', '自我修改', '格式整理', '内容增补', '错误修正']
+
+const slideInFromBottom = {
+  initial: { opacity: 0, y: 24 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.22, ease: 'easeOut' },
+}
 
 export function EditLoopCard() {
   const { pendingCommitDocName, clearPendingCommit } = useUiStore()
@@ -32,7 +39,10 @@ export function EditLoopCard() {
   if (!pendingCommitDocName) return null
 
   return (
-    <div className="fixed bottom-4 right-4 w-96 z-50 shadow-2xl rounded-xl border border-primary/30 bg-card p-4">
+    <motion.div
+      {...slideInFromBottom}
+      className="fixed bottom-4 right-4 w-96 z-50 shadow-2xl rounded-xl border border-primary/30 bg-card p-4"
+    >
       <div className="flex items-start justify-between mb-3">
         <div>
           <p className="font-semibold text-sm">检测到文件已保存</p>
@@ -85,6 +95,6 @@ export function EditLoopCard() {
           {(commitMutation.error as Error).message}
         </p>
       )}
-    </div>
+    </motion.div>
   )
 }
