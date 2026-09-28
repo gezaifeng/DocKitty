@@ -4,6 +4,7 @@ import { DocListPanel } from '@renderer/components/DocListPanel'
 import { TimelinePanel } from '@renderer/components/TimelinePanel'
 import { PreviewPanel } from '@renderer/components/PreviewPanel'
 import { SettingsPage } from '@renderer/components/SettingsPage'
+import { BranchPanel } from '@renderer/components/BranchPanel'
 import { EditLoopCard } from '@renderer/components/EditLoopCard'
 import { useWatcherEvents } from '@renderer/hooks/useWatcherEvents'
 
@@ -21,6 +22,11 @@ export function MainLayout() {
       {/* Center: Timeline */}
       <div className="w-80 flex-shrink-0 border-r border-border flex flex-col">
         <TimelinePanel />
+      </div>
+
+      {/* Center-right: Branch panel */}
+      <div className="w-56 flex-shrink-0 border-r border-border flex flex-col">
+        <BranchPanel />
       </div>
 
       {/* Right: Preview or Settings */}
