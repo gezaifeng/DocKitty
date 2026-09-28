@@ -5,10 +5,18 @@ import path from 'node:path'
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin({ exclude: ['@wordgit/core', '@wordgit/shared'] })],
+    plugins: [externalizeDepsPlugin({ exclude: ['@wordgit/core', '@wordgit/shared', 'chokidar'] })],
   },
   preload: {
     plugins: [externalizeDepsPlugin({ exclude: ['@wordgit/shared'] })],
+    build: {
+      rollupOptions: {
+        output: {
+          format: 'cjs',
+          entryFileNames: '[name].cjs',
+        },
+      },
+    },
   },
   renderer: {
     root: 'src/renderer',

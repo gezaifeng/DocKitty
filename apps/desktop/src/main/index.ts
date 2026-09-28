@@ -14,7 +14,7 @@ function createWindow(): void {
     show: false,
     title: 'word_git',
     webPreferences: {
-      preload: path.join(__dirname, '../preload/index.js'),
+      preload: path.join(__dirname, '../preload/index.cjs'),
       contextIsolation: true,
       sandbox: true,
     },
@@ -30,6 +30,12 @@ function createWindow(): void {
   }
 
   win.once('ready-to-show', () => win?.show())
+  win.webContents.on('render-process-gone', (_e, details) => {
+    console.error('[wordgit] render-process-gone:', details.reason, 'exitCode=', details.exitCode)
+  })
+  win.webContents.on('did-fail-load', (_e, code, desc, url) => {
+    console.error('[wordgit] did-fail-load:', code, desc, url)
+  })
   win.on('closed', () => { win = null })
 }
 

@@ -37,7 +37,7 @@
     "docx-preview": "^0.3.0",
     "electron": "^32.0.0",
     "electron-builder": "^25.0.0",
-    "electron-vite": "^3.0.0",
+    "electron-vite": "^5.0.0",
     "fflate": "^0.8.2",
     "framer-motion": "^13.4.4",
     "jsdom": "^25.0.0",
