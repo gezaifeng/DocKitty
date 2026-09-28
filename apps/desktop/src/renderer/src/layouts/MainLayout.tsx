@@ -1,5 +1,6 @@
 // apps/desktop/src/renderer/src/layouts/MainLayout.tsx
-import { useEffect } from 'react'
+import { useRef } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useUiStore } from '@renderer/store/uiStore'
 import { DocListPanel } from '@renderer/components/DocListPanel'
 import { TimelinePanel } from '@renderer/components/TimelinePanel'
@@ -7,69 +8,70 @@ import { PreviewPanel } from '@renderer/components/PreviewPanel'
 import { SettingsPage } from '@renderer/components/SettingsPage'
 import { BranchPanel } from '@renderer/components/BranchPanel'
 import { EditLoopCard } from '@renderer/components/EditLoopCard'
+import { ThemeToggle } from '@renderer/components/ThemeToggle'
 import { useWatcherEvents } from '@renderer/hooks/useWatcherEvents'
-import type { Theme } from '@renderer/store/uiStore'
 
-const THEME_LABELS: Record<Theme, string> = {
-  light: '☀️',
-  dark: '🌙',
-  system: '💻',
+const rightPanelVariants = {
+  initial: { opacity: 0, x: 16 },
+  animate: { opacity: 1, x: 0 },
+  exit: { opacity: 0, x: -16 },
 }
 
-const THEME_CYCLE: Theme[] = ['system', 'light', 'dark']
+const rightPanelTransition = { duration: 0.18, ease: 'easeOut' as const }
 
 export function MainLayout() {
   useWatcherEvents()
-  const { rightPanel, pendingCommitDocName, theme, setTheme } = useUiStore()
-
-  // Apply data-theme attribute to <html> element
-  useEffect(() => {
-    const root = document.documentElement
-    if (theme === 'dark') {
-      root.setAttribute('data-theme', 'dark')
-    } else if (theme === 'light') {
-      root.setAttribute('data-theme', 'light')
-    } else {
-      root.removeAttribute('data-theme')
-    }
-  }, [theme])
-
-  function cycleTheme() {
-    const idx = THEME_CYCLE.indexOf(theme)
-    setTheme(THEME_CYCLE[(idx + 1) % THEME_CYCLE.length])
-  }
+  const rightPanel = useUiStore((s) => s.rightPanel)
+  const pendingCommitDocName = useUiStore((s) => s.pendingCommitDocName)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background text-foreground">
+    <div
+      ref={containerRef}
+      className="relative flex h-screen overflow-hidden bg-background text-foreground"
+    >
       {/* Left: Document list */}
-      <div className="w-72 flex-shrink-0 border-r border-border flex flex-col">
+      <aside className="flex w-72 min-w-0 flex-shrink-0 flex-col border-r border-border">
         <DocListPanel />
-      </div>
+      </aside>
 
       {/* Center: Timeline */}
-      <div className="w-80 flex-shrink-0 border-r border-border flex flex-col">
+      <aside className="flex w-80 min-w-0 flex-shrink-0 flex-col border-r border-border">
         <TimelinePanel />
-      </div>
+      </aside>
 
       {/* Center-right: Branch panel */}
-      <div className="w-56 flex-shrink-0 border-r border-border flex flex-col">
+      <aside className="flex w-56 min-w-0 flex-shrink-0 flex-col border-r border-border">
         <BranchPanel />
-      </div>
+      </aside>
 
       {/* Right: Preview or Settings */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {rightPanel === 'settings' ? <SettingsPage /> : <PreviewPanel />}
-      </div>
+      <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <AnimatePresence mode="wait" initial={false}>
+          {rightPanel === 'settings' ? (
+            <motion.div
+              key="settings"
+              {...rightPanelVariants}
+              transition={rightPanelTransition}
+              className="flex min-h-0 flex-1 flex-col"
+            >
+              <SettingsPage />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="preview"
+              {...rightPanelVariants}
+              transition={rightPanelTransition}
+              className="flex min-h-0 flex-1 flex-col"
+            >
+              <PreviewPanel />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
 
-      {/* Theme toggle button */}
-      <button
-        aria-label={`切换主题 (当前: ${theme})`}
-        title={`切换主题 (当前: ${theme})`}
-        onClick={cycleTheme}
-        className="fixed top-3 right-3 z-50 w-8 h-8 rounded-full border border-border bg-card text-foreground shadow-sm hover:bg-accent transition-colors text-sm flex items-center justify-center"
-      >
-        {THEME_LABELS[theme]}
-      </button>
+      {/* Draggable theme toggle */}
+      <ThemeToggle containerRef={containerRef} />
 
       {/* Floating commit guide card */}
       {pendingCommitDocName && <EditLoopCard />}
