@@ -35,7 +35,7 @@ function CommitEntry({ commit, isLatest, onRestore }: CommitEntryProps) {
       initial="initial"
       animate="animate"
       exit="exit"
-      transition={{ duration: 0.18, ease: 'easeOut' }}
+      transition={{ duration: 0.18, ease: 'easeOut' as const }}
       className="flex gap-3 py-3"
     >
       {/* Timeline dot */}

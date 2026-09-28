@@ -13,7 +13,7 @@ const QUICK_TAGS = ['导师反馈修改', '自我修改', '格式整理', '内�
 const slideInFromBottom = {
   initial: { opacity: 0, y: 24 },
   animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.22, ease: 'easeOut' },
+  transition: { duration: 0.22, ease: 'easeOut' as const },
 }
 
 export function EditLoopCard() {

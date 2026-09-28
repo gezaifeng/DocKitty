@@ -25,7 +25,7 @@ function formatDate(iso: string | null): string {
 const fadeInUp = {
   initial: { opacity: 0, y: 8 },
   animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.2, ease: 'easeOut' },
+  transition: { duration: 0.2, ease: 'easeOut' as const },
 }
 
 export function DocCard({ doc, selected, onSelect, onEdit }: DocCardProps) {
