@@ -14,7 +14,7 @@ export async function encodeFile(ctx: StorageContext, filePath: string, prev?: F
     if (buf === null) {
       buf = block.slice()
     } else {
-      const merged = new Uint8Array(buf.length + block.length)
+      const merged: Uint8Array = new Uint8Array(buf.length + block.length)
       merged.set(buf, 0)
       merged.set(block, buf.length)
       buf = merged
@@ -24,7 +24,7 @@ export async function encodeFile(ctx: StorageContext, filePath: string, prev?: F
       const rest: Uint8Array[] = [buf]
       for await (const b of tee.stream) rest.push(b)
       const total = rest.reduce((n, b) => n + b.length, 0)
-      const merged = new Uint8Array(total)
+      const merged: Uint8Array = new Uint8Array(total)
       let off = 0
       for (const b of rest) { merged.set(b, off); off += b.length }
       return encodeGeneric(ctx, streamOnce(merged))
