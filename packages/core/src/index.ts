@@ -13,5 +13,5 @@ export { encodeFile, materializeFile, putManifest, getManifest, getManifestByCon
 export { canonicalize, commitId, treeId, writeCommit, readCommit, writeTree, readTree } from './model.js'
 export type { Commit, Tree } from './model.js'
 export { docIds, listBranches, readHead, writeHead, readCurrentBranch, writeCurrentBranch, deleteBranch, docIdOf, docNameOf } from './refs.js'
-export { commitDoc, checkoutDoc } from './ops.js'
-export type { CommitResult } from './ops.js'
+export { commitDoc, checkoutDoc, importDoc, listCommits, createBranch, switchBranch } from './ops.js'
+export type { CommitResult, CommitNode } from './ops.js'

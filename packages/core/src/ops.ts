@@ -2,7 +2,7 @@ import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import type { Repo } from './repo.js'
 import { StorageContext } from './storageContext.js'
-import { docIdOf, readCurrentBranch, readHead, writeHead } from './refs.js'
+import { docIdOf, readCurrentBranch, writeCurrentBranch, readHead, writeHead } from './refs.js'
 import { encodeFile, getManifest, getManifestByContent, materializeFile, putManifest } from './ingest/index.js'
 import { readCommit, readTree, writeCommit, writeTree, type Commit, type Tree } from './model.js'
 import { readFileBlocks, teeHash, writeFileAtomic } from './fsutil.js'
@@ -57,25 +57,24 @@ export async function commitDoc(repo: Repo, docName: string, opts: { message: st
   const entries: Tree['entries'] = {}
   const changed: string[] = []
   for (const rel of paths.sort()) {
-    const key = rel ? docName + '/' + rel : docName
     const abs = path.join(docAbs, rel)
     const fileSha = await sha256File(abs)
-    const prevManifestId = prevTree.entries[key]
+    const prevManifestId = prevTree.entries[rel]
     let manifestId = prevManifestId ?? null
 
     if (manifestId) {
       const prevManifest = await getManifest(ctx, manifestId)
       if (prevManifest.sha256 !== fileSha) {
         manifestId = await putManifest(ctx, await encodeFile(ctx, abs, prevManifest))
-        changed.push(key)
+        changed.push(rel ? docName + '/' + rel : docName)
       }
     } else {
       // 新增路径：先查全文件快速路径（内容相同的全局去重）
       const existing = await getManifestByContent(ctx, fileSha)
       manifestId = existing ? await putManifest(ctx, existing) : await putManifest(ctx, await encodeFile(ctx, abs))
-      changed.push(key)
+      changed.push(rel ? docName + '/' + rel : docName)
     }
-    entries[key] = manifestId!
+    entries[rel] = manifestId!
   }
 
   if (changed.length === 0) {
@@ -105,22 +104,75 @@ export async function checkoutDoc(repo: Repo, docName: string, opts: { branch?: 
   const commit = await readCommit(ctx, commitId)
   const tree = await readTree(ctx, commit.tree)
   const docAbs = path.join(repo.root, 'workspace', docName)
-  // tree 键为 workspace 相对路径（Task 9），转回文档内相对路径
-  const docRel = (key: string): string => key === docName ? '' : key.slice(docName.length + 1)
 
   // 物化全部条目（原子写；writeFileAtomic 自建父目录）
-  for (const [key, manifestId] of Object.entries(tree.entries)) {
+  for (const [rel, manifestId] of Object.entries(tree.entries)) {
     const m = await getManifest(ctx, manifestId)
     const data = await materializeFile(ctx, m)
-    await writeFileAtomic(path.join(docAbs, docRel(key)), data)
+    await writeFileAtomic(path.join(docAbs, rel), data)
   }
 
   // 删除工作区中不属于该 tree 的多余文件（目录型文档）
-  const keep = new Set(Object.keys(tree.entries).map(docRel))
+  const keep = new Set(Object.keys(tree.entries))
   const present: string[] = []
   await collectDocPaths(docAbs, '', present)
   for (const rel of present) {
     if (!keep.has(rel)) await fs.rm(path.join(docAbs, rel))
   }
   return { docId, commitId }
+}
+
+export async function importDoc(repo: Repo, sourcePath: string, name?: string): Promise<{ docId: string; commitId: string }> {
+  const docName = name ?? path.basename(sourcePath)
+  const dest = path.join(repo.root, 'workspace', docName)
+  const exists = await fs.stat(dest).then(() => true, () => false)
+  if (exists) throw new Error(`workspace 中已存在文档：${docName}`)
+  await fs.mkdir(path.dirname(dest), { recursive: true })
+  const st = await fs.stat(sourcePath)
+  if (st.isDirectory()) {
+    await fs.cp(sourcePath, dest, { recursive: true })
+  } else {
+    await fs.copyFile(sourcePath, dest)
+  }
+  const r = await commitDoc(repo, docName, { message: '导入', author: 'import' })
+  if (!r.commitId) throw new Error(`导入未产生提交：${docName}`)
+  return { docId: r.docId, commitId: r.commitId }
+}
+
+export interface CommitNode {
+  id: string
+  parents: string[]
+  message: string
+  author: string
+  createdAt: string
+}
+
+export async function listCommits(repo: Repo, docName: string, branch?: string): Promise<CommitNode[]> {
+  const docId = docIdOf(docName)
+  const ctx = StorageContext.forRepo(repo)
+  let id = await readHead(repo, docId, branch ?? await readCurrentBranch(repo, docId))
+  const out: CommitNode[] = []
+  while (id) {
+    const c = await readCommit(ctx, id)
+    out.push({ id, parents: c.parents, message: c.message, author: c.author, createdAt: c.createdAt })
+    id = c.parents[0] ?? null
+  }
+  return out
+}
+
+export async function createBranch(repo: Repo, docName: string, branch: string, from?: { branch?: string; commitId?: string }): Promise<void> {
+  const docId = docIdOf(docName)
+  if (!/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(branch)) throw new Error(`分支名不合法：${branch}`)
+  if (await readHead(repo, docId, branch)) throw new Error(`分支已存在：${branch}`)
+  const base = from?.commitId
+    ?? await readHead(repo, docId, from?.branch ?? await readCurrentBranch(repo, docId))
+  if (!base) throw new Error('没有可指向的提交（请先提交首版本）')
+  await writeHead(repo, docId, branch, base)
+}
+
+export async function switchBranch(repo: Repo, docName: string, branch: string): Promise<void> {
+  const docId = docIdOf(docName)
+  if (!(await readHead(repo, docId, branch))) throw new Error(`分支不存在：${branch}`)
+  await writeCurrentBranch(repo, docId, branch)
+  await checkoutDoc(repo, docName, { branch })
 }
