@@ -2,17 +2,17 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 210 40% 98%;
+    --foreground: 222.2 47.4% 11.2%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 222.2 47.4% 11.2%;
     --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
+    --accent: 217 45% 93%;
     --accent-foreground: 222.2 47.4% 11.2%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
@@ -24,47 +24,101 @@
 
   /* Manual dark theme via data-theme attribute */
   [data-theme="dark"] {
-    --background: 222.2 84% 4.9%;
+    --background: 222.2 47% 5.5%;
     --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
+    --card: 222.2 42% 9.5%;
     --card-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
+    --border: 220 26% 17%;
+    --input: 220 26% 17%;
+    --muted: 222.2 38% 13%;
+    --muted-foreground: 215 20% 68%;
+    --accent: 222.2 40% 15%;
     --accent-foreground: 210 40% 98%;
-    --secondary: 217.2 32.6% 17.5%;
+    --secondary: 222.2 38% 14%;
     --secondary-foreground: 210 40% 98%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 210 40% 98%;
+    --ring: 217.2 91.2% 59.8%;
   }
 
   /* System dark mode via media query */
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --background: 222.2 84% 4.9%;
+      --background: 222.2 47% 5.5%;
       --foreground: 210 40% 98%;
-      --card: 222.2 84% 4.9%;
+      --card: 222.2 42% 9.5%;
       --card-foreground: 210 40% 98%;
-      --border: 217.2 32.6% 17.5%;
-      --muted: 217.2 32.6% 17.5%;
-      --muted-foreground: 215 20.2% 65.1%;
-      --accent: 217.2 32.6% 17.5%;
+      --border: 220 26% 17%;
+      --input: 220 26% 17%;
+      --muted: 222.2 38% 13%;
+      --muted-foreground: 215 20% 68%;
+      --accent: 222.2 40% 15%;
       --accent-foreground: 210 40% 98%;
-      --secondary: 217.2 32.6% 17.5%;
+      --secondary: 222.2 38% 14%;
       --secondary-foreground: 210 40% 98%;
+      --primary: 217.2 91.2% 59.8%;
+      --primary-foreground: 210 40% 98%;
+      --ring: 217.2 91.2% 59.8%;
     }
   }
 
   /* Legacy .dark class support */
   .dark {
-    --background: 222.2 84% 4.9%;
+    --background: 222.2 47% 5.5%;
     --foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --border: 220 26% 17%;
+    --muted: 222.2 38% 13%;
+    --muted-foreground: 215 20% 68%;
+  }
+
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background-color: hsl(var(--primary) / 0.2);
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 
 @theme inline {
+  --font-sans: Inter, "Segoe UI", "Microsoft YaHei", "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
   --color-card: hsl(var(--card));

@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { BellRing } from 'lucide-react'
 import { api } from '@renderer/lib/ipc'
 import { keys } from '@renderer/lib/queryKeys'
 import { useUiStore } from '@renderer/store/uiStore'
@@ -9,12 +10,6 @@ import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
 
 const QUICK_TAGS = ['导师反馈修改', '自我修改', '格式整理', '内容增补', '错误修正']
-
-const slideInFromBottom = {
-  initial: { opacity: 0, y: 24 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.22, ease: 'easeOut' as const },
-}
 
 export function EditLoopCard() {
   const { pendingCommitDocName, clearPendingCommit } = useUiStore()
@@ -40,20 +35,28 @@ export function EditLoopCard() {
 
   return (
     <motion.div
-      {...slideInFromBottom}
-      className="fixed bottom-4 right-4 w-96 z-50 shadow-2xl rounded-xl border border-primary/30 bg-card p-4"
+      initial={{ opacity: 0, y: 32, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 16, scale: 0.98 }}
+      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+      className="fixed bottom-4 right-4 z-50 w-96 rounded-xl border border-primary/30 bg-card/95 p-4 shadow-2xl backdrop-blur"
     >
-      <div className="flex items-start justify-between mb-3">
-        <div>
-          <p className="font-semibold text-sm">检测到文件已保存</p>
-          <p className="text-xs text-muted-foreground truncate max-w-[220px]">
-            {pendingCommitDocName}
-          </p>
+      <div className="mb-3 flex items-start justify-between gap-2">
+        <div className="flex min-w-0 items-start gap-2.5">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <BellRing className="h-4 w-4" aria-hidden />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold">检测到文件已保存</p>
+            <p className="max-w-[230px] truncate text-xs text-muted-foreground" title={pendingCommitDocName}>
+              {pendingCommitDocName}
+            </p>
+          </div>
         </div>
         <Button
           size="sm"
           variant="ghost"
-          className="h-7 text-xs"
+          className="h-7 shrink-0 text-xs text-muted-foreground hover:text-foreground"
           onClick={clearPendingCommit}
         >
           忽略
@@ -68,13 +71,13 @@ export function EditLoopCard() {
         className="mb-2"
       />
 
-      <div className="flex flex-wrap gap-1 mb-3">
+      <div className="mb-3 flex flex-wrap gap-1">
         {QUICK_TAGS.map((tag) => (
           <Button
             key={tag}
             variant="outline"
             size="sm"
-            className="h-6 text-xs px-2"
+            className="h-6 px-2 text-xs"
             onClick={() => setMessage(tag)}
           >
             {tag}
@@ -91,7 +94,7 @@ export function EditLoopCard() {
       </Button>
 
       {commitMutation.isError && (
-        <p className="text-destructive text-xs mt-2 text-center">
+        <p className="mt-2 text-center text-xs text-destructive">
           {(commitMutation.error as Error).message}
         </p>
       )}

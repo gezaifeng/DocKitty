@@ -1,14 +1,46 @@
 // apps/desktop/src/renderer/src/components/SettingsPage.tsx
 import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
+import { motion } from 'framer-motion'
+import { Archive, ArrowLeft, Database, ShieldCheck, Settings as SettingsIcon, Trash2 } from 'lucide-react'
 import { api } from '@renderer/lib/ipc'
 import { keys } from '@renderer/lib/queryKeys'
 import { useUiStore } from '@renderer/store/uiStore'
 import { StorageStats } from './StorageStats'
 import { QuarantineList } from './QuarantineList'
 import { Button } from '@renderer/components/ui/button'
-import { Separator } from '@renderer/components/ui/separator'
+import { Card, CardContent } from '@renderer/components/ui/card'
 import type { ScrubResult } from '@wordgit/shared'
+
+function SectionCard({
+  icon: Icon,
+  title,
+  index,
+  children,
+}: {
+  icon: typeof Database
+  title: string
+  index: number
+  children: React.ReactNode
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25, delay: Math.min(index * 0.06, 0.3), ease: 'easeOut' }}
+    >
+      <Card>
+        <CardContent className="p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <Icon className="h-4 w-4 text-primary" aria-hidden />
+            <h3 className="text-sm font-semibold">{title}</h3>
+          </div>
+          {children}
+        </CardContent>
+      </Card>
+    </motion.div>
+  )
+}
 
 export function SettingsPage() {
   const setRightPanel = useUiStore((s) => s.setRightPanel)
@@ -50,34 +82,32 @@ export function SettingsPage() {
   })
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-        <h2 className="font-semibold text-sm">设置</h2>
+    <div className="flex h-full min-w-0 flex-col overflow-y-auto">
+      <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-3">
+        <SettingsIcon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+        <h2 className="min-w-0 flex-1 text-sm font-semibold">设置</h2>
         <Button
           size="sm"
           variant="ghost"
-          className="h-7 text-xs"
+          className="h-7 shrink-0 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
           onClick={() => setRightPanel('preview')}
         >
+          <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
           返回预览
         </Button>
       </div>
 
-      <div className="p-4 flex flex-col gap-6">
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
         {/* Storage stats */}
         {stats && (
-          <section>
-            <h3 className="text-sm font-semibold mb-3">存储统计</h3>
+          <SectionCard icon={Database} title="存储统计" index={0}>
             <StorageStats stats={stats} />
-          </section>
+          </SectionCard>
         )}
 
-        <Separator />
-
         {/* Backup */}
-        <section>
-          <h3 className="text-sm font-semibold mb-3">备份</h3>
-          <div className="flex gap-2">
+        <SectionCard icon={Archive} title="备份" index={1}>
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -96,17 +126,14 @@ export function SettingsPage() {
             </Button>
           </div>
           {exportMutation.data && (
-            <p className="text-xs text-muted-foreground mt-2">
+            <p className="mt-2 text-xs text-muted-foreground">
               已导出 {exportMutation.data.fileCount} 个文件
             </p>
           )}
-        </section>
-
-        <Separator />
+        </SectionCard>
 
         {/* Scrub */}
-        <section>
-          <h3 className="text-sm font-semibold mb-3">数据完整性</h3>
+        <SectionCard icon={ShieldCheck} title="数据完整性" index={2}>
           <Button
             variant="outline"
             size="sm"
@@ -127,15 +154,12 @@ export function SettingsPage() {
               )}
             </div>
           )}
-        </section>
-
-        <Separator />
+        </SectionCard>
 
         {/* Quarantine */}
-        <section>
-          <h3 className="text-sm font-semibold mb-3">回收区（已删除的分支）</h3>
+        <SectionCard icon={Trash2} title="回收区（已删除的分支）" index={3}>
           <QuarantineList entries={quarantineEntries ?? []} />
-        </section>
+        </SectionCard>
       </div>
     </div>
   )

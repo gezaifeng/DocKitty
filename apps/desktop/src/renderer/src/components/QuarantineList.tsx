@@ -1,5 +1,6 @@
 // apps/desktop/src/renderer/src/components/QuarantineList.tsx
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { ArchiveRestore } from 'lucide-react'
 import { api } from '@renderer/lib/ipc'
 import { keys } from '@renderer/lib/queryKeys'
 import { Button } from '@renderer/components/ui/button'
@@ -22,7 +23,10 @@ export function QuarantineList({ entries }: QuarantineListProps) {
 
   if (entries.length === 0) {
     return (
-      <p className="text-muted-foreground text-sm">回收区为空</p>
+      <div className="flex items-center gap-2 rounded-lg border border-dashed border-border p-3 text-muted-foreground">
+        <ArchiveRestore className="h-4 w-4 shrink-0 opacity-60" aria-hidden />
+        <p className="text-sm">回收区为空</p>
+      </div>
     )
   }
 
@@ -31,11 +35,13 @@ export function QuarantineList({ entries }: QuarantineListProps) {
       {entries.map((entry) => (
         <div
           key={entry.id}
-          className="flex items-center justify-between p-2 rounded-lg border border-border"
+          className="flex items-center justify-between gap-2 rounded-lg border border-border p-2 transition-colors hover:bg-accent/40"
         >
           <div className="min-w-0">
-            <p className="text-sm font-medium">{entry.docName}</p>
-            <div className="flex items-center gap-1 mt-0.5">
+            <p className="truncate text-sm font-medium" title={entry.docName}>
+              {entry.docName}
+            </p>
+            <div className="mt-0.5 flex items-center gap-1">
               <Badge variant="outline" className="text-xs">{entry.branch}</Badge>
               <span className="text-xs text-muted-foreground">
                 {new Date(entry.deletedAt).toLocaleDateString('zh-CN')}
@@ -45,7 +51,7 @@ export function QuarantineList({ entries }: QuarantineListProps) {
           <Button
             size="sm"
             variant="outline"
-            className="h-7 text-xs shrink-0 ml-2"
+            className="ml-2 h-7 shrink-0 text-xs"
             onClick={() => restoreMutation.mutate(entry.id)}
             disabled={restoreMutation.isPending}
           >
