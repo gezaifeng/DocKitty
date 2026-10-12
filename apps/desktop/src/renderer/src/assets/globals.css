@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+@layer base {
+  html, body, #root { height:100%; margin:0; }
+  body { background:var(--wg-bg); color:var(--wg-text); -webkit-font-smoothing:antialiased; }
+  ::selection { background:var(--wg-selected); color:var(--wg-text); }
+  ::-webkit-scrollbar { width:9px; height:9px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:color-mix(in srgb,var(--wg-muted) 35%,transparent); border:2px solid transparent; background-clip:content-box; border-radius:8px; }
+  @media(prefers-reduced-motion:reduce){*,::before,::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;}}
+}
+
+@theme inline {
+  --font-sans: "Segoe UI", "Microsoft YaHei", sans-serif;
+  --color-background: var(--wg-bg);
+  --color-foreground: var(--wg-text);
+  --color-card: var(--wg-surface);
+  --color-card-foreground: var(--wg-text);
+  --color-primary: var(--wg-accent);
+  --color-primary-foreground: var(--wg-on-accent);
+  --color-secondary: var(--wg-soft);
+  --color-secondary-foreground: var(--wg-text);
+  --color-muted: var(--wg-soft);
+  --color-muted-foreground: var(--wg-muted);
+  --color-accent: var(--wg-selected);
+  --color-accent-foreground: var(--wg-text);
+  --color-destructive: var(--wg-danger);
+  --color-destructive-foreground: #fff;
+  --color-border: var(--wg-line);
+  --color-input: var(--wg-line);
+  --color-ring: var(--wg-focus);
+  --radius-lg: var(--wg-radius);
+  --radius-md: var(--wg-radius);
+  --radius-sm: var(--wg-radius);
+}

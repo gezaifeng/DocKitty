@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="稿喵图标"><rect x="4" y="4" width="248" height="248" rx="54" fill="#e7f1e7"/><svg xmlns="http://www.w3.org/2000/svg" x="15" y="10" width="226" height="236" viewBox="80 36 178 202" role="img" aria-label="稿喵，小猫接住文稿"><g opacity="1">
+    <ellipse cx="151" cy="227" rx="70" ry="7" fill="#284f45" opacity=".12"/>
+    <g transform="translate(0 0)">
+      <g data-cat-tail="true" fill="none" stroke-linecap="round"><path d="M179 205C208 218 242 201 241 174C241 161 232 156 224 163" stroke="#284f45" stroke-width="15"/><path d="M179 205C208 218 242 201 241 174C241 161 232 156 224 163" stroke="#e9b98b" stroke-width="9"/></g>
+      <ellipse cx="151" cy="173" rx="55" ry="51" fill="#fffdf6" stroke="#284f45" stroke-width="4"/>
+      <path d="M101 96 101 47l31 23q19-6 38 0l31-23v49q2 43-50 43t-50-43Z" fill="#fffdf6" stroke="#284f45" stroke-width="4.5" stroke-linejoin="round"/>
+      <path d="m109 62 19 16-18 10m83-26-19 16 18 10" fill="#e9b98b"/>
+      <g fill="#284f45"><ellipse cx="131" cy="101" rx="3.5" ry="4.5"/><ellipse cx="171" cy="101" rx="3.5" ry="4.5"/></g>
+      <path d="m146 115 5 4 5-4m-5 4v5q-8 6-13-1m13 1q8 6 13-1M117 115l-16-3m16 11-16 3m84-11 16-3m-16 11 16 3" fill="none" stroke="#284f45" stroke-width="3" stroke-linecap="round"/>
+    </g>
+    <path data-cat-arms="true" d="M105 154Q88 154 101 174M197 154Q215 154 201 174" fill="none" stroke="#284f45" stroke-width="4" stroke-linecap="round"/>
+    <g data-cat-paper="true" transform="translate(151 174) rotate(0)">
+      <path d="M-40-40h57l32 23v51q0 7-7 7h-82q-9 0-9-9v-63q0-9 9-9Z" fill="#fffdf6" stroke="#284f45" stroke-width="4" stroke-linejoin="round"/>
+      <path d="M17-40v23h32" fill="#dceee4" stroke="#284f45" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M-28-10h53m-53 15h53m-53 15h34.45" fill="none" stroke="#7da893" stroke-width="4" stroke-linecap="round"/>
+    </g>
+    <g data-cat-paws="true" fill="#fffdf6" stroke="#284f45" stroke-width="4" stroke-linecap="round">
+      <ellipse cx="101" cy="174" rx="15" ry="12" transform="rotate(-18 101 174)"/>
+      <ellipse cx="201" cy="174" rx="15" ry="12" transform="rotate(18 201 174)"/>
+      <path d="M97 171v5m6-5v5M198 171v5m6-5v5" stroke-width="2"/>
+    </g>
+  </g></svg></svg>

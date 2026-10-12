@@ -1,0 +1,77 @@
+/* Three distinct visual grammars share the workspace's semantic color contract. */
+[data-theme=raw]{color-scheme:light;--wg-bg:#f2d4cf;--wg-surface:#fff;--wg-soft:#e5edd6;--wg-raised:#ddb8af;--wg-text:#0a0a0a;--wg-muted:#555;--wg-line:#0a0a0a;--wg-accent:#1d4434;--wg-on-accent:#fff;--wg-selected:#d6e8bd;--wg-success:#315a35;--wg-danger:#9b302d;--wg-focus:#1d4434;--wg-radius:0px;--wg-stroke:2px;--wg-shadow:5px 5px 0 #0a0a0a;--wg-header:#f2d4cf;--wg-nav:#fff}
+[data-theme=retro]{color-scheme:light;--wg-bg:#598582;--wg-surface:#d4d0c8;--wg-soft:#c0c0c0;--wg-raised:#aaa69c;--wg-text:#222;--wg-muted:#515151;--wg-line:#808080;--wg-accent:#333;--wg-on-accent:#fff;--wg-selected:#b8ccc4;--wg-success:#275442;--wg-danger:#8b2929;--wg-focus:#222;--wg-radius:0px;--wg-stroke:1px;--wg-shadow:inset 2px 2px #fff,inset -2px -2px #808080;--wg-header:#d4d0c8;--wg-nav:#d4d0c8;--wg-window-title:#000080}
+[data-theme=capsule]{color-scheme:light;--wg-bg:#f5f5f0;--wg-surface:#fff;--wg-soft:#ece6f5;--wg-raised:#d6c9e6;--wg-text:#1a1a1a;--wg-muted:#62625a;--wg-line:#1e1e1e;--wg-accent:#aa4237;--wg-on-accent:#fff;--wg-selected:#ddd0ee;--wg-success:#415722;--wg-danger:#96352d;--wg-focus:#aa4237;--wg-radius:20px;--wg-stroke:1px;--wg-shadow:none;--wg-header:#fff;--wg-nav:#fff}
+.wg-theme-options{max-height:min(600px,calc(100vh - 110px));overflow-y:auto;overscroll-behavior:contain}
+.wg-theme-swatch.raw{background:linear-gradient(135deg,#f2d4cf 50%,#d6e8bd 50%);box-shadow:2px 2px #0a0a0a}
+.wg-theme-swatch.retro{background:#d4d0c8;border:2px outset #fff;box-shadow:inset 0 7px #000080}
+.wg-theme-swatch.capsule{background:linear-gradient(135deg,#ddd0ee 50%,#e8eecf 50%);border-radius:15px}
+
+/* Pink/green blocks: crisp offset layers, marker strips and asymmetric color panels. */
+[data-theme=raw] .wg-file-center{background:var(--wg-bg)}
+[data-theme=raw] .wg-menubar{border-bottom:3px solid var(--wg-line)}
+[data-theme=raw] .wg-projectbar{background:var(--wg-bg);border-bottom:3px solid var(--wg-line)}
+[data-theme=raw] .wg-nav{border-right:3px solid var(--wg-line)}
+[data-theme=raw] .wg-inspector{background:#e5edd6;border-left:3px solid var(--wg-line)}
+[data-theme=raw] .wg-document-card,[data-theme=raw] .wg-graph-node,[data-theme=raw] .wg-version-card,[data-theme=raw] .wg-stat-cards section{box-shadow:5px 5px 0 var(--wg-line)}
+[data-theme=raw] .wg-document-card-heading strong,[data-theme=raw] .wg-stat-heading h1{font-weight:850;letter-spacing:-.4px}
+[data-theme=raw] .wg-document-type{background:#e5edd6;border-top:7px solid #ddb8af}
+[data-theme=raw] .wg-stat-cards section:nth-child(2n){background:#e5edd6}
+[data-theme=raw] .wg-category-tag{background:#f2d4cf}
+[data-theme=raw] .wg-viewbar nav button.active,[data-theme=raw] .wg-nav>button.active{box-shadow:4px 4px 0 var(--wg-line)}
+[data-theme=raw] .wg-button:not(.subtle),[data-theme=raw] .wg-theme-trigger{box-shadow:2px 2px 0 var(--wg-line)}
+[data-theme=raw] .wg-dialog{box-shadow:7px 7px 0 var(--wg-line)!important}
+[data-theme=raw] .wg-stat-sidebar section>h3{border-left:6px solid #1d4434;padding-left:10px}
+[data-theme=raw] .wg-graph-riffle{--hairline-stroke:1.15}
+
+/* Classic desktop: raised controls, inset inputs, solid title bars, no blue body text. */
+[data-theme=retro] .wordgit-workspace,[data-theme=retro] .wg-dialog,[data-theme=retro] .wg-version-menu,[data-theme=retro] .wg-cat-menu{font-family:SimSun,'Microsoft YaHei',serif}
+[data-theme=retro] .wg-projectbar{margin:5px 6px 0;border:2px outset #fff;background:var(--wg-surface)}
+[data-theme=retro] .wg-viewbar{background:var(--wg-surface);border-bottom:2px groove #fff}
+[data-theme=retro] .wg-graph-canvas{background-image:none}
+[data-theme=retro] .wg-document-grid-scroll{background:var(--wg-bg);padding-top:12px}
+[data-theme=retro] .wg-document-card,[data-theme=retro] .wg-graph-node,[data-theme=retro] .wg-version-card,[data-theme=retro] .wg-stat-cards section,[data-theme=retro] .wg-stat-chart-panel,[data-theme=retro] .wg-stat-detail,[data-theme=retro] .wg-stat-table{border:2px outset #fff;box-shadow:var(--wg-shadow)}
+[data-theme=retro] .wg-document-card-heading strong{font-weight:600;font-family:SimSun,serif}
+[data-theme=retro] .wg-document-type{border:2px inset #fff;background:#c0c0c0}
+[data-theme=retro] .wg-button:not(.subtle),[data-theme=retro] .wg-icon-button,[data-theme=retro] .wg-theme-trigger,[data-theme=retro] .wg-viewbar nav button,[data-theme=retro] .wg-nav>button{border:2px outset #fff;box-shadow:none}
+[data-theme=retro] .wg-button:active,[data-theme=retro] .wg-viewbar nav button.active,[data-theme=retro] .wg-nav>button.active{border-style:inset;box-shadow:none}
+[data-theme=retro] .wg-search,[data-theme=retro] input,[data-theme=retro] textarea,[data-theme=retro] select{border:2px inset #fff!important;background:#fff;color:#222}
+[data-theme=retro] .wg-search input{border:0!important;background:transparent}
+[data-theme=retro] .wg-files-heading,[data-theme=retro] .wg-history-drawer>header,[data-theme=retro] .wg-column-heading,[data-theme=retro] .wg-stat-heading{background:var(--wg-window-title);color:#fff;padding:12px}
+[data-theme=retro] .wg-files-heading strong,[data-theme=retro] .wg-files-heading span,[data-theme=retro] .wg-column-heading strong,[data-theme=retro] .wg-column-heading small,[data-theme=retro] .wg-stat-heading h1,[data-theme=retro] .wg-stat-heading p,[data-theme=retro] .wg-stat-heading small{color:#fff}
+[data-theme=retro] .wg-history-drawer>header button,[data-theme=retro] .wg-column-tools button{color:#fff;background:transparent}
+[data-theme=retro] .wg-dialog{border:3px outset #fff!important;box-shadow:none!important;padding:12px!important}
+[data-theme=retro] .wg-dialog>h2{background:var(--wg-window-title);color:#fff!important;font-family:SimSun,serif;margin:-5px -5px 16px;padding:9px;font-size:18px}
+[data-theme=retro] .wg-dialog>p{padding-inline:4px}
+[data-theme=retro] .wg-theme-options,[data-theme=retro] .wg-version-menu,[data-theme=retro] .wg-cat-menu{border:2px outset #fff;box-shadow:2px 2px 0 #333}
+[data-theme=retro] .wg-theme-options button[aria-selected=true],[data-theme=retro] .wg-theme-options button:focus,[data-theme=retro] .wg-version-menu>button:hover,[data-theme=retro] .wg-cat-menu>button:hover{background:#333;color:#fff}
+[data-theme=retro] .wg-theme-options button:focus small,[data-theme=retro] .wg-theme-options button[aria-selected=true] small{color:#fff}
+[data-theme=retro] .wg-owner-tag,[data-theme=retro] .wg-category-tag{border:2px outset #fff;background:#d4d0c8}
+
+/* Stationery: soft containers, long pill controls and colored paper tabs. */
+[data-theme=capsule] .wg-document-card,[data-theme=capsule] .wg-version-card{background:#f3eff8;border-radius:24px;box-shadow:none}
+[data-theme=capsule] .wg-document-card:nth-child(3n+2),[data-theme=capsule] .wg-version-card:nth-child(3n+2){background:#edf1d6}
+[data-theme=capsule] .wg-document-card:nth-child(3n),[data-theme=capsule] .wg-version-card:nth-child(3n){background:#e3ece7}
+[data-theme=capsule] .wg-document-card.selected,[data-theme=capsule] .wg-version-card.selected{background:var(--wg-selected);outline:2px solid var(--wg-accent);outline-offset:-5px}
+[data-theme=capsule] .wg-button,[data-theme=capsule] .wg-theme-trigger,[data-theme=capsule] .wg-search,[data-theme=capsule] .wg-viewbar nav button,[data-theme=capsule] .wg-nav>button,[data-theme=capsule] .wg-stat-sidebar section button{border-radius:999px}
+[data-theme=capsule] .wg-icon-button{border-radius:50%}
+[data-theme=capsule] .wg-document-type{border-radius:14px;background:#c5b5e0}
+[data-theme=capsule] .wg-document-state,[data-theme=capsule] .wg-route-pill,[data-theme=capsule] .wg-owner-tag,[data-theme=capsule] .wg-category-tag{border-radius:999px;padding:5px 10px}
+[data-theme=capsule] .wg-category-tag{background:#edf1d6}
+[data-theme=capsule] .wg-nav>button.active,[data-theme=capsule] .wg-stat-sidebar section button.active{border-left:3px solid var(--wg-accent);box-shadow:none}
+[data-theme=capsule] .wg-stat-cards section:nth-child(2n){background:#edf1d6}
+[data-theme=capsule] .wg-stat-chart-panel,[data-theme=capsule] .wg-stat-detail,[data-theme=capsule] .wg-stat-table{border-radius:24px}
+[data-theme=capsule] .wg-dialog{border-radius:26px!important;box-shadow:none!important}
+[data-theme=capsule] .wg-field input,[data-theme=capsule] .wg-field select{border-radius:16px}
+[data-theme=capsule] .wg-field textarea{border-radius:16px}
+[data-theme=capsule] .wg-theme-options,[data-theme=capsule] .wg-version-menu,[data-theme=capsule] .wg-cat-menu{border-radius:18px;padding:10px}
+[data-theme=capsule] .wg-version-menu button,[data-theme=capsule] .wg-cat-menu button{border-radius:10px}
+
+/* Keep the mascot transparent across every theme, including beveled controls. */
+.wordgit-workspace .wg-sidebar-cat>button,.wordgit-workspace .wg-sidebar-cat>button:is(:hover,:active,:focus){background:transparent;border:0;box-shadow:none}
+
+[data-theme=retro] .wg-files-heading small,[data-theme=retro] .wg-stat-heading span{color:#fff}
+[data-theme=retro] .wg-statistics{font-family:SimSun,'Microsoft YaHei',serif}
+[data-theme=raw] :is(.wg-radio-options>label,.wg-source-row,.wg-edit-source,.wg-version-choice){border-radius:0;border:2px solid var(--wg-line)}
+[data-theme=retro] :is(.wg-radio-options>label,.wg-source-row,.wg-edit-source,.wg-version-choice){border-radius:0;border:2px inset #fff}
+[data-theme=capsule] :is(.wg-radio-options>label,.wg-source-row,.wg-edit-source,.wg-version-choice){border-radius:18px}

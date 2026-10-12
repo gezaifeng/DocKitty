@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><rect x="4" y="4" width="248" height="248" rx="54" fill="#f1eee5"/><svg x="8" y="14" width="240" height="228" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 260" role="img" aria-label="蚯蚓连接文档的三个版本">
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path data-worm-track="true" d="M49 206C22 179 54 145 94 163S142 204 180 182S171 126 209 132S248 143 248 113" stroke="#4c5449" stroke-width="23"></path>
+    <path data-worm-body="true" d="M49 206C22 179 54 145 94 163S142 204 180 182S171 126 209 132S248 143 248 113" stroke="#ce8b71" stroke-width="17"></path>
+    <g data-worm-rings="true" stroke="#8c5d4e" stroke-width="1.6"><path d="M31.998612962951842 191.78717378154576Q39.16834681213621 188.12180660596022 47.21719209075909 188.3586392067355" data-worm-ring="0.058823529411764705"></path><path d="M36.18600215721513 167.908448757368Q43.836466969170715 170.4204973558289 49.33425388526534 176.30389255122574" data-worm-ring="0.11764705882352941"></path><path d="M54.33999886016847 153.39469416242196Q59.062128402989764 159.91707812695626 60.063168864440904 167.90694157976554" data-worm-ring="0.17647058823529413"></path><path d="M76.21851297399037 150.33465093593063Q77.59805988903672 158.26792581514576 74.99002889612682 165.88620477696" data-worm-ring="0.23529411764705882"></path><path d="M96.79473590197452 155.70589374889332Q95.47241229432925 163.64890704843296 90.4911832874786 169.97562480579418" data-worm-ring="0.29411764705882354"></path><path d="M114.20763569374049 164.66376313050537Q112.02572619894644 172.41484505218105 106.38332194786108 178.1596926800415" data-worm-ring="0.35294117647058826"></path><path d="M130.34840470288248 174.5601497286553Q127.97202781240159 182.25383758782843 122.18676680590659 187.85479778111034" data-worm-ring="0.4117647058823529"></path><path d="M145.29360580976748 182.03441451557615Q144.92889251829178 190.0784796703981 140.73849868242002 196.95456863872073" data-worm-ring="0.47058823529411764"></path><path d="M159.6853089254928 182.34381450365746Q163.457591805828 189.45787676587656 163.34127188505408 197.50936542798317" data-worm-ring="0.5294117647058824"></path><path d="M174.9210907936786 175.91785666892264Q180.48800872546656 181.73588251458006 182.5685332297589 189.5147910361555" data-worm-ring="0.5882352941176471"></path><path d="M185.9001691625159 166.42191203896687Q193.62152832271582 168.70677805674487 199.29077932381222 174.42513385947063" data-worm-ring="0.6470588235294118"></path><path d="M187.8419662013521 153.37677988143867Q195.29481253478235 150.32799626657265 203.29514927716352 151.24156728653008" data-worm-ring="0.7058823529411765"></path><path d="M187.38788442673825 129.69711958598964Q195.0113935062216 132.28982267640222 200.44674081740237 138.23095048236974" data-worm-ring="0.7647058823529411"></path><path d="M213.0542837153717 124.75231889420073Q213.76480192115847 132.77323928273753 210.5281137455658 140.14642378158052" data-worm-ring="0.8235294117647058"></path><path d="M231.49161412359695 127.94214730334237Q232.2290905070306 135.96063398000882 229.01720545648118 143.3446568958764" data-worm-ring="0.8823529411764706"></path></g>
+  </g>
+  <g data-version="0" data-arrival=".2" style="transform-origin:55px 144px">
+    <path d="M36 118H59L75 134V167H36Z" fill="#f7f4ed" stroke="#7e8979" stroke-width="2.4" stroke-linejoin="round"></path>
+    <path d="M59 118V134H75M44 146H65M44 154H60" fill="none" stroke="#9ea894" stroke-width="2.2" stroke-linecap="round"></path>
+    
+  </g>
+  <g data-version="1" data-arrival=".56" style="transform-origin:135px 172px">
+    <path d="M113 146H140L158 164V199H113Z" fill="#e8edde" stroke="#6e7c63" stroke-width="2.4" stroke-linejoin="round"></path>
+    <path d="M140 146V164H158M121 176H149M121 185H145" fill="none" stroke="#8c9e7c" stroke-width="2.2" stroke-linecap="round"></path>
+    
+  </g>
+  <g data-version="2" data-arrival=".82" style="transform-origin:209px 110px">
+    <svg data-version-paper="true" x="177" y="74" width="62" height="72" viewBox="177 74 62 72"><rect x="177" y="74" width="62" height="72" fill="transparent" data-page-bounds="true"></rect>
+      <g stroke="#4c5449" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M184 77H218L236 95V140Q236 143 233 143H184Q180 143 180 139V81Q180 77 184 77Z" fill="#fffdf6" stroke-width="3"></path>
+        <path d="M218 77V95H236" fill="#dce6ce" stroke-width="2.5"></path>
+        <path d="M190 108H225M190 118H225M190 128H212" fill="none" stroke="#879a74" stroke-width="2.8"></path>
+      </g>
+    </svg>
+    
+  </g>
+  <g data-worm-head="true" transform="translate(248 113)">
+    <ellipse rx="11" ry="12" fill="#ce8b71" stroke="#4c5449" stroke-width="2.5"></ellipse>
+    <path d="M-4-4V-2M4-4V-2" fill="none" stroke="#4c5449" stroke-width="2.4" stroke-linecap="round"></path>
+    <path d="M-3 3Q0 6 3 3" fill="none" stroke="#4c5449" stroke-width="1.7" stroke-linecap="round"></path>
+  </g>
+</svg></svg>

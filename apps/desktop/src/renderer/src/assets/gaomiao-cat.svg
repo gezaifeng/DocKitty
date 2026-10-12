@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 260" role="img" aria-label="稿喵，戴着折角文档胸牌的小猫">
+  <g stroke="#284f45" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M190 194C216 213 249 195 243 169C239 152 223 151 220 164" fill="none" stroke-width="15"/>
+    <path d="M190 194C216 213 249 195 243 169C239 152 223 151 220 164" fill="none" stroke="#e9b98b" stroke-width="8"/>
+    <path d="M112 123C95 137 89 162 94 187C97 207 108 219 126 219H175C193 219 203 207 206 187C210 162 204 136 187 123Z" fill="#fffdf6" stroke-width="4.5"/>
+    <path d="M99 97V54L125 72Q150 63 178 72L202 48L202 98C206 130 182 146 150 146C117 146 94 129 99 97Z" fill="#fffdf6" stroke-width="4.5"/>
+    <path d="M100 54L125 72L106 76Z" fill="#e9b98b" stroke-width="3"/>
+    <path d="M183 78L195 63V86Z" fill="#e9b98b" stroke="none"/>
+    <path d="M124 103V108M175 103V108" fill="none" stroke-width="5"/>
+    <path d="M145 120L150 123L155 120" fill="none" stroke-width="3"/>
+    <path d="M150 123V128Q143 135 137 128M150 128Q157 135 163 128" fill="none" stroke-width="2.7"/>
+    <path d="M112 117L94 113M112 125L94 129M188 117L206 113M188 125L206 129" fill="none" stroke-width="2.7"/>
+    <path d="M115 147Q150 167 185 147" fill="none" stroke="#7da893" stroke-width="3"/>
+    <path d="M110 162Q105 179 118 187Q126 190 132 182M190 162Q195 179 182 187Q174 190 168 182" fill="none" stroke-width="3.3"/>
+    <path d="M121 207V218M178 207V218" fill="none" stroke-width="3"/>
+    <svg data-cat-paper="true" x="127" y="156" width="48" height="49" viewBox="127 156 48 49">
+      <path d="M133 158H161L173 170V199Q173 203 169 203H133Q129 203 129 199V162Q129 158 133 158Z" fill="#dceee4" stroke-width="3"/>
+      <path d="M161 158V170H173" fill="#fffdf6" stroke-width="2.3"/>
+      <path d="M137 179H164M137 187H164M137 195H153" fill="none" stroke="#6e9481" stroke-width="2.4"/>
+    </svg>
+  </g>
+</svg>

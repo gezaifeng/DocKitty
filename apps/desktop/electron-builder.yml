@@ -1,0 +1,26 @@
+appId: com.gezaifeng.dockitty
+productName: 稿喵
+artifactName: DocKitty-Setup-${version}-${arch}.${ext}
+directories:
+  output: ../../dist/releases
+
+win:
+  icon: resources/icon.ico
+  signAndEditExecutable: false
+  target:
+    - nsis
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: 稿喵
+  deleteAppDataOnUninstall: false
+
+files:
+  - out/**/*
+  - resources/icon.png
+  - resources/icon.ico
+  - "!node_modules"
