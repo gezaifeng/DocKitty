@@ -2,6 +2,7 @@ import { test, expect, _electron as electron } from '@playwright/test'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
+import { captureGraph } from './graphHelpers.js'
 
 for(const system of ['light','dark'] as const)test(`visual theme matrix under system ${system}`,async()=>{
  test.setTimeout(240000)
@@ -10,6 +11,7 @@ for(const system of ['light','dark'] as const)test(`visual theme matrix under sy
  const app=await electron.launch({executablePath:process.env.WORDGIT_ELECTRON??path.resolve('node_modules/.cache/electron-runtime/dist/electron.exe'),args:[process.env.WORDGIT_APP??path.resolve('apps/desktop'),'--user-data-dir='+path.join(temporary,'profile')],env})
  try{
   const page=await app.firstWindow(),errors:string[]=[];page.on('pageerror',e=>errors.push(e.message))
+  await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].webContents.setBackgroundThrottling(false))
   await page.emulateMedia({colorScheme:system,reducedMotion:'reduce'})
   await expect(page.locator('.wg-startup')).toHaveCount(0)
   const output=path.resolve('docs/visual-audit',system);await fs.mkdir(output,{recursive:true})
@@ -27,7 +29,7 @@ for(const system of ['light','dark'] as const)test(`visual theme matrix under sy
    expect(audit.theme).toBe(theme==='system'?system:theme)
    expect(audit.scheme).toBe((theme==='system'?system:theme)==='dark'?'dark':'light')
    if(theme==='blockframe'){expect(audit.ink).toBe('#171717');expect(audit.surface).toBe('#fff')}
-   await page.screenshot({path:path.join(output,theme+'-'+screen+'.png'),scale:'css'})
+   await captureGraph(app,path.join(output,theme+'-'+screen+'.png'))
    report.push({theme,screen,...audit})
   }
   const themes=(process.env.WORDGIT_NEW_THEMES ? [['raw','粉绿方块'],['retro','经典视窗'],['capsule','胶囊文具']] : [['blockframe','BlockFrame'],['light','浅色办公'],['paper','纸张书房'],['dark','石墨暗色'],['system','跟随系统']])

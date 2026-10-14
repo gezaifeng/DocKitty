@@ -67,7 +67,7 @@ test('independent editing sessions, Git tips, viewport controls and source isola
   await fs.writeFile(bfile,docx('杂志B独立投稿格式'))
   await expect.poll(async()=>(await detail()).versions.length,{timeout:15000}).toBe(3)
   const b=(await detail()).branchHeads['杂志B投稿'];expect((await detail()).versions.find(v=>v.id===b)?.parents).toEqual([first]);expect((await detail()).branchHeads.main).toBe(child)
-  await expect(page.getByLabel('查看分支')).toHaveValue('current');await expect(page.locator('.wg-graph-node')).toHaveCount(2)
+  await expect(page.getByLabel('查看分支')).toHaveValue('current');await expect(page.locator('.wg-graph-node')).toHaveCount(1)
   await page.getByLabel('查看分支').selectOption('all');await expect(page.locator('.wg-graph-node')).toHaveCount(3)
   await page.screenshot({path:path.join(output,'主稿与并列投稿分支.png')})
   await page.getByRole('button',{name:'展开预览',exact:true}).click();await expect(page.getByRole('dialog').locator('.wg-docx-preview section').first()).toBeVisible();await page.screenshot({path:path.join(output,'展开文档预览.png')});await page.getByRole('button',{name:'关闭',exact:true}).click()

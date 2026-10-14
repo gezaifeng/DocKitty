@@ -7,10 +7,11 @@ import { docIdOf, writeHead, writeCurrentBranch } from './refs.js'
 import { validateBranchName, containedPath } from './names.js'
 import { defaultVersionPositions } from './versionLayout.js'
 import { withRepoWrite } from './writeLock.js'
+import { EdgeStyleSchema, type EdgeStyle } from '../../shared/src/edgeStyle.js'
 
-type Action = 'disconnectPrevious' | 'disconnectNext' | 'connectPrevious' | 'connectNext' | 'moveBranch'
+type Action = 'disconnectPrevious' | 'disconnectNext' | 'connectPrevious' | 'connectNext' | 'moveBranch' | 'renameConnection' | 'reverseConnection' | 'styleConnection'
 
-export async function editVersionRelations(repo: Repo, docName: string, id: string, request: { action: Action; targetVersionId?: string; branch?: string }) {
+export async function editVersionRelations(repo: Repo, docName: string, id: string, request: { action: Action; targetVersionId?: string; branch?: string; label?: string; note?: string; style?: EdgeStyle }) {
   return withRepoWrite(repo, async () => {
     const detail = await documentDetail(repo, docName), meta = await readLibraryMeta(repo, docName)
     const version = detail.versions.find(v => v.id === id && !v.deletedAt)
@@ -18,6 +19,9 @@ export async function editVersionRelations(repo: Repo, docName: string, id: stri
     const byId = new Map(detail.versions.map(v => [v.id, v]))
     const parents = new Map(detail.versions.map(v => [v.id, [...v.parents]]))
     const affected = new Set<string>()
+    const labels = new Map(detail.versions.map(v => [v.id, { ...v.parentLabels }]))
+    const notes = new Map(detail.versions.map(v => [v.id, { ...v.parentNotes }]))
+    const styles = new Map(detail.versions.map(v => [v.id, { ...v.parentStyles }]))
     const replace = (versionId: string, previous: string[]) => { parents.set(versionId, previous); affected.add(versionId) }
     if (request.action === 'disconnectPrevious') replace(id, [])
     if (request.action === 'disconnectNext' || request.action === 'moveBranch') {
@@ -29,6 +33,22 @@ export async function editVersionRelations(repo: Repo, docName: string, id: stri
       const child = request.action === 'connectPrevious' ? id : target.id
       const parent = request.action === 'connectPrevious' ? target.id : id
       replace(child, [...new Set([...(parents.get(child) ?? []), parent])])
+    }
+    if (request.action === 'renameConnection' || request.action === 'reverseConnection' || request.action === 'styleConnection') {
+      const target = byId.get(request.targetVersionId ?? '')
+      if (!target || target.deletedAt || !target.parents.includes(id)) throw new Error('连接不存在，请重新选择连线')
+      if (request.label !== undefined && (typeof request.label !== 'string' || request.label.length > 10000)) throw new Error('连线名称无效')
+      if (request.note !== undefined && (typeof request.note !== 'string' || request.note.length > 10000)) throw new Error('连线备注无效')
+      const note = request.note?.trim() ?? notes.get(target.id)![id] ?? ''
+      const label = request.label?.trim() ?? labels.get(target.id)![id] ?? ''
+      const style = request.style ? { ...styles.get(target.id)![id], ...EdgeStyleSchema.parse(request.style) } : styles.get(target.id)![id]
+      if (request.action === 'reverseConnection') {
+        replace(target.id, target.parents.filter(parent => parent !== id))
+        replace(id, [...new Set([...(parents.get(id) ?? []), target.id])])
+        labels.get(id)![target.id] = label
+        notes.get(id)![target.id] = note
+        if (style) styles.get(id)![target.id] = style
+      } else { labels.get(target.id)![id] = label; notes.get(target.id)![id] = note; if (style) styles.get(target.id)![id] = style; affected.add(target.id) }
     }
     if (request.action === 'moveBranch') {
       const branch = validateBranchName(request.branch ?? '')
@@ -56,6 +76,9 @@ export async function editVersionRelations(repo: Repo, docName: string, id: stri
     for (const node of affected) {
       const v = meta.versions[node] ??= {}
       v.parents = parents.get(node)!
+      v.parentLabels = Object.fromEntries(Object.entries(labels.get(node)!).filter(([parent]) => v.parents!.includes(parent)))
+      v.parentNotes = Object.fromEntries(Object.entries(notes.get(node)!).filter(([parent]) => v.parents!.includes(parent)))
+      v.parentStyles = Object.fromEntries(Object.entries(styles.get(node)!).filter(([parent]) => v.parents!.includes(parent)))
       v.branchMembership ??= byId.get(node)!.branches
     }
     if (request.action === 'moveBranch') {

@@ -8,7 +8,8 @@
     "test": "pnpm -r run test",
     "typecheck": "pnpm -r run typecheck",
     "e2e": "playwright test",
-    "build:desktop": "pnpm --filter @wordgit/desktop build",
+    "build:mcp": "pnpm --filter @wordgit/mcp build && node scripts/mcp-licenses.mjs && node scripts/copy-mcp.mjs",
+    "build:desktop": "pnpm --filter @wordgit/desktop build && pnpm run build:mcp",
     "package:installer": "pnpm run build:desktop && node scripts/package-installer.mjs",
     "package:desktop": "pnpm run build:desktop && node scripts/package-desktop.mjs"
   },

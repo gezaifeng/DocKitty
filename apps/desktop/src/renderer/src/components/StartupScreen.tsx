@@ -3,7 +3,8 @@ import { poseMascot } from '../brand/mascot'
 import { Mascot } from './Mascot'
 import '../assets/startup.css'
 
-export function StartupScreen({ ready, revealRef, onFinish }: {
+export function StartupScreen({ ready, revealRef, onFinish, reduceMotion = false }: {
+  reduceMotion?: boolean
   ready: boolean
   revealRef: RefObject<HTMLDivElement | null>
   onFinish: () => void
@@ -13,11 +14,13 @@ export function StartupScreen({ ready, revealRef, onFinish }: {
   const exiting = useRef(false)
   const [caught, setCaught] = useState(false)
   const [phase, setPhase] = useState('connecting')
-  const [reduced, setReduced] = useState(() => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false)
+  const [systemReduced, setSystemReduced] = useState(() => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false)
+
+  const reduced = reduceMotion || systemReduced
 
   useEffect(() => {
     const media = window.matchMedia?.('(prefers-reduced-motion: reduce)')
-    const change = () => setReduced(media?.matches ?? false)
+    const change = () => setSystemReduced(media?.matches ?? false)
     media?.addEventListener('change', change)
     return () => media?.removeEventListener('change', change)
   }, [])

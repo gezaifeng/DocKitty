@@ -6,6 +6,7 @@ import {
   commitDoc, listCommits as coreListCommits, checkoutDoc,
   versionBytes,
   diffText, extractDocxText,
+  withUndoableAction,
 } from '@wordgit/core'
 import {
   CH, CommitCreateReq, CommitListReq, CommitCheckoutReq, CommitDiffTextReq,
@@ -71,8 +72,8 @@ export async function diffTextHandler(args: unknown): Promise<DiffResult[]> {
 }
 
 export function registerCommitHandlers(): void {
-  ipcMain.handle(CH.COMMIT_CREATE, (_e, arg: unknown) => createCommitHandler(arg))
+  ipcMain.handle(CH.COMMIT_CREATE, (_e, arg: unknown) => { const req = CommitCreateReq.parse(arg); return withUndoableAction(getRepo(), '记录版本', () => createCommitHandler(req), req.docName) })
   ipcMain.handle(CH.COMMIT_LIST, (_e, arg: unknown) => listCommitsHandler(arg))
-  ipcMain.handle(CH.COMMIT_CHECKOUT, (_e, arg: unknown) => checkoutCommitHandler(arg))
+  ipcMain.handle(CH.COMMIT_CHECKOUT, (_e, arg: unknown) => { const req = CommitCheckoutReq.parse(arg); return withUndoableAction(getRepo(), '恢复工作区', () => checkoutCommitHandler(req), req.docName) })
   ipcMain.handle(CH.COMMIT_DIFF_TEXT, (_e, arg: unknown) => diffTextHandler(arg))
 }

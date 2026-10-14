@@ -1,7 +1,7 @@
 import path from 'node:path'
 import { ipcMain, app } from 'electron'
 import { promises as fs } from 'node:fs'
-import { Repo, withRepoWrite, writeFileAtomic } from '@wordgit/core'
+import { Repo, withRepoWrite, writeFileAtomic, listProjects, refreshProject } from '@wordgit/core'
 import { CH, RepoCreateReq, RepoOpenReq, RepoBootstrapReq, RepoRelocateReq } from '@wordgit/shared'
 import { setRepo, clearRepo, getRepo } from '../repoState.js'
 
@@ -50,6 +50,12 @@ async function bootstrapRepoOnce(args: unknown): Promise<{ repoRoot: string; rep
   }
   await rememberRoot(repo.root)
   setRepo(repo)
+  try {
+    for (const project of await listProjects(repo)) {
+      try { await refreshProject(repo, project.id) }
+      catch (error) { notice = [notice, `“${project.name}”未完成启动刷新：${(error as Error).message}。原受管内容保留，可进入项目管理手动重试。`].filter(Boolean).join('\n') }
+    }
+  } catch (error) { notice = [notice, `项目资料暂不可读取：${(error as Error).message}`].filter(Boolean).join('\n') }
   return { repoRoot: repo.root, repoName: '我的文档', notice }
 }
 

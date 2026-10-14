@@ -3,6 +3,7 @@ import {
   createBranch as coreCreateBranch,
   switchBranch as coreSwitchBranch,
   deleteBranchSafe,
+  withUndoableAction,
 } from '@wordgit/core'
 import {
   CH, BranchCreateReq, BranchSwitchReq, BranchDeleteReq,
@@ -30,7 +31,7 @@ export async function deleteBranchHandler(args: unknown): Promise<QuarantineEntr
 }
 
 export function registerBranchHandlers(): void {
-  ipcMain.handle(CH.BRANCH_CREATE, (_e, arg: unknown) => createBranchHandler(arg))
-  ipcMain.handle(CH.BRANCH_SWITCH, (_e, arg: unknown) => switchBranchHandler(arg))
-  ipcMain.handle(CH.BRANCH_DELETE, (_e, arg: unknown) => deleteBranchHandler(arg))
+  ipcMain.handle(CH.BRANCH_CREATE, (_e, arg: unknown) => withUndoableAction(getRepo(), '新建分支', () => createBranchHandler(arg)))
+  ipcMain.handle(CH.BRANCH_SWITCH, (_e, arg: unknown) => { const req = BranchSwitchReq.parse(arg); return withUndoableAction(getRepo(), '切换分支', () => switchBranchHandler(req), req.docName) })
+  ipcMain.handle(CH.BRANCH_DELETE, (_e, arg: unknown) => withUndoableAction(getRepo(), '回收分支', () => deleteBranchHandler(arg)))
 }

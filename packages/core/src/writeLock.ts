@@ -1,11 +1,14 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
+import { AsyncLocalStorage } from 'node:async_hooks'
 import type { Repo } from './repo.js'
 
 const pending = new Map<string, Promise<unknown>>()
+const held = new AsyncLocalStorage<Set<string>>()
 
 export async function withRepoWrite<T>(repo: Repo, action: () => Promise<T>): Promise<T> {
   const root = path.resolve(repo.root)
+  if (held.getStore()?.has(root)) return action()
   const previous = pending.get(root) ?? Promise.resolve()
   const task = previous.catch(() => {}).then(async () => {
     const lockPath = path.join(root, '.write.lock')
@@ -28,7 +31,7 @@ export async function withRepoWrite<T>(repo: Repo, action: () => Promise<T>): Pr
     try {
       await lock.writeFile(String(process.pid))
       await lock.sync()
-      return await action()
+      return await held.run(new Set([...(held.getStore() ?? []), root]), action)
     } finally {
       await lock.close()
       await fs.rm(lockPath, { force: true })

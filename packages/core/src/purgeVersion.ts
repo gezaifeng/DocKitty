@@ -31,7 +31,7 @@ export async function purgeVersion(repo: Repo, docName: string, id: string, opts
     for (const v of detail.versions) {
       const record = meta.versions[v.id] ??= {}
       record.branchMembership ??= v.branches
-      if (v.parents.includes(id)) record.parents = v.parents.filter(p => p !== id)
+      if (v.parents.includes(id)) { record.parents = v.parents.filter(p => p !== id); if (record.parentLabels) delete record.parentLabels[id]; if (record.parentNotes) delete record.parentNotes[id]; if (record.parentStyles) delete record.parentStyles[id] }
     }
     const record = meta.versions[id]
     const removedContents = [...new Set([id, version.contentId, ...(record.revisions ?? [])])]
@@ -84,7 +84,7 @@ export async function purgeVersion(repo: Repo, docName: string, id: string, opts
       delete meta.workingVersionId; delete meta.workingContentId
     }
     if (opts.deleteSource && source) await fs.rm(source, { force: true })
-    record.purgedAt = new Date().toISOString(); record.parents = []; record.branchMembership = []
+    record.purgedAt = new Date().toISOString(); record.parents = []; record.parentLabels = {}; record.parentNotes = {}; record.parentStyles = {}; record.branchMembership = []
     meta.purgedContentIds = [...new Set([...(meta.purgedContentIds ?? []), ...removedContents])]
     await writeLibraryMeta(repo, docName, meta)
     for (const [branch, head] of Object.entries(detail.branchHeads)) if (head === id) {

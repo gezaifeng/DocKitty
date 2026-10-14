@@ -3,6 +3,7 @@ import path from 'node:path'
 import { registerAllHandlers } from './ipc/registerAll.js'
 import { setMainWindow, watchWorkspace, stopWatcher } from './watcher.js'
 import { setRepoListener } from './repoState.js'
+import { syncLocalMcp, stopLocalMcp } from './mcpLocal.js'
 
 let win: BrowserWindow | null = null
 
@@ -25,7 +26,7 @@ function createWindow(): void {
 
   registerAllHandlers()
   setMainWindow(win)
-  setRepoListener(repo => repo ? watchWorkspace(repo.root) : stopWatcher())
+  setRepoListener(repo => { repo ? watchWorkspace(repo.root) : stopWatcher(); syncLocalMcp(repo?.root ?? null) })
 
   if (process.env['ELECTRON_RENDERER_URL']) {
     win.loadURL(process.env['ELECTRON_RENDERER_URL'])
@@ -55,6 +56,7 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
+app.on('will-quit', () => { void stopLocalMcp() })
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow()
 })

@@ -7,6 +7,7 @@ import { execFileSync } from 'node:child_process'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const desktop = path.join(root, 'apps/desktop')
+const { version } = JSON.parse(await fs.readFile(path.join(desktop, 'package.json'), 'utf8'))
 let runtime = process.env.WORDGIT_ELECTRON_DIST
 if (!runtime) {
   try { runtime = path.dirname(createRequire(path.join(desktop, 'package.json'))('electron')) }
@@ -30,13 +31,18 @@ try { await fs.access(rcedit) } catch {
   await fs.writeFile(rcedit, bytes)
 }
 if (createHash('sha256').update(await fs.readFile(rcedit)).digest('hex') !== digest) throw new Error('rcedit checksum mismatch')
-execFileSync(rcedit, [path.join(delivery, '稿喵.exe'), '--set-icon', path.join(desktop, 'resources/icon.ico'), '--set-version-string', 'ProductName', '稿喵', '--set-version-string', 'FileDescription', '稿喵', '--set-version-string', 'OriginalFilename', '稿喵.exe', '--set-file-version', '0.4.0', '--set-product-version', '0.4.0'], { windowsHide: true })
+execFileSync(rcedit, [path.join(delivery, '稿喵.exe'), '--set-icon', path.join(desktop, 'resources/icon.ico'), '--set-version-string', 'ProductName', '稿喵', '--set-version-string', 'FileDescription', '稿喵', '--set-version-string', 'OriginalFilename', '稿喵.exe', '--set-file-version', version, '--set-product-version', version], { windowsHide: true })
 const app = path.join(delivery, 'resources/app')
 await fs.mkdir(app, { recursive: true })
 await fs.cp(path.join(desktop, 'out'), path.join(app, 'out'), { recursive: true })
 await fs.mkdir(path.join(app, 'resources'), { recursive: true })
 for (const name of ['icon.png', 'icon.ico']) await fs.copyFile(path.join(desktop, 'resources', name), path.join(app, 'resources', name))
-await fs.writeFile(path.join(app, 'package.json'), JSON.stringify({ name: 'word_git', productName: '稿喵', version: '0.4.0', type: 'module', main: 'out/main/index.js' }, null, 2))
+await fs.writeFile(path.join(app, 'package.json'), JSON.stringify({ name: 'dockitty', productName: '稿喵', version, type: 'module', main: 'out/main/index.js' }, null, 2))
 await fs.copyFile(path.join(root, 'docs/使用教程.md'), path.join(delivery, '使用教程.md'))
+await fs.copyFile(path.join(root, 'docs/MCP接入指南.md'), path.join(delivery, 'MCP接入指南.md'))
+await fs.mkdir(path.join(delivery, 'MCP'), { recursive: true })
+await fs.copyFile(path.join(desktop, 'out/mcp/server.cjs'), path.join(delivery, 'MCP/server.cjs'))
+await fs.copyFile(path.join(root, 'docs/THIRD-PARTY-NOTICES.md'), path.join(delivery, 'THIRD-PARTY-NOTICES.md'))
+await fs.cp(path.join(root, 'packages/mcp/licenses'), path.join(delivery, 'MCP/licenses'), { recursive: true })
 console.log(delivery)
 

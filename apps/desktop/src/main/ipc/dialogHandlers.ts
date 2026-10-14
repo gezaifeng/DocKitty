@@ -30,6 +30,10 @@ export async function savePath(args: unknown): Promise<{ path: string | null }> 
 }
 
 export function registerDialogHandlers(): void {
+  ipcMain.handle('dialog.pickFiles', async () => {
+    const result = await dialog.showOpenDialog({ title: '批量选择项目文件', properties: ['openFile', 'multiSelections'], filters: [{ name: '全部文件', extensions: ['*'] }] })
+    return result.canceled ? [] : result.filePaths
+  })
   ipcMain.handle(CH.DIALOG_PICK_FOLDER, (_e, arg: unknown) => pickFolder(arg))
   ipcMain.handle(CH.DIALOG_PICK_FILE, (_e, arg: unknown) => pickFile(arg))
   ipcMain.handle(CH.DIALOG_SAVE_PATH, (_e, arg: unknown) => savePath(arg))

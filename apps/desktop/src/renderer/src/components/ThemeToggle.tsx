@@ -10,6 +10,8 @@ import type { Theme } from '@renderer/store/uiStore'
 const THEME_CYCLE: Theme[] = ['system', 'light', 'dark']
 
 const THEME_META: Record<Theme, { icon: typeof Sun; label: string }> = {
+  liquid: { icon: Sun, label: '液态玻璃' },
+  'liquid-dark': { icon: Moon, label: '液态玻璃 · 深色' },
   system: { icon: Monitor, label: '跟随系统' },
   light: { icon: Sun, label: '浅色' },
   dark: { icon: Moon, label: '深色' },

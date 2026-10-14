@@ -4,6 +4,7 @@ import type { Repo } from './repo.js'
 import { docIdOf } from './refs.js'
 import { writeFileAtomic } from './fsutil.js'
 import { validateDocName } from './names.js'
+import type { EdgeStyle } from '../../shared/src/edgeStyle.js'
 
 export interface VersionMeta {
   title?: string
@@ -15,6 +16,9 @@ export interface VersionMeta {
   contentId?: string
   revisions?: string[]
   parents?: string[]
+  parentLabels?: Record<string, string>
+  parentNotes?: Record<string, string>
+  parentStyles?: Record<string, EdgeStyle>
   branchMembership?: string[]
   purgedAt?: string
   sourcePath?: string

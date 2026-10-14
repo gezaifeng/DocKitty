@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Check, ChevronDown } from 'lucide-react'
 import { useUiStore, type Theme } from '../store/uiStore'
 export const themeOptions: Array<{id:Theme;label:string;detail:string}> = [
+ {id:'liquid',label:'液态玻璃',detail:'流动曲面 · 通透磨砂与边缘高光'},
+ {id:'liquid-dark',label:'液态玻璃 · 深色',detail:'深色玻璃 · 柔和亮字与流动光影'},
  {id:'blockframe',label:'BlockFrame 黑框积木',detail:'暖纸底色 · 黑框与硬投影'},
  {id:'raw',label:'粉绿方块',detail:'粉绿色块 · 直角黑框与硬投影'},
  {id:'retro',label:'经典视窗',detail:'桌面窗口 · 凸凹边框与标题栏'},

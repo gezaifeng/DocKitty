@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { EdgeStyleSchema, type EdgeStyle } from './edgeStyle.js'
 
 const docName = z.string().min(1)
 const versionId = z.string().regex(/^[a-f0-9]{64}$/)
@@ -9,7 +10,7 @@ export const LibraryMutationSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('document'), docName, title: z.string().min(1).optional(), deleted: z.boolean().optional() }),
   z.object({ type: z.literal('version'), docName, versionId, title: z.string().min(1).optional(), note: z.string().optional(), categoryId: z.string().optional(), order: z.number().finite().optional(), position: position.optional(), deleted: z.boolean().optional() }),
   z.object({ type: z.literal('layout'), docName }),
-  z.object({ type: z.literal('relations'), docName, versionId, action: z.enum(['disconnectPrevious', 'disconnectNext', 'connectPrevious', 'connectNext', 'moveBranch']), targetVersionId: versionId.optional(), branch: z.string().optional() }),
+  z.object({ type: z.literal('relations'), docName, versionId, action: z.enum(['disconnectPrevious', 'disconnectNext', 'connectPrevious', 'connectNext', 'moveBranch', 'renameConnection', 'reverseConnection', 'styleConnection']), targetVersionId: versionId.optional(), branch: z.string().optional(), label: z.string().max(10000).optional(), note: z.string().max(10000).optional(), style: EdgeStyleSchema.optional() }),
   z.object({ type: z.literal('purgeVersion'), docName, versionId, deleteSource: z.boolean(), confirmedSourcePath: z.string().optional() }),
   z.object({ type: z.literal('category'), docName, action: z.enum(['create', 'rename', 'delete']), name: z.string().optional(), categoryId: z.string().optional() }),
   z.object({ type: z.literal('arrange'), docName, categoryId: z.string(), versionIds: z.array(versionId) }),
@@ -39,6 +40,9 @@ export interface LibraryVersion {
   id: string
   contentId: string
   parents: string[]
+  parentLabels?: Record<string, string>
+  parentNotes?: Record<string, string>
+  parentStyles?: Record<string, EdgeStyle>
   title: string
   note: string
   author: string

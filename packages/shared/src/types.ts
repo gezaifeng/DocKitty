@@ -16,6 +16,14 @@ export type WatcherChangeEvent = z.infer<typeof WatcherChangeEvent>
 export type DiffResult = z.infer<typeof DiffResultSchema>
 
 export interface IpcApi {
+  history?: {
+    status(): Promise<{ canUndo: boolean; canRedo: boolean; undoLabel: string | null; redoLabel: string | null }>
+    undo(): Promise<unknown>
+    redo(): Promise<unknown>
+  }
+  projects?: {
+    request(request: import('./projectRequests.js').ProjectRequestData): Promise<unknown>
+  }
   appearance?: { setTheme(theme: 'light' | 'dark' | 'system'): Promise<void> }
   library: {
     list(): Promise<LibraryDocument[]>
@@ -66,6 +74,7 @@ export interface IpcApi {
     getBytes(docName: string, commitId?: string): Promise<{ data: ArrayBuffer; ext: string }>
   }
   dialog: {
+    pickFiles?(): Promise<string[]>
     pickFolder(title?: string): Promise<string | null>
     pickFile(title?: string, filters?: { name: string; extensions: string[] }[]): Promise<string | null>
     savePath(title?: string, defaultName?: string): Promise<string | null>

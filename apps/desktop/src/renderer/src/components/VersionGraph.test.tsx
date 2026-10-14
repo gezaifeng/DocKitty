@@ -48,3 +48,17 @@ it('restores the saved position when a layout save fails', async () => {
   await act(async () => fireEvent.pointerUp(document.querySelector('.wg-graph-canvas')!))
   expect(document.querySelector<HTMLElement>('.wg-graph-node')!.style.left).toBe('65px')
 })
+
+it('points arrows from the parent to the newer version even when cards are moved left or above', () => {
+  const old = { id: 'old', contentId: 'old', parents: [], title: '旧稿', note: '', author: '', createdAt: '2026-10-12', branches: ['main'], categoryId: '', order: 0, position: { x: 500, y: 300 }, deletedAt: null, revisionCount: 0 }
+  const next = { ...old, id: 'new', parents: ['old'], title: '新稿', position: { x: 100, y: 300 } }
+  const detail: DocumentDetail = { docName: '稿.txt', title: '稿', deletedAt: null, currentBranch: 'main', branchHeads: { main: 'new' }, categories: [], versions: [old, next], workspace: { dirty: false, versionId: 'new', exists: true } }
+  const props = { detail, versions: detail.versions, selectedId: 'new', compareIds: [], onArrange: vi.fn(), onSelect: vi.fn(), onPosition: async () => true, onMoveBranch: vi.fn() }
+  const view = render(<VersionGraph {...props}/>)
+  const edge = () => document.querySelector<SVGPathElement>('.wg-edge-line')!
+  expect(edge().getAttribute('data-from')).toBe('old'); expect(edge().getAttribute('data-to')).toBe('new')
+  expect(edge().parentElement?.querySelector('.wg-edge-marker')?.getAttribute('marker-end')).toMatch(/^url\(#edge-/)
+  expect(edge().getAttribute('d')).toBe('M500,356 C417.5,356 417.5,356 335,356')
+  view.rerender(<VersionGraph {...props} versions={[old, { ...next, position: { x: 500, y: 0 } }]}/> )
+  expect(edge().getAttribute('d')).toBe('M612.5,300 C612.5,211 612.5,211 612.5,122')
+})

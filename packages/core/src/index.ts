@@ -29,8 +29,10 @@ export { documentDetail, libraryDocuments, updateDocument, updateVersion, update
 export type { LibraryVersion, DocumentDetail } from './library.js'
 export { readLibraryMeta, resolveVersion } from './libraryMeta.js'
 export { withRepoWrite } from './writeLock.js'
+export { withUndoableAction, undoEdit, redoEdit, editHistoryStatus, clearEditHistory } from './editHistory.js'
 export { validateDocName, validateBranchName, containedPath } from './names.js'
 
 export { startDraft, recordDraftSave, activeDraftFiles } from './drafts.js'
 export { editVersionRelations, tidyVersionLayout } from './versionRelations.js'
 export { purgeVersion } from './purgeVersion.js'
+export { listProjects, getProject, createProject, importProjectItems, refreshProject, recordProjectIteration, updateProjectNode, setProjectCategory, deleteProjectCategory, setProjectRelation, deleteProjectRelation, deleteProjectNode, readProjectFile, exportProjectNode } from './projects.js'

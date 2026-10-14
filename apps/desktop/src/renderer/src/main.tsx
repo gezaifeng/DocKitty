@@ -6,6 +6,7 @@ import { App } from './App'
 import './assets/globals.css'
 import './assets/themes.css'
 import './assets/extra-themes.css'
+import './assets/liquid-glass.css'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 5_000 } },

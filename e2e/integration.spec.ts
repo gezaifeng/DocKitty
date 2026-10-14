@@ -53,7 +53,7 @@ test('complete version, classification, structured metrics, baseline and export 
   const stats=await page.evaluate(({name,branch})=>window.wordgit.stats.versions(name,branch),{name,branch})
   await expect(page.locator('.wg-stat-cards section').nth(1).locator('strong')).toHaveText(String(stats.versions.at(-1)!.values.wordCount))
   await page.locator('.wg-stat-filters summary').click();await page.getByLabel('基准版本',{exact:true}).selectOption(first);await page.getByLabel('对照分支',{exact:true}).selectOption('导师路线')
-  await expect(page.locator('.wg-stat-filters')).toContainText('共同版本 1');await page.getByLabel('仅分叉后版本').check();await expect(page.locator('.wg-stat-cards section').first().locator('strong')).toHaveText('1')
+  await expect(page.locator('.wg-stat-filters')).toContainText('共同版本 0');await page.getByLabel('仅分叉后版本').check();await expect(page.locator('.wg-stat-cards section').first().locator('strong')).toHaveText('2')
   await page.getByLabel('仅分叉后版本').uncheck();await page.getByLabel('起始版本',{exact:true}).selectOption(latest);await expect(page.locator('.wg-stat-cards section').first().locator('strong')).toHaveText('1');await page.getByRole('button',{name:'清除范围',exact:true}).click()
   await page.getByLabel('统计起始日期').fill('2099-01-01');await expect(page.locator('.wg-stat-cards section').first().locator('strong')).toHaveText('0');await page.getByRole('button',{name:'清除范围',exact:true}).click()
   await page.getByLabel('趋势横轴').selectOption('time');await page.locator('.wg-stat-filters summary').click()

@@ -38,6 +38,9 @@ test('editable version connections, branch membership, confirmed source deletion
   }
   await page.emulateMedia({reducedMotion:'reduce'})
   await page.getByRole('button',{name:'版本关系图',exact:true}).click();await page.getByLabel('查看分支').selectOption('all')
+  await expect(page.locator('.wg-edge-line')).toHaveCount(2)
+  const directions=await page.locator('.wg-edge-line').evaluateAll(edges=>edges.map(edge=>({from:edge.getAttribute('data-from'),to:edge.getAttribute('data-to'),marker:edge.parentElement?.querySelector('.wg-edge-marker')?.getAttribute('marker-end')})))
+  expect(directions).toEqual(expect.arrayContaining([expect.objectContaining({from:first,to:second}),expect.objectContaining({from:second,to:third})]));expect(directions.every(edge=>edge.marker?.startsWith('url(#edge-'))).toBe(true)
   const right=async(title:string,action:string)=>{await page.getByRole('button',{name:'版本节点 '+title,exact:true}).click({button:'right'});await page.getByRole('menuitem',{name:action,exact:true}).click()}
   const confirm=async()=>{await page.getByRole('button',{name:'确认',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0)}
   for(const [theme,label] of themes){
@@ -56,7 +59,7 @@ test('editable version connections, branch membership, confirmed source deletion
   await right('第二稿','断开与前版本的连接');await confirm()
   await right('第二稿','断开与后版本的连接');await confirm()
   await expect.poll(async()=>(await detail()).versions.every(v=>!v.parents.length)).toBe(true)
-  await expect(page.locator('.wg-edges path')).toHaveCount(0)
+  await expect(page.locator('.wg-edge-line')).toHaveCount(0)
   expect((await detail()).versions.map(v=>[v.id,v.position])).toEqual(positionsBefore)
   expect(await page.locator('.wg-node-body').evaluateAll(nodes=>nodes.map(n=>{const r=n.getBoundingClientRect();return {x:r.x,y:r.y}}))).toEqual(cardBoxesBefore)
   await expect(page.locator('.wg-node-body')).toHaveCount(3)
@@ -65,7 +68,7 @@ test('editable version connections, branch membership, confirmed source deletion
   await page.screenshot({animations:'disabled',path:path.join(output,'independent-versions.png')})
   await right('第二稿','手动连接到前版本');await expect(page.getByRole('button',{name:'取消连接',exact:true})).toBeVisible();await page.getByRole('button',{name:'版本节点 第二稿',exact:true}).click();await page.getByRole('button',{name:'版本节点 导入',exact:true}).click();await expect(page.getByRole('button',{name:'取消连接',exact:true})).toHaveCount(0)
   await right('第二稿','手动连接到后版本');await page.getByRole('button',{name:'取消连接',exact:true}).click();await expect(page.getByRole('button',{name:'取消连接',exact:true})).toHaveCount(0);await right('第二稿','手动连接到后版本');await page.getByRole('button',{name:'版本节点 第二稿',exact:true}).click();await page.screenshot({animations:'disabled',path:path.join(output,'click-connect.png')});await page.getByRole('button',{name:'版本节点 第三稿',exact:true}).click();await expect(page.getByRole('button',{name:'取消连接',exact:true})).toHaveCount(0)
-  await expect(page.locator('.wg-edges path')).toHaveCount(2)
+  await expect(page.locator('.wg-edge-line')).toHaveCount(2)
   for(const [theme,label] of themes){
    await page.getByLabel('主题风格').click();await page.getByRole('option',{name:new RegExp(label)}).click()
    await right('第二稿','修改分支归属');await page.screenshot({animations:'disabled',path:path.join(output,theme+'-relations-dialog.png')});await page.getByRole('button',{name:'取消',exact:true}).click()

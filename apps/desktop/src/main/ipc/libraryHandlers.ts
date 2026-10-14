@@ -8,6 +8,7 @@ import {
   libraryDocuments, documentDetail, updateDocument, updateVersion, updateCategory, arrangeVersions,
   importVersion, saveWorkspace, undoReplacement, exportVersion, 
   moveBranchHead, validateDocName, importDoc, startDraft, recordDraftSave, editVersionRelations, tidyVersionLayout, purgeVersion,
+  withUndoableAction, clearEditHistory,
 } from '@wordgit/core'
 import { CH, LibraryDetailReq, LibraryMutationSchema } from '@wordgit/shared'
 import type { LibraryMutationResult } from '@wordgit/shared'
@@ -120,5 +121,14 @@ export async function libraryMutationHandler(args: unknown): Promise<LibraryMuta
 export function registerLibraryHandlers(): void {
   ipcMain.handle(CH.LIBRARY_LIST, () => libraryListHandler())
   ipcMain.handle(CH.LIBRARY_DETAIL, (_event, args: unknown) => libraryDetailHandler(args))
-  ipcMain.handle(CH.LIBRARY_MUTATE, (_event, args: unknown) => libraryMutationHandler(args))
+  const labels: Record<string, string> = { document: '编辑文档信息', version: '编辑版本信息或位置', layout: '整理布局', relations: '编辑版本连线', category: '编辑版本分类', arrange: '移动分类卡片', importVersion: '导入版本', save: '保存版本', undoReplacement: '还原版本内容', moveBranch: '移动分支起点', createDocument: '新建文档', edit: '准备独立编辑稿' }
+  ipcMain.handle(CH.LIBRARY_MUTATE, (_event, args: unknown) => {
+    const request = LibraryMutationSchema.parse(args), repo = getRepo()
+    if (request.type === 'purgeVersion') { clearEditHistory(repo); return libraryMutationHandler(request) }
+    let workspaceName: string | undefined
+    if (request.type === 'createDocument') workspaceName = request.name.trim().toLowerCase().endsWith('.' + request.format) ? request.name.trim() : request.name.trim() + '.' + request.format
+    else if (['importVersion', 'save', 'undoReplacement', 'moveBranch'].includes(request.type)) workspaceName = request.docName
+    const label = labels[request.type]
+    return label ? withUndoableAction(repo, label, () => libraryMutationHandler(request), workspaceName) : libraryMutationHandler(request)
+  })
 }

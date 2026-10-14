@@ -2,6 +2,8 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type { IpcApi, WatcherChangeEvent } from '@wordgit/shared'
 
 const api: IpcApi = {
+  history: { status: () => ipcRenderer.invoke('history.status'), undo: () => ipcRenderer.invoke('history.undo'), redo: () => ipcRenderer.invoke('history.redo') },
+  projects: { request: (request) => ipcRenderer.invoke('projects.request', request) },
   appearance: { setTheme: (theme) => ipcRenderer.invoke('appearance.theme', { theme }) },
   library: {
     list: () => ipcRenderer.invoke('library.list', {}),
@@ -57,6 +59,7 @@ const api: IpcApi = {
       ipcRenderer.invoke('preview.getBytes', { docName, commitId }),
   },
   dialog: {
+    pickFiles: () => ipcRenderer.invoke('dialog.pickFiles'),
     pickFolder: (title) => ipcRenderer.invoke('dialog.pickFolder', { title }).then(r => (r as { path: string | null }).path),
     pickFile: (title, filters) =>
       ipcRenderer.invoke('dialog.pickFile', { title, filters }).then(r => (r as { path: string | null }).path),

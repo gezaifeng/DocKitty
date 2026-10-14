@@ -8,6 +8,7 @@ import {
   readCurrentBranch,
   docIdOf,
   validateDocName,
+  withUndoableAction,
 } from '@wordgit/core'
 import {
   CH,
@@ -58,6 +59,6 @@ export async function editDoc(args: unknown): Promise<{ workspacePath: string }>
 
 export function registerDocHandlers(): void {
   ipcMain.handle(CH.DOC_LIST, (_e, arg: unknown) => listDocs(arg))
-  ipcMain.handle(CH.DOC_IMPORT, (_e, arg: unknown) => importDocHandler(arg))
+  ipcMain.handle(CH.DOC_IMPORT, (_e, arg: unknown) => { const req = DocImportReq.parse(arg); return withUndoableAction(getRepo(), '导入文档', () => importDocHandler(req), req.name ?? path.basename(req.sourcePath)) })
   ipcMain.handle(CH.DOC_EDIT, (_e, arg: unknown) => editDoc(arg))
 }

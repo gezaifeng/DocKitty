@@ -10,6 +10,7 @@ import {
   importBackup,
   docIds,
   documentDetail,
+  withUndoableAction,
 } from '@wordgit/core'
 import {
   CH,
@@ -93,8 +94,8 @@ export function registerMaintenanceHandlers(): void {
   ipcMain.handle(CH.STATS_STORAGE, (_e, arg: unknown) => getStorageStats(arg))
   ipcMain.handle(CH.MAINTENANCE_SCRUB, (_e, arg: unknown) => runScrub(arg))
   ipcMain.handle(CH.QUARANTINE_LIST, (_e, arg: unknown) => quarantineList(arg))
-  ipcMain.handle(CH.QUARANTINE_RESTORE, (_e, arg: unknown) => quarantineRestore(arg))
-  ipcMain.handle(CH.QUARANTINE_PURGE, (_e, arg: unknown) => quarantinePurge(arg))
+  ipcMain.handle(CH.QUARANTINE_RESTORE, (_e, arg: unknown) => withUndoableAction(getRepo(), '还原分支', () => quarantineRestore(arg)))
+  ipcMain.handle(CH.QUARANTINE_PURGE, (_e, arg: unknown) => withUndoableAction(getRepo(), '清理分支回收记录', () => quarantinePurge(arg)))
   ipcMain.handle(CH.BACKUP_EXPORT, (_e, arg: unknown) => backupExport(arg))
   ipcMain.handle(CH.BACKUP_IMPORT, (_e, arg: unknown) => backupImport(arg))
 }

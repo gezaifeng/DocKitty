@@ -13,11 +13,15 @@ import { withRepoWrite } from './writeLock.js'
 import { writeFileAtomic } from './fsutil.js'
 import { defaultVersionPositions } from './versionLayout.js'
 import { registerImportSource } from './importSources.js'
+import type { EdgeStyle } from '../../shared/src/edgeStyle.js'
 
 export interface LibraryVersion {
   id: string
   contentId: string
   parents: string[]
+  parentLabels?: Record<string, string>
+  parentNotes?: Record<string, string>
+  parentStyles?: Record<string, EdgeStyle>
   title: string
   note: string
   author: string
@@ -67,7 +71,7 @@ export async function documentDetail(repo: Repo, docName: string): Promise<Docum
         const contentId = v.contentId ?? id
         const content = contentId === id ? original : await readCommit(ctx, contentId)
         version = {
-          id, contentId, parents: v.parents ?? original.parents, title: v.title ?? original.message,
+          id, contentId, parents: v.parents ?? original.parents, parentLabels: v.parentLabels, parentNotes: v.parentNotes, parentStyles: v.parentStyles, title: v.title ?? original.message,
           note: v.note ?? '', author: content.author, createdAt: original.createdAt,
           branches: [], categoryId: v.categoryId ?? '', order: v.order ?? 0,
           position: v.position, deletedAt: v.deletedAt ?? null, revisionCount: v.revisions?.length ?? 0,
@@ -85,7 +89,7 @@ export async function documentDetail(repo: Repo, docName: string): Promise<Docum
       const original = await readCommit(ctx, id)
       const v = meta.versions[id]
       versions.set(id, {
-        id, contentId: v.contentId ?? id, parents: v.parents ?? original.parents, title: v.title ?? original.message,
+        id, contentId: v.contentId ?? id, parents: v.parents ?? original.parents, parentLabels: v.parentLabels, parentNotes: v.parentNotes, parentStyles: v.parentStyles, title: v.title ?? original.message,
         note: v.note ?? '', author: original.author, createdAt: original.createdAt, branches: [],
         categoryId: v.categoryId ?? '', order: v.order ?? 0, position: v.position,
         deletedAt: v.deletedAt ?? null, revisionCount: v.revisions?.length ?? 0,

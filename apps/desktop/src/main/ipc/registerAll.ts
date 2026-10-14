@@ -7,6 +7,8 @@ import { registerDialogHandlers } from './dialogHandlers.js'
 import { registerPreviewHandlers } from './previewHandlers.js'
 import { registerLibraryHandlers } from './libraryHandlers.js'
 import { registerVersionStatsHandlers } from './versionStatsHandlers.js'
+import { registerProjectHandlers } from './projectHandlers.js'
+import { registerEditHistoryHandlers } from './editHistoryHandlers.js'
 
 export function registerAllHandlers(): void {
   registerRepoHandlers()
@@ -18,4 +20,6 @@ export function registerAllHandlers(): void {
   registerPreviewHandlers()
   registerLibraryHandlers()
   registerVersionStatsHandlers()
+  registerProjectHandlers()
+  registerEditHistoryHandlers()
 }

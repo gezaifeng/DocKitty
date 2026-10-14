@@ -1,6 +1,6 @@
 {
   "name": "@wordgit/desktop",
-  "version": "0.4.0",
+  "version": "0.5.7",
   "type": "module",
   "main": "./out/main/index.js",
   "scripts": {

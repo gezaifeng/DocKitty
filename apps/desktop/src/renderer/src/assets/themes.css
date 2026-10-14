@@ -37,3 +37,5 @@ html,body{background:var(--wg-bg);color:var(--wg-text)}button,input,textarea,sel
 .wg-graph-riffle{position:absolute;left:10px;bottom:10px;width:190px;z-index:4;--hairline-plate:var(--wg-surface);--hairline-hi:var(--wg-text);--hairline-edge:var(--wg-text);--hairline-mid:var(--wg-muted);--hairline-lo:var(--wg-line);--hairline-stroke:.85}.wg-riffle-figure{width:100%;background:transparent;outline-offset:-5px!important}.wg-graph-riffle svg{filter:drop-shadow(0 2px 1px color-mix(in srgb,var(--wg-text) 8%,transparent))}[data-theme=blockframe] .wg-graph-riffle{--hairline-stroke:1.15}@media(max-height:700px){.wg-graph-riffle{width:150px}}
 
 .wg-figure-menu{width:220px}.wg-figure-menu>strong{display:block;padding:6px 12px 10px;font-size:11px;color:var(--wg-muted)}.wg-figure-menu>button{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px}
+
+.wg-feature-heading{display:block;padding:8px 10px;color:var(--wg-muted);font-size:11px}.wg-features-menu>div{width:255px}.wg-figure-menu hr{border:0;border-top:1px solid var(--wg-line);margin:6px}.wg-help-trigger{white-space:nowrap}
