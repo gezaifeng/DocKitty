@@ -30,7 +30,8 @@ const api = {
     delete: (docName, branch) => electron.ipcRenderer.invoke("branch.delete", { docName, branch })
   },
   stats: {
-    storage: () => electron.ipcRenderer.invoke("stats.storage", {})
+    storage: () => electron.ipcRenderer.invoke("stats.storage", {}),
+    versions: (docName, branch) => electron.ipcRenderer.invoke("stats.versions", { docName, branch })
   },
   backup: {
     export: (destPath) => electron.ipcRenderer.invoke("backup.export", { destPath }),

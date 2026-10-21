@@ -26102,7 +26102,7 @@ const useUiStore = create()(
       pendingCommitDocName: null,
       pendingCommitWorkspacePath: null,
       rightPanel: "preview",
-      theme: "system",
+      theme: "blockframe",
       themeButtonPos: null,
       selectDoc: (docName) => set({ selectedDocName: docName }),
       setPendingCommit: (docName, workspacePath) => set({ pendingCommitDocName: docName, pendingCommitWorkspacePath: workspacePath }),
@@ -26113,6 +26113,8 @@ const useUiStore = create()(
     }),
     {
       name: "word-git-ui-v1",
+      version: 2,
+      migrate: (state) => ({ theme: "blockframe", themeButtonPos: state?.themeButtonPos ?? null }),
       partialize: (s) => ({ theme: s.theme, themeButtonPos: s.themeButtonPos })
     }
   )
@@ -26198,6 +26200,24 @@ const ArrowLeft = createLucideIcon("ArrowLeft", [
 const ArrowUp = createLucideIcon("ArrowUp", [
   ["path", { d: "m5 12 7-7 7 7", key: "hav0vg" }],
   ["path", { d: "M12 19V5", key: "x0mq9r" }]
+]);
+const CalendarDays = createLucideIcon("CalendarDays", [
+  ["path", { d: "M8 2v4", key: "1cmpym" }],
+  ["path", { d: "M16 2v4", key: "4m81vk" }],
+  ["rect", { width: "18", height: "18", x: "3", y: "4", rx: "2", key: "1hopcy" }],
+  ["path", { d: "M3 10h18", key: "8toen8" }],
+  ["path", { d: "M8 14h.01", key: "6423bh" }],
+  ["path", { d: "M12 14h.01", key: "1etili" }],
+  ["path", { d: "M16 14h.01", key: "1gbofw" }],
+  ["path", { d: "M8 18h.01", key: "lrp35t" }],
+  ["path", { d: "M12 18h.01", key: "mhygvu" }],
+  ["path", { d: "M16 18h.01", key: "kzsmim" }]
+]);
+const ChartColumn = createLucideIcon("ChartColumn", [
+  ["path", { d: "M3 3v16a2 2 0 0 0 2 2h16", key: "c24i48" }],
+  ["path", { d: "M18 17V9", key: "2bz60n" }],
+  ["path", { d: "M13 17V5", key: "1frdt8" }],
+  ["path", { d: "M8 17v-3", key: "17ska0" }]
 ]);
 const Check = createLucideIcon("Check", [["path", { d: "M20 6 9 17l-5-5", key: "1gmf2c" }]]);
 const Columns3 = createLucideIcon("Columns3", [
@@ -26304,6 +26324,17 @@ const Import = createLucideIcon("Import", [
       key: "1ywtjm"
     }
   ]
+]);
+const Layers = createLucideIcon("Layers", [
+  [
+    "path",
+    {
+      d: "m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z",
+      key: "8b97xw"
+    }
+  ],
+  ["path", { d: "m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65", key: "dd6zsq" }],
+  ["path", { d: "m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65", key: "ep9fru" }]
 ]);
 const Maximize2 = createLucideIcon("Maximize2", [
   ["polyline", { points: "15 3 21 3 21 9", key: "mznyad" }],
@@ -61209,7 +61240,7 @@ function SettingsPage() {
   const importMutation = useMutation({
     mutationFn: async () => {
       const srcPath = await api.dialog.pickFile("选择备份文件", [
-        { name: "word_git 备份", extensions: ["wgbak", "zip"] }
+        { name: "稿喵备份", extensions: ["wgbak", "zip"] }
       ]);
       if (!srcPath) return;
       const destDir = await api.dialog.pickFolder("选择空目录作为恢复位置（不会覆盖已有仓库）");
@@ -61304,6 +61335,198 @@ function SettingsPage() {
     ] })
   ] });
 }
+function VersionStatistics({ detail, onSelect }) {
+  const repoRoot = useRepoStore((s) => s.repoRoot);
+  const [branch, setBranch] = reactExports.useState(detail.currentBranch);
+  const [metric, setMetric] = reactExports.useState("characters");
+  const [selected, setSelected] = reactExports.useState(null);
+  const revisionKey = JSON.stringify(detail.versions.map((v) => [v.id, v.contentId, v.title, v.revisionCount, v.deletedAt])) + JSON.stringify(detail.branchHeads);
+  const query = useQuery({ queryKey: ["stats", "versions", repoRoot, detail.docName, branch, revisionKey], queryFn: () => api.stats.versions(detail.docName, branch), retry: false });
+  const data = query.data, definitions = data?.metrics ?? [];
+  const active = definitions.find((m) => m.id === metric) ?? definitions.find((m) => m.id === "size");
+  const rows = data?.versions ?? [], current = rows.find((v) => v.id === selected) ?? rows.at(-1);
+  const values2 = rows.map((v) => active ? v.values[active.id] : void 0), valid = values2.filter((v) => v !== void 0);
+  const min = Math.min(0, ...valid), max = Math.max(1, ...valid), span = max - min || 1;
+  const x = (i) => 60 + i / Math.max(1, rows.length - 1) * 680, y = (v) => 225 - (v - min) / span * 190;
+  const paths = [];
+  let segment = "";
+  values2.forEach((v, i) => {
+    if (v === void 0) {
+      if (segment) paths.push(segment);
+      segment = "";
+    } else segment += (segment ? " L" : "M") + x(i) + " " + y(v);
+  });
+  if (segment) paths.push(segment);
+  const choose = (id2) => {
+    setSelected(id2);
+    onSelect(id2);
+  };
+  const unit = active?.unit ?? "";
+  const pretty = (v) => v === void 0 ? "—" : v.toLocaleString("zh-CN", { maximumFractionDigits: 1 });
+  const first = rows.find((v) => active && v.values[active.id] !== void 0)?.values[active?.id ?? ""];
+  const value = current?.values[active?.id ?? ""];
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-statistics", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("aside", { className: "wg-stat-sidebar", "aria-label": "统计指标与分支", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-stat-sidebar-controls", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(ChartColumn, { size: 19 }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "版本统计" })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(GitBranch, { size: 14 }),
+          " 统计分支",
+          /* @__PURE__ */ jsxRuntimeExports.jsx("select", { "aria-label": "统计分支", value: branch, onChange: (e) => {
+            setBranch(e.target.value);
+            setSelected(null);
+          }, children: Object.keys(detail.branchHeads).map((b) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { children: b }, b)) })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: "只改变统计范围，不切换编辑分支。" })
+      ] }),
+      ["版本", "文本", "改动", "Word", "Excel", "PPT"].map((group) => definitions.some((m) => m.group === group) && /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("h3", { children: [
+          group,
+          "指标"
+        ] }),
+        definitions.filter((m) => m.group === group).map((m) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: active?.id === m.id ? "active" : "", style: { animationDelay: `${Math.min(450, definitions.indexOf(m) * 38)}ms` }, onClick: () => setMetric(m.id), children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(FileText, { size: 13 }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: m.label }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: m.unit })
+        ] }, m.id))
+      ] }, group)),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: metric === "activity" ? "active" : "", onClick: () => setMetric("activity"), children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(CalendarDays, { size: 14 }),
+        "保存活动"
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "wg-stat-content", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-stat-heading", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "MANUSCRIPT / ANALYTICS" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: metric === "activity" ? "保存活动" : active?.label ?? "正在分析版本" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
+            detail.title,
+            " / ",
+            branch
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "wg-stat-scope", children: "真实历史快照 · 只读分析" })
+      ] }),
+      query.isLoading ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { role: "status", className: "wg-stat-loading", children: "正在读取历史版本并分析内容…" }) : query.error ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { role: "alert", className: "wg-stat-loading", children: [
+        query.error.message,
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-button", onClick: () => void query.refetch(), children: "重试" })
+      ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-stat-reveal", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-stat-cards", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: "分支版本" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: rows.length }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "包含共同祖先" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: metric === "activity" ? "有记录的日期" : `所选版本 / ${unit}` }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: metric === "activity" ? data?.activity.length : pretty(value) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: current?.title ?? "暂无版本" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: metric === "activity" ? "保留覆盖次数" : "相比首个可统计版本" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: metric === "activity" ? rows.reduce((n, v) => n + (v.values.revisions ?? 0), 0) : value !== void 0 && first !== void 0 ? (value - first >= 0 ? "+" : "") + pretty(value - first) : "—" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: metric === "activity" ? "当前保留的修订深度" : "相同指标、相同计数规则" })
+          ] })
+        ] }),
+        metric === "activity" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "记录活动" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-stat-activity", children: data?.activity.map((day) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: day.date }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("i", { style: { width: Math.min(100, day.count * 12) + "%" } }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("strong", { children: [
+              day.count,
+              " 次"
+            ] })
+          ] }, day.date)) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "这里只统计新版本创建记录，不代表编辑次数或实际写作时长。" })
+        ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("h2", { children: [
+            active?.label,
+            "趋势 ",
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("small", { children: [
+              "单位：",
+              unit,
+              " · 点击节点查看对应版本"
+            ] })
+          ] }),
+          valid.length ? /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { viewBox: "0 0 800 270", role: "img", "aria-label": `${active?.label}版本趋势`, children: [
+            [0, 0.5, 1].map((f) => /* @__PURE__ */ jsxRuntimeExports.jsxs("g", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("line", { x1: "60", x2: "745", y1: y(min + span * f), y2: y(min + span * f), className: "wg-stat-grid" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("text", { x: "4", y: y(min + span * f) + 4, children: pretty(min + span * f) })
+            ] }, f)),
+            paths.map((d, i) => /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d, className: "wg-stat-line" }, i)),
+            values2.map((v, i) => v !== void 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("g", { tabIndex: 0, role: "button", "aria-label": `选择${rows[i].title}`, onClick: () => choose(rows[i].id), onKeyDown: (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                choose(rows[i].id);
+              }
+            }, children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: x(i), cy: y(v), r: rows[i].id === current?.id ? 7 : 4, className: "wg-stat-dot" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: x(i), cy: y(v), r: "16", fill: "transparent" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("title", { children: [
+                rows[i].title,
+                "：",
+                pretty(v),
+                " ",
+                unit
+              ] })
+            ] }, rows[i].id)),
+            rows.filter((_, i) => rows.length < 10 || i % Math.ceil(rows.length / 8) === 0).map((v) => /* @__PURE__ */ jsxRuntimeExports.jsxs("text", { x: x(rows.indexOf(v)), y: "254", textAnchor: "middle", children: [
+              "v",
+              rows.indexOf(v) + 1
+            ] }, v.id))
+          ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "此路线尚无可计算数据。首稿没有上一稿，增删与保留率显示“—”。" })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-detail", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("h2", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(Layers, { size: 16 }),
+            "所选版本 · ",
+            current?.title ?? "—"
+          ] }),
+          current?.unavailable && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { role: "note", children: current.unavailable }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { children: definitions.filter((m) => m.id in (current?.values ?? {})).map((m) => /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: m.label }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("b", { children: [
+              pretty(current?.values[m.id]),
+              " ",
+              m.unit
+            ] })
+          ] }, m.id)) })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-table", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "逐版核对" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "版本" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: active?.label ?? "记录日期" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "文件大小" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "覆盖修订" })
+            ] }) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("tbody", { children: rows.map((v) => /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: v.id === current?.id ? "selected" : "", tabIndex: 0, onClick: () => choose(v.id), onKeyDown: (e) => {
+              if (e.key === "Enter") choose(v.id);
+            }, children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: v.title }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: metric === "activity" ? new Date(v.createdAt).toLocaleDateString("zh-CN") : pretty(v.values[active?.id ?? ""]) + " " + unit }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { children: [
+                pretty(v.values.size),
+                " 字节"
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { children: [
+                v.values.revisions,
+                " 次"
+              ] })
+            ] }, v.id)) })
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "wg-stat-footnote", children: data?.scope })
+      ] }, branch + metric)
+    ] })
+  ] });
+}
 function HelpDocument({ repoRoot }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("article", { className: "wg-help-document", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "wg-help-lead", children: "每一稿，都有迹可循。稿喵把一份文档的多次修改放在一起，让你随时找到、阅读和继续编辑以前的稿件。" }),
@@ -61374,10 +61597,17 @@ function HelpDocument({ repoRoot }) {
         /* @__PURE__ */ jsxRuntimeExports.jsx("summary", { children: "换设备如何带走文档？" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "先导出备份，在另一台设备打开稿喵后从备份恢复。免安装版软件需要复制整个软件目录；自定义位置的文档库需另外备份。" })
       ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "08 · 查看分支的量化统计" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "选中文档，打开“版本统计”。左侧选择统计分支和指标，右侧查看趋势、版本数与逐版数值。统计分支只改变查看范围，不改变当前编辑路线。点击图表节点可选中对应版本。" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "文本提供字符、汉字、英文词及新增、删除、总改动、净变化和保留率；Word还提供段落、表格、绘图对象及批注计数；Excel提供工作表、非空单元格、公式与错误值计数；PPT提供幻灯片与备注字符数。各格式只显示可计算的指标。" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "正文字符数不等同于Word/WPS字数，不统计页眉、页脚、脚注。首稿没有上一稿，增删数据为“—”。文件损坏、旧格式或超出差异计算限制时，缺失值不会画成零。覆盖同版本会更新该节点的统计，不新增版本节点。保存活动不代表实际编辑时长。" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "BlockFrame为新默认主题，可在顶栏切换其他主题。系统开启“减少动态效果”时，启动与统计入场运动会跳过。" })
     ] })
   ] });
 }
-const brandIcon = "" + new URL("gaomiao-D1q54MHz.png", import.meta.url).href;
+const brandIcon = "" + new URL("gaomiao-WI42HgCn.png", import.meta.url).href;
 const extension = (name) => name.includes(".") ? name.split(".").pop().toLowerCase() : "";
 const baseName = (name) => name.split(/[\\/]/).pop() ?? name;
 function FileIcon({ name, size = 18 }) {
@@ -61637,6 +61867,7 @@ function Workspace() {
       /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "wg-theme-label", children: [
         "主题",
         /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { "aria-label": "主题风格", value: theme, onChange: (e) => setTheme(e.target.value), children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "blockframe", children: "BlockFrame 黑框积木" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "light", children: "浅色办公" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "paper", children: "纸张书房" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "dark", children: "石墨暗色" }),
@@ -61685,6 +61916,13 @@ function Workspace() {
         }, children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(Columns3, { size: 16 }),
           " 分类看板"
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { disabled: !detail, className: view === "stats" && rightPanel !== "settings" ? "active" : "", onClick: () => {
+          setView("stats");
+          setRightPanel("preview");
+        }, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(GitCompare, { size: 16 }),
+          " 版本统计"
         ] })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-view-context", children: detail ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
@@ -61710,7 +61948,7 @@ function Workspace() {
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(SettingsPage, {})
     ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-context-toolbar", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-context-toolbar", style: view === "stats" ? { display: "none" } : void 0, children: [
         view === "overview" ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "wg-search", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx(Search, { size: 15 }),
@@ -61747,8 +61985,8 @@ function Workspace() {
           " 保存工作区"
         ] })
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `wg-main-area ${view === "overview" ? "overview" : ""}`, children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(AnimatePresence, { mode: "wait", initial: false, children: /* @__PURE__ */ jsxRuntimeExports.jsx(motion.div, { className: "wg-main-view", initial: { opacity: 0, y: 7 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -5 }, transition: { duration: 0.2 }, children: view === "overview" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-overview", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `wg-main-area ${view === "overview" ? "overview" : view === "stats" ? "statistics" : ""}`, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(AnimatePresence, { mode: "wait", initial: false, children: /* @__PURE__ */ jsxRuntimeExports.jsx(motion.div, { className: "wg-main-view", initial: { opacity: 0, y: 7 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -5 }, transition: { duration: 0.2 }, children: view === "stats" && detail ? /* @__PURE__ */ jsxRuntimeExports.jsx(VersionStatistics, { detail, onSelect: selectVersion }, detail.docName) : view === "overview" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-overview", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("aside", { className: "wg-nav", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "文档" }),
             /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: fileFilter === "all" ? "active" : "", onClick: () => setFileFilter("all"), children: [
@@ -61959,7 +62197,7 @@ function Workspace() {
       ] })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("footer", { className: "wg-statusbar", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: busy ? "正在保存操作…" : detail ? `${detail.title} · ${view === "overview" ? "总览" : view === "graph" ? "版本关系图" : "分类看板"} · 工作区${detail.workspace.dirty ? "有修改" : "已记录"}` : "导入文件，开始保留每一次修改" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: busy ? "正在保存操作…" : detail ? `${detail.title} · ${view === "overview" ? "总览" : view === "graph" ? "版本关系图" : view === "stats" ? "版本统计" : "分类看板"} · 工作区${detail.workspace.dirty ? "有修改" : "已记录"}` : "导入文件，开始保留每一次修改" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "文件由 Word / WPS / Excel 编辑 · 历史预览只读" })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(AnimatePresence, { children: notice && /* @__PURE__ */ jsxRuntimeExports.jsxs(motion.div, { className: "wg-notice", role: "status", initial: { opacity: 0, y: 15 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: 8 }, children: [
@@ -62117,11 +62355,11 @@ function Workspace() {
 function MainLayout() {
   return /* @__PURE__ */ jsxRuntimeExports.jsx(Workspace, {});
 }
-const cat = "" + new URL("cat-DM3Wb4vy.png", import.meta.url).href;
-const paper = "" + new URL("paper-CoM35D0w.png", import.meta.url).href;
+const cat = "" + new URL("cat-DZWUeuEu.png", import.meta.url).href;
+const paper = "" + new URL("paper-BG6CsGbY.png", import.meta.url).href;
 const mascotImages = { cat, paper };
 function poseMascot(root, elapsed) {
-  const keys2 = [[0, 22, 0.94, 1.02, -4], [180, -5, 1, 1, 1], [350, 3, 1.025, 0.975, 0], [470, 3, 1.025, 0.975, 0], [650, -2, 0.995, 1.005, -0.6], [920, 0, 1, 1, 0]];
+  const keys2 = [[0, 32, 0.88, 0.88, -7], [210, -4, 1.02, 1.02, 1], [345, 5, 1.035, 0.965, 0], [430, 5, 1.035, 0.965, 0], [630, -2, 0.99, 1.01, -0.5], [920, 0, 1, 1, 0]];
   let pose = keys2.at(-1).slice(1);
   for (let i = 1; i < keys2.length; i++) {
     if (elapsed <= keys2[i][0]) {
