@@ -3035,6 +3035,14 @@ async function importProjectItems(repo, request2) {
         }
       }
       project.nodes.push(...nodes);
+      if (request2.previousNodeId) {
+        const previous = findNode(project, request2.previousNodeId);
+        for (const node2 of nodes.filter((n) => nodeIds.includes(n.id))) {
+          const position2 = { x: previous.position.x + 290, y: previous.position.y };
+          while (project.nodes.some((n) => n.id !== node2.id && n.parentId === parentId && Math.abs(n.position.x - position2.x) < 250 && Math.abs(n.position.y - position2.y) < 150)) position2.y += 190;
+          node2.position = position2;
+        }
+      }
       if (request2.title) project.nodes.filter((n) => nodeIds.includes(n.id)).forEach((n) => {
         n.title = request2.title;
       });
