@@ -2,15 +2,15 @@
   "archiveKind": "compiled-application-snapshot",
   "originalTypeScriptAvailable": false,
   "version": "0.1.0",
-  "originalDirectory": "word_git-windows-bwi0RX",
+  "originalDirectory": "word_git-windows-glP1dv",
   "electronVersion": "32.3.3",
   "files": {
-    "resources/app/out/main/index.js": "3af316ec110658c71f6b111c78c5b481da549034ecf0d527366614d56f54e7bf",
+    "resources/app/out/main/index.js": "a12d27f0b8e87184d257ce884e10a55373a2ccbcf08bac2e062d2e05b8f0e6e9",
     "resources/app/out/preload/index.cjs": "5b28ae325a4b4e2b1efc966ab94e5ce5ffc583595e1e56545d2d15c1b6758492",
-    "resources/app/out/renderer/assets/index-BmvTVmsd.js": "7bfc951493a74c9a646a52404f7f37f900c1ba1e7a529136fb68f9f2efc0a7ce",
-    "resources/app/out/renderer/assets/index-DCHnA-8x.css": "8aeba182f8c361edb92472de7a8d6586e88b99388be82d7833c4a2bbf218d363",
-    "resources/app/out/renderer/index.html": "8d93ee4f22a703de2526f6692b8bf7492dfc4db454a3e7cd8163dca8b886a927",
+    "resources/app/out/renderer/assets/index-BkUtRn-f.css": "515e2d0206a6eb017315dbc328f28fc6daa5ccaf219658450940adca63dd8419",
+    "resources/app/out/renderer/assets/index-D_If_OkJ.js": "323662c6e6f181e7e8b2a78cff7f2a3e6534e3c966c87878e2b177a5e3208501",
+    "resources/app/out/renderer/index.html": "1f7eebed9de4490e58922721f67d106060efe6ab2e8298c0060a30786a24f99d",
     "resources/app/package.json": "949c17016a2d60165322492dc47ba7fd108d407b2cef3591cce3acc6da366da0",
-    "使用教程.md": "1d573a3d7bd711bbb5566ec9cd0581065632df9d3c3065216519d9d6f8064c11"
+    "使用教程.md": "94cbc7a762718234070e9696a773e459b317017d48367deb41ee807bd2866651"
   }
 }

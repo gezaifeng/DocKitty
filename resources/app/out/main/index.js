@@ -47,19 +47,7 @@ async function writeFileAtomic(target, data) {
   } finally {
     await fh.close();
   }
-  try {
-    for (let attempt = 0; ; attempt++) {
-      try {
-        await promises.rename(tmp2, target);
-        break;
-      } catch (error2) {
-        if (attempt >= 4 || !["EPERM", "EBUSY", "EACCES"].includes(error2.code ?? "")) throw error2;
-        await new Promise((resolve2) => setTimeout(resolve2, 25 * 2 ** attempt));
-      }
-    }
-  } finally {
-    await promises.rm(tmp2, { force: true });
-  }
+  await promises.rename(tmp2, target);
 }
 function teeHash(stream2) {
   const hash = createHash("sha256");
@@ -138,11 +126,6 @@ class Repo {
   }
   root;
   static async init(root, name) {
-    try {
-      if ((await promises.readdir(root)).length) throw new Error("仓库位置已有文件，请使用空目录或打开已有仓库");
-    } catch (error2) {
-      if (error2.code !== "ENOENT") throw error2;
-    }
     await promises.mkdir(root, { recursive: true });
     for (const d of LAYOUT_DIRS) await promises.mkdir(path$1.join(root, d), { recursive: true });
     const config = { formatVersion: FORMAT_VERSION, name, createdAt: (/* @__PURE__ */ new Date()).toISOString() };
@@ -2433,13 +2416,11 @@ async function exportVersion(repo, docName2, id, destination) {
 }
 async function beginVersionEdit(repo, docName2, id, branch) {
   return withRepoWrite(repo, async () => {
-    const version2 = await requireVersion(repo, docName2, id);
+    await requireVersion(repo, docName2, id);
     const d = await documentDetail(repo, docName2);
     const target = branch ?? d.currentBranch;
     if (!d.branchHeads[target]) await createBranchUnlocked(repo, docName2, target, { commitId: id });
     else if (d.branchHeads[target] !== id) throw new Error("该版本不是目标分支最新稿，请填写新分支名，或先移动分支起点");
-    const meta = await readLibraryMeta(repo, docName2);
-    if (target === d.currentBranch && d.workspace.exists && meta.workingVersionId === id && meta.workingContentId === version2.contentId) return;
     await switchBranchUnlocked(repo, docName2, target);
   });
 }
@@ -8067,7 +8048,7 @@ async function importDocHandler(args) {
 async function editDoc(args) {
   const { docName: docName2 } = DocEditReq.parse(args);
   const repo = getRepo();
-  const workspacePath = path$1.join(repo.root, "workspace", validateDocName(docName2));
+  const workspacePath = path$1.join(repo.root, "workspace", docName2);
   const error2 = await shell.openPath(workspacePath);
   if (error2) throw new Error(error2);
   watchDoc(docName2, workspacePath);

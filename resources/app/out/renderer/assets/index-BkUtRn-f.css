@@ -367,24 +367,6 @@
     --radius: .5rem;
   }
 
-  [data-theme="paper"] {
-    --background: 42 33% 92%;
-    --foreground: 95 10% 24%;
-    --card: 45 67% 98%;
-    --card-foreground: 95 10% 24%;
-    --primary: 98 20% 39%;
-    --primary-foreground: 45 67% 98%;
-    --secondary: 42 33% 94%;
-    --secondary-foreground: 95 10% 24%;
-    --muted: 42 33% 94%;
-    --muted-foreground: 75 8% 45%;
-    --accent: 80 36% 91%;
-    --accent-foreground: 95 10% 24%;
-    --border: 65 19% 85%;
-    --input: 65 19% 85%;
-    --ring: 98 20% 39%;
-  }
-
   [data-theme="dark"] {
     --background: 222.2 47% 5.5%;
     --foreground: 210 40% 98%;
@@ -404,7 +386,7 @@
   }
 
   @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]):not([data-theme="paper"]) {
+    :root:not([data-theme="light"]) {
       --background: 222.2 47% 5.5%;
       --foreground: 210 40% 98%;
       --card: 222.2 42% 9.5%;

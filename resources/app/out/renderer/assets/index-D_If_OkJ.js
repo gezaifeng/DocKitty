@@ -37729,35 +37729,22 @@ async function renderAsync(data, bodyContainer, styleContainer, userOptions) {
 }
 function DocxPreview({ data }) {
   const containerRef = reactExports.useRef(null);
-  const [error, setError] = reactExports.useState(null);
   reactExports.useEffect(() => {
     if (!containerRef.current || data.byteLength === 0) return;
-    let active = true;
-    setError(null);
-    const content = document.createElement("div");
-    renderAsync(data, content, content, {
+    containerRef.current.replaceChildren();
+    renderAsync(data, containerRef.current, containerRef.current, {
       className: "docx-preview",
       inWrapper: false,
       ignoreWidth: true
-    }).then(() => {
-      if (active) containerRef.current?.replaceChildren(content);
-    }).catch((e) => {
-      if (active) setError(e.message);
-    });
-    return () => {
-      active = false;
-    };
+    }).catch(console.error);
   }, [data]);
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-    error && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { role: "alert", className: "text-destructive text-sm p-4", children: error }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(
-      "div",
-      {
-        ref: containerRef,
-        className: "prose prose-sm max-w-none p-4 overflow-auto h-full"
-      }
-    )
-  ] });
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(
+    "div",
+    {
+      ref: containerRef,
+      className: "prose prose-sm max-w-none p-4 overflow-auto h-full"
+    }
+  );
 }
 var exceljs_min = { exports: {} };
 var hasRequiredExceljs_min;
@@ -60855,12 +60842,8 @@ function XlsxPreview({ data }) {
   const [error, setError] = reactExports.useState(null);
   reactExports.useEffect(() => {
     if (data.byteLength === 0) return;
-    let active = true;
-    setError(null);
-    setSheetData(null);
     const workbook = new ExcelJS.Workbook();
     workbook.xlsx.load(data).then(() => {
-      if (!active) return;
       const sheet = workbook.worksheets[0];
       if (!sheet) {
         setError("Excel 文件中没有工作表");
@@ -60886,15 +60869,10 @@ function XlsxPreview({ data }) {
         rows.push(cells);
       });
       setSheetData({ rows });
-    }).catch((e) => {
-      if (active) setError(e.message);
-    });
-    return () => {
-      active = false;
-    };
+    }).catch((e) => setError(e.message));
   }, [data]);
   if (error) {
-    return /* @__PURE__ */ jsxRuntimeExports.jsx("p", { role: "alert", className: "text-destructive text-sm p-4", children: error });
+    return /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-destructive text-sm p-4", children: error });
   }
   if (!sheetData) {
     return /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-muted-foreground text-sm p-4", children: "解析中…" });
@@ -61257,7 +61235,6 @@ function SettingsPage() {
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mx-auto flex w-full max-w-2xl flex-col gap-4 p-4", children: [
       stats && /* @__PURE__ */ jsxRuntimeExports.jsx(SectionCard, { icon: Database, title: "存储统计", index: 0, children: /* @__PURE__ */ jsxRuntimeExports.jsx(StorageStats, { stats }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs(SectionCard, { icon: Archive, title: "备份", index: 1, children: [
-        (exportMutation.error || importMutation.error) && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { role: "alert", className: "mb-2 text-sm text-destructive", children: (exportMutation.error || importMutation.error)?.message }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-wrap gap-2", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(
             Button,
@@ -61287,7 +61264,6 @@ function SettingsPage() {
         ] })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs(SectionCard, { icon: ShieldCheck, title: "数据完整性", index: 2, children: [
-        scrubMutation.error && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { role: "alert", className: "mb-2 text-sm text-destructive", children: scrubMutation.error.message }),
         /* @__PURE__ */ jsxRuntimeExports.jsx(
           Button,
           {
@@ -61494,12 +61470,8 @@ function Workspace() {
         setSelectedVersionId(result.versionId);
         setView("overview");
         setShowDeleted(false);
-        try {
-          await api.library.mutate({ type: "edit", docName: result.docName });
-          setNotice("文档已创建并交给系统编辑器，保存后回到这里选择保存方式");
-        } catch (error) {
-          setFailure("文档已创建，但系统编辑器未能打开。可使用“打开当前工作区”重试：" + error.message);
-        }
+        await api.library.mutate({ type: "edit", docName: result.docName });
+        setNotice("文档已创建并交给系统编辑器，保存后回到这里选择保存方式");
       } else if (modal.kind === "import") {
         if (!form.source) throw new Error("请先选择要导入的文件");
         if (form.importMode === "document") {
