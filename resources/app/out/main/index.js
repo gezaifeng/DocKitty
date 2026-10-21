@@ -1178,6 +1178,10 @@ class ObjectStore {
       return false;
     }
   }
+  async remove(id) {
+    if (!/^[a-f0-9]{64}$/.test(id)) throw new Error("对象标识无效");
+    await promises.rm(this.pathFor(id), { force: true });
+  }
 }
 const WINDOW = 32;
 function mulberry32(seed) {
@@ -1535,7 +1539,17 @@ async function workingVersion(repo, docName2, id) {
 }
 async function resolveVersion(repo, docName2, id) {
   const meta = await readLibraryMeta(repo, docName2);
+  if (meta.versions[id]?.purgedAt) throw new Error("该版本文件已彻底删除");
   return meta.versions[id]?.contentId ?? id;
+}
+async function registerImportSource(repo, docName2, id, source) {
+  const config = JSON.parse(await promises.readFile(path$1.join(repo.root, "repo.yaml"), "utf8"));
+  if (!config.isolatedSources) return path$1.resolve(source);
+  const ctx = StorageContext.forRepo(repo), tree = await readTree(ctx, (await readCommit(ctx, id)).tree);
+  if (!tree.entries[""]) return void 0;
+  const file2 = containedPath(repo.root, `imports/${id}/${validateDocName(docName2)}`);
+  await writeFileAtomic(file2, await materializeFile(ctx, await getManifest(ctx, tree.entries[""])));
+  return path$1.relative(repo.root, file2).split(path$1.sep).join("/");
 }
 async function sha256File(p) {
   const tee = teeHash(readFileBlocks(p));
@@ -1614,6 +1628,9 @@ async function commitDocUnlocked(repo, docName2, opts) {
       createdAt: (/* @__PURE__ */ new Date()).toISOString()
     };
     const cid = await writeCommit(ctx, commit);
+    const ownership = await readLibraryMeta(repo, docName2);
+    (ownership.versions[cid] ??= {}).branchMembership = [branch];
+    await writeLibraryMeta(repo, docName2, ownership);
     await writeHead(repo, docId, branch, cid);
     await workingVersion(repo, docName2, cid);
     await closeJournal(repo, journalId);
@@ -1696,6 +1713,9 @@ async function importDocUnlocked(repo, sourcePath, name) {
   }
   const r = await commitDocUnlocked(repo, docName2, { message: "导入", author: "import" });
   if (!r.commitId) throw new Error(`导入未产生提交：${docName2}`);
+  const meta = await readLibraryMeta(repo, docName2);
+  (meta.versions[r.commitId] ??= {}).sourcePath = await registerImportSource(repo, docName2, r.commitId, sourcePath);
+  await writeLibraryMeta(repo, docName2, meta);
   return { docId: r.docId, commitId: r.commitId };
 }
 async function listCommits(repo, docName2, branch) {
@@ -1722,6 +1742,8 @@ async function createBranchUnlocked(repo, docName2, branch, from) {
   const base = from?.commitId ?? await readHead(repo, docId, from?.branch ?? await readCurrentBranch(repo, docId));
   if (!base) throw new Error("没有可指向的提交（请先提交首版本）");
   await readCommit(StorageContext.forRepo(repo), base);
+  const meta = await readLibraryMeta(repo, docName2);
+  if (meta.versions[base]?.purgedAt) throw new Error("该版本文件已彻底删除");
   await writeHead(repo, docId, branch, base);
 }
 async function switchBranch(repo, docName2, branch) {
@@ -1776,6 +1798,7 @@ async function restoreUnlocked(repo, entryId, branch) {
   const qDir = path$1.join(repo.root, "quarantine");
   const p = path$1.join(qDir, `${entryId}.json`);
   const entry = JSON.parse(await promises.readFile(p, "utf8"));
+  if ((await readLibraryMeta(repo, entry.docName)).versions[entry.commitId]?.purgedAt) throw new Error("该分支末端文件已彻底删除，不能恢复该引用");
   const target = branch ?? entry.branch;
   validateBranchName(target);
   if (await readHead(repo, entry.docId, target)) throw new Error("同名分支已存在，请输入其他恢复名称");
@@ -2161,6 +2184,32 @@ async function extractDocxText(buf) {
   const plainText = xmlText.replace(/<[^>]+>/g, "");
   return plainText.replace(/\s+/g, " ").trim();
 }
+function defaultVersionPositions(versions) {
+  const byId = new Map(versions.map((v) => [v.id, v]));
+  const depths = /* @__PURE__ */ new Map();
+  function depth(id, seen = /* @__PURE__ */ new Set()) {
+    if (depths.has(id)) return depths.get(id);
+    if (seen.has(id)) return 0;
+    seen.add(id);
+    const value = Math.max(0, ...(byId.get(id)?.parents ?? []).filter((p) => byId.has(p)).map((p) => depth(p, new Set(seen)) + 1));
+    depths.set(id, value);
+    return value;
+  }
+  const branches = [...new Set(versions.map((v) => v.branches[0] ?? "main"))].sort((a, b) => a === b ? 0 : a === "main" ? -1 : b === "main" ? 1 : a.localeCompare(b));
+  const positions = /* @__PURE__ */ new Map();
+  let lane = 0;
+  for (const branch of branches) {
+    const rows = /* @__PURE__ */ new Map();
+    const members = versions.filter((v) => (v.branches[0] ?? "main") === branch).sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
+    for (const version2 of members) {
+      const column2 = depth(version2.id), row2 = rows.get(column2) ?? 0;
+      positions.set(version2.id, { x: 65 + column2 * 265, y: 65 + (lane + row2) * 170 });
+      rows.set(column2, row2 + 1);
+    }
+    lane += Math.max(1, ...rows.values());
+  }
+  return positions;
+}
 async function documentDetail(repo, docName2) {
   validateDocName(docName2);
   const meta = await readLibraryMeta(repo, docName2);
@@ -2169,7 +2218,7 @@ async function documentDetail(repo, docName2) {
   const versions = /* @__PURE__ */ new Map();
   for (const branch of await listBranches(repo, docIdOf(docName2))) {
     const head = await readHead(repo, docIdOf(docName2), branch);
-    if (!head) continue;
+    if (!head || meta.versions[head]?.purgedAt) continue;
     heads[branch] = head;
     const visited = /* @__PURE__ */ new Set();
     const queue2 = [head];
@@ -2177,6 +2226,7 @@ async function documentDetail(repo, docName2) {
       const id = queue2.pop();
       if (visited.has(id)) continue;
       visited.add(id);
+      if (meta.versions[id]?.purgedAt) continue;
       let version2 = versions.get(id);
       if (!version2) {
         const original = await readCommit(ctx, id);
@@ -2186,7 +2236,7 @@ async function documentDetail(repo, docName2) {
         version2 = {
           id,
           contentId,
-          parents: original.parents,
+          parents: v.parents ?? original.parents,
           title: v.title ?? original.message,
           note: v.note ?? "",
           author: content.author,
@@ -2196,7 +2246,8 @@ async function documentDetail(repo, docName2) {
           order: v.order ?? 0,
           position: v.position,
           deletedAt: v.deletedAt ?? null,
-          revisionCount: v.revisions?.length ?? 0
+          revisionCount: v.revisions?.length ?? 0,
+          sourcePath: v.sourcePath ? path$1.isAbsolute(v.sourcePath) ? v.sourcePath : containedPath(repo.root, v.sourcePath) : void 0
         };
         versions.set(id, version2);
       }
@@ -2205,13 +2256,14 @@ async function documentDetail(repo, docName2) {
     }
   }
   for (const id of Object.keys(meta.versions)) {
+    if (meta.versions[id].purgedAt) continue;
     if (!versions.has(id)) {
       const original = await readCommit(ctx, id);
       const v = meta.versions[id];
       versions.set(id, {
         id,
         contentId: v.contentId ?? id,
-        parents: original.parents,
+        parents: v.parents ?? original.parents,
         title: v.title ?? original.message,
         note: v.note ?? "",
         author: original.author,
@@ -2221,10 +2273,19 @@ async function documentDetail(repo, docName2) {
         order: v.order ?? 0,
         position: v.position,
         deletedAt: v.deletedAt ?? null,
-        revisionCount: v.revisions?.length ?? 0
+        revisionCount: v.revisions?.length ?? 0,
+        sourcePath: v.sourcePath ? path$1.isAbsolute(v.sourcePath) ? v.sourcePath : containedPath(repo.root, v.sourcePath) : void 0
       });
     }
   }
+  for (const version2 of versions.values()) {
+    const membership = meta.versions[version2.id]?.branchMembership;
+    const candidates = membership?.filter((branch) => branch in heads) ?? version2.branches;
+    const owner = candidates.includes("main") ? "main" : candidates.find((branch) => !branch.startsWith("保护-")) ?? candidates[0] ?? Object.keys(heads)[0] ?? "main";
+    version2.branches = [owner];
+  }
+  const positions = defaultVersionPositions([...versions.values()]);
+  for (const version2 of versions.values()) version2.position ??= positions.get(version2.id);
   const currentBranch = await readCurrentBranch(repo, docIdOf(docName2));
   return {
     docName: docName2,
@@ -2367,8 +2428,11 @@ async function importVersion(repo, docName2, sourcePath, opts) {
     if (detail.deletedAt) throw new Error("请先从回收区还原该文档");
     const currentPath = path$1.join(repo.root, "workspace", docName2);
     const sourceStat = await promises.stat(sourcePath);
-    const currentStat = await promises.stat(currentPath);
-    if (sourceStat.isDirectory() !== currentStat.isDirectory()) throw new Error("文件与目录型文档不能互相替换");
+    const currentStat = await promises.stat(currentPath).catch((error2) => {
+      if (error2.code === "ENOENT") return null;
+      throw error2;
+    });
+    if (currentStat && sourceStat.isDirectory() !== currentStat.isDirectory()) throw new Error("文件与目录型文档不能互相替换");
     if (!sourceStat.isDirectory() && path$1.extname(sourcePath).toLowerCase() !== path$1.extname(docName2).toLowerCase()) throw new Error("版本文件格式必须与原文档一致");
     if (!opts.message.trim()) throw new Error("请填写版本名称");
     if (opts.replaceVersionId) {
@@ -2379,15 +2443,16 @@ async function importVersion(repo, docName2, sourcePath, opts) {
       v.revisions = [...v.revisions ?? [], v.contentId ?? version2.id];
       v.contentId = contentId;
       v.title = opts.message.trim();
+      v.sourcePath = await registerImportSource(repo, docName2, contentId, sourcePath);
       await writeLibraryMeta(repo, docName2, meta2);
       return version2.id;
     }
     const branch = validateBranchName(opts.branch ?? detail.currentBranch);
     const head = detail.branchHeads[branch];
-    if (!head) throw new Error("目标分支不存在，请先创建分支");
-    const id = await snapshotSource(repo, sourcePath, [head], opts.message);
+    if (!head && detail.versions.length) throw new Error("目标分支不存在，请先创建分支");
+    const id = await snapshotSource(repo, sourcePath, head ? [head] : [], opts.message);
     const meta = await readLibraryMeta(repo, docName2);
-    meta.versions[id] = { title: opts.message.trim() };
+    meta.versions[id] = { branchMembership: [branch], title: opts.message.trim(), sourcePath: await registerImportSource(repo, docName2, id, sourcePath) };
     await writeLibraryMeta(repo, docName2, meta);
     await writeHead(repo, docIdOf(docName2), branch, id);
     return id;
@@ -2539,7 +2604,7 @@ async function recordDraftSave(repo, file2) {
       const created = !draft.versionId;
       if (created) {
         draft.versionId = contentId;
-        meta.versions[contentId] = { title: draft.title, categoryId: base.categoryId, position: draft.position };
+        meta.versions[contentId] = { branchMembership: [draft.branch], title: draft.title, categoryId: base.categoryId, position: draft.position, sourcePath: relative2 };
         draft.pendingHead = true;
       } else {
         const version2 = meta.versions[draft.versionId] ??= {};
@@ -2560,6 +2625,184 @@ async function recordDraftSave(repo, file2) {
       }
       return { docName: docName2, branch: draft.branch, workspacePath: draftPath(repo, relative2), versionId: draft.versionId, status: created ? "created" : "updated" };
     }
+  });
+}
+async function editVersionRelations(repo, docName2, id, request2) {
+  return withRepoWrite(repo, async () => {
+    const detail = await documentDetail(repo, docName2), meta = await readLibraryMeta(repo, docName2);
+    const version2 = detail.versions.find((v) => v.id === id && !v.deletedAt);
+    if (!version2 || detail.deletedAt) throw new Error("请先还原要整理的版本和文档");
+    const byId = new Map(detail.versions.map((v) => [v.id, v]));
+    const parents = new Map(detail.versions.map((v) => [v.id, [...v.parents]]));
+    const affected = /* @__PURE__ */ new Set();
+    const replace = (versionId2, previous) => {
+      parents.set(versionId2, previous);
+      affected.add(versionId2);
+    };
+    if (request2.action === "disconnectPrevious") replace(id, []);
+    if (request2.action === "disconnectNext" || request2.action === "moveBranch") {
+      for (const child of detail.versions) if (child.parents.includes(id)) replace(child.id, child.parents.filter((p) => p !== id));
+    }
+    if (request2.action === "connectPrevious" || request2.action === "connectNext") {
+      const target = byId.get(request2.targetVersionId ?? "");
+      if (!target || target.deletedAt) throw new Error("请选择同一文档中仍存在的版本");
+      const child = request2.action === "connectPrevious" ? id : target.id;
+      const parent2 = request2.action === "connectPrevious" ? target.id : id;
+      replace(child, [.../* @__PURE__ */ new Set([...parents.get(child) ?? [], parent2])]);
+    }
+    if (request2.action === "moveBranch") {
+      const branch = validateBranchName(request2.branch ?? "");
+      if (!(branch in detail.branchHeads)) throw new Error("目标分支不存在，请先建立分支");
+      const target = request2.targetVersionId ? byId.get(request2.targetVersionId) : void 0;
+      if (request2.targetVersionId && (!target || target.deletedAt || !target.branches.includes(branch))) throw new Error("连接起点必须属于目标分支");
+      replace(id, target ? [target.id] : []);
+    }
+    const done = /* @__PURE__ */ new Set(), visiting = /* @__PURE__ */ new Set();
+    const visit = (node2) => {
+      if (visiting.has(node2)) throw new Error("不能连接到自己或形成循环；请先断开冲突的连接");
+      if (done.has(node2)) return;
+      visiting.add(node2);
+      for (const parent2 of parents.get(node2) ?? []) visit(parent2);
+      visiting.delete(node2);
+      done.add(node2);
+    };
+    for (const node2 of parents.keys()) visit(node2);
+    for (const v of detail.versions) {
+      const record = meta.versions[v.id] ??= {};
+      record.branchMembership ??= v.branches;
+      record.position ??= v.position;
+    }
+    for (const node2 of affected) {
+      const v = meta.versions[node2] ??= {};
+      v.parents = parents.get(node2);
+      v.branchMembership ??= byId.get(node2).branches;
+    }
+    if (request2.action === "moveBranch") {
+      const branch = request2.branch;
+      meta.versions[id].branchMembership = [branch];
+      for (const draft of meta.drafts ?? []) if ((draft.versionId ?? draft.baseVersionId) === id) draft.closed = true;
+      await writeLibraryMeta(repo, docName2, meta);
+      for (const [old2, head] of Object.entries(detail.branchHeads)) {
+        if (old2 === branch || head !== id) continue;
+        const fallback2 = detail.versions.find((v) => v.id !== id && !v.deletedAt && v.branches.includes(old2));
+        if (fallback2) await writeHead(repo, docIdOf(docName2), old2, fallback2.id);
+        else await promises.rm(containedPath(repo.root, `refs/heads/${docIdOf(docName2)}/${old2}`), { force: true });
+      }
+      if (!request2.targetVersionId || detail.branchHeads[branch] === request2.targetVersionId) await writeHead(repo, docIdOf(docName2), branch, id);
+      if (!detail.branchHeads[detail.currentBranch] || detail.branchHeads[detail.currentBranch] === id) await writeCurrentBranch(repo, docIdOf(docName2), branch);
+    } else await writeLibraryMeta(repo, docName2, meta);
+  });
+}
+async function tidyVersionLayout(repo, docName2) {
+  return withRepoWrite(repo, async () => {
+    const detail = await documentDetail(repo, docName2), meta = await readLibraryMeta(repo, docName2);
+    const positions = defaultVersionPositions(detail.versions);
+    for (const version2 of detail.versions) (meta.versions[version2.id] ??= {}).position = positions.get(version2.id);
+    await writeLibraryMeta(repo, docName2, meta);
+  });
+}
+async function purgeVersion(repo, docName2, id, opts) {
+  return withRepoWrite(repo, async () => {
+    const detail = await documentDetail(repo, docName2), meta = await readLibraryMeta(repo, docName2);
+    const version2 = detail.versions.find((v) => v.id === id);
+    if (!version2) throw new Error("该版本不存在或已彻底删除");
+    const source = version2.sourcePath;
+    if (opts.deleteSource && (!source || opts.confirmedSourcePath !== source)) throw new Error("请确认软件记录的导入文件完整路径");
+    if (opts.deleteSource && source) {
+      const relative2 = path$1.relative(repo.root, source);
+      if (!relative2 || !relative2.startsWith("..") && !path$1.isAbsolute(relative2) && !["drafts", "workspace", "imports"].includes(relative2.split(path$1.sep)[0])) throw new Error("不能删除文档库结构文件");
+      const stat2 = await promises.lstat(source).catch((error2) => {
+        if (error2.code === "ENOENT") return null;
+        throw error2;
+      });
+      if (stat2 && (!stat2.isFile() || stat2.isSymbolicLink())) throw new Error("仅支持删除实际文件，目录和符号链接不能在这里删除");
+      for (const name of await docIds(repo)) {
+        const other = await documentDetail(repo, name);
+        if (other.versions.some((v) => !(name === docName2 && v.id === id) && v.sourcePath && path$1.resolve(v.sourcePath).toLowerCase() === path$1.resolve(source).toLowerCase())) throw new Error("其他版本也关联这份导入文件；请先使用仅从版本管理删除");
+      }
+    }
+    for (const v of detail.versions) {
+      const record2 = meta.versions[v.id] ??= {};
+      record2.branchMembership ??= v.branches;
+      if (v.parents.includes(id)) record2.parents = v.parents.filter((p) => p !== id);
+    }
+    const record = meta.versions[id];
+    const removedContents = [.../* @__PURE__ */ new Set([id, version2.contentId, ...record.revisions ?? []])];
+    const ctx = StorageContext.forRepo(repo), candidates = /* @__PURE__ */ new Set(), candidateChunks = /* @__PURE__ */ new Set(), manifests = /* @__PURE__ */ new Map();
+    const collect = async (commitId, blobs, chunks) => {
+      const treeId = (await readCommit(ctx, commitId)).tree;
+      blobs.add(treeId);
+      for (const manifestId of Object.values((await readTree(ctx, treeId)).entries)) {
+        blobs.add(manifestId);
+        const m = await getManifest(ctx, manifestId);
+        if (blobs === candidates) manifests.set(manifestId, m.sha256);
+        if (m.encoding === "generic") for (const c of m.ref.chunks) chunks.add(c);
+        else {
+          for (const entry of Object.values(m.entries)) {
+            if ("blob" in entry.ref) blobs.add(entry.ref.blob);
+            else for (const c of entry.ref.chunks) chunks.add(c);
+          }
+          for (const c of m.original?.ref.chunks ?? []) chunks.add(c);
+        }
+      }
+    };
+    for (const contentId of removedContents) await collect(contentId, candidates, candidateChunks);
+    const purged = new Set(removedContents);
+    for (const name of await docIds(repo)) for (const contentId of (await readLibraryMeta(repo, name)).purgedContentIds ?? []) purged.add(contentId);
+    const keep = /* @__PURE__ */ new Set(), keepChunks = /* @__PURE__ */ new Set();
+    for (const a of await promises.readdir(ctx.blobs.dir, { withFileTypes: true })) {
+      if (!a.isDirectory() || !/^[a-f0-9]{2}$/.test(a.name)) continue;
+      for (const b of await promises.readdir(path$1.join(ctx.blobs.dir, a.name), { withFileTypes: true })) {
+        if (!b.isDirectory() || !/^[a-f0-9]{2}$/.test(b.name)) continue;
+        for (const c of await promises.readdir(path$1.join(ctx.blobs.dir, a.name, b.name))) {
+          const objectId = a.name + b.name + c;
+          if (!/^[a-f0-9]{64}$/.test(objectId) || purged.has(objectId)) continue;
+          const value = await ctx.blobs.get(objectId).then((bytes) => {
+            try {
+              return JSON.parse(new TextDecoder().decode(bytes));
+            } catch {
+              return null;
+            }
+          });
+          if (value && Array.isArray(value.parents) && typeof value.tree === "string" && typeof value.message === "string") await collect(objectId, keep, keepChunks);
+        }
+      }
+    }
+    for (const draft of meta.drafts ?? []) {
+      if ((draft.versionId ?? draft.baseVersionId) !== id) continue;
+      draft.closed = true;
+      const file2 = containedPath(repo.root, draft.path);
+      await promises.rm(file2, { force: true });
+    }
+    if (meta.workingVersionId === id) {
+      const file2 = containedPath(repo.root, `workspace/${docName2}`);
+      const stat2 = await promises.lstat(file2).catch((error2) => {
+        if (error2.code === "ENOENT") return null;
+        throw error2;
+      });
+      if (stat2?.isDirectory()) throw new Error("目录型文档请先导出保留内容，不支持在此彻底删除");
+      await promises.rm(file2, { force: true });
+      delete meta.workingVersionId;
+      delete meta.workingContentId;
+    }
+    if (opts.deleteSource && source) await promises.rm(source, { force: true });
+    record.purgedAt = (/* @__PURE__ */ new Date()).toISOString();
+    record.parents = [];
+    record.branchMembership = [];
+    meta.purgedContentIds = [.../* @__PURE__ */ new Set([...meta.purgedContentIds ?? [], ...removedContents])];
+    await writeLibraryMeta(repo, docName2, meta);
+    for (const [branch, head] of Object.entries(detail.branchHeads)) if (head === id) {
+      const fallback2 = detail.versions.find((v) => v.id !== id && !v.deletedAt && v.branches.includes(branch));
+      if (fallback2) await writeHead(repo, docIdOf(docName2), branch, fallback2.id);
+      else await promises.rm(containedPath(repo.root, `refs/heads/${docIdOf(docName2)}/${branch}`), { force: true });
+    }
+    for (const blob of candidates) if (!keep.has(blob)) {
+      await ctx.blobs.remove(blob);
+      const sha = manifests.get(blob);
+      if (sha) await promises.rm(containedPath(repo.root, `objects/blobs/index/${sha}`), { force: true });
+    }
+    for (const chunk of candidateChunks) if (!keepChunks.has(chunk)) await ctx.chunks.remove(chunk);
+    return { changed: true };
   });
 }
 const CH = {
@@ -6393,6 +6636,9 @@ const LibraryDetailReq = objectType({ docName });
 const LibraryMutationSchema = discriminatedUnionType("type", [
   objectType({ type: literalType("document"), docName, title: stringType().min(1).optional(), deleted: booleanType().optional() }),
   objectType({ type: literalType("version"), docName, versionId, title: stringType().min(1).optional(), note: stringType().optional(), categoryId: stringType().optional(), order: numberType().finite().optional(), position: position.optional(), deleted: booleanType().optional() }),
+  objectType({ type: literalType("layout"), docName }),
+  objectType({ type: literalType("relations"), docName, versionId, action: enumType(["disconnectPrevious", "disconnectNext", "connectPrevious", "connectNext", "moveBranch"]), targetVersionId: versionId.optional(), branch: stringType().optional() }),
+  objectType({ type: literalType("purgeVersion"), docName, versionId, deleteSource: booleanType(), confirmedSourcePath: stringType().optional() }),
   objectType({ type: literalType("category"), docName, action: enumType(["create", "rename", "delete"]), name: stringType().optional(), categoryId: stringType().optional() }),
   objectType({ type: literalType("arrange"), docName, categoryId: stringType(), versionIds: arrayType(versionId) }),
   objectType({ type: literalType("importVersion"), docName, sourcePath: stringType().min(1), message: stringType().min(1), branch: stringType().optional(), replaceVersionId: versionId.optional() }),
@@ -65811,6 +66057,14 @@ async function libraryMutationHandler(args) {
     case "version":
       await updateVersion(repo, request2.docName, request2.versionId, request2);
       break;
+    case "layout":
+      await tidyVersionLayout(repo, request2.docName);
+      break;
+    case "relations":
+      await editVersionRelations(repo, request2.docName, request2.versionId, request2);
+      break;
+    case "purgeVersion":
+      return purgeVersion(repo, request2.docName, request2.versionId, request2);
     case "category":
       return { categoryId: await updateCategory(repo, request2.docName, request2.action, request2.name, request2.categoryId) };
     case "arrange":
@@ -68103,22 +68357,25 @@ async function versionStatsHandler(args) {
   const repo = getRepo(), detail = await documentDetail(repo, docName2), head = detail.branchHeads[branch];
   if (!head) throw new Error("所选统计分支不存在");
   const byId = new Map(detail.versions.map((v) => [v.id, v]));
-  const ancestry = (start) => {
-    const nodes = [], visited = /* @__PURE__ */ new Set();
-    let cursor = start;
-    while (cursor && !visited.has(cursor)) {
-      visited.add(cursor);
-      const node2 = byId.get(cursor);
-      if (!node2) break;
-      nodes.push(node2);
-      cursor = node2.parents[0];
-    }
-    return nodes.reverse().filter((v) => !v.deletedAt);
+  const branchLine = (name) => {
+    const members = detail.versions.filter((v) => !v.deletedAt && v.branches.includes(name)).sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
+    const ids = new Set(members.map((v) => v.id)), seen = /* @__PURE__ */ new Set(), ordered = [];
+    const visit = (v) => {
+      if (seen.has(v.id)) return;
+      seen.add(v.id);
+      for (const p of v.parents) {
+        const previous = byId.get(p);
+        if (previous && ids.has(p)) visit(previous);
+      }
+      ordered.push(v);
+    };
+    members.forEach(visit);
+    return ordered;
   };
-  const line = ancestry(head);
+  const line = branchLine(branch);
   if (compareBranch && !detail.branchHeads[compareBranch]) throw new Error("对照分支不存在");
   if (onlyExclusive && !compareBranch) throw new Error("仅分叉后统计需要选择对照分支");
-  const other = new Set(compareBranch ? ancestry(detail.branchHeads[compareBranch]).map((v) => v.id) : []);
+  const other = new Set(compareBranch ? branchLine(compareBranch).map((v) => v.id) : []);
   const baselineVersion = baselineId ? byId.get(baselineId) : line[0];
   if (baselineId && !baselineVersion) throw new Error("基准版本不属于当前文档");
   const read = async (v) => {
@@ -68135,16 +68392,16 @@ async function versionStatsHandler(args) {
   };
   const baseline = baselineVersion ? await read(baselineVersion) : void 0;
   const versions = [];
-  let previous;
   for (const v of line) {
     if (v.deletedAt) continue;
     const analysis = await read(v);
     const values = { ...analysis.values, revisions: v.revisionCount };
+    const parent2 = byId.get(v.parents[0]);
+    const previous = parent2 && !parent2.deletedAt ? await read(parent2) : void 0;
     const comparison = previous ? compareAnalyses(previous, analysis) : void 0;
     if (comparison) Object.assign(values, comparison.values);
     if (versions.length) values.interval = (Date.parse(v.createdAt) - Date.parse(versions.at(-1).createdAt)) / 36e5;
     versions.push({ id: v.id, title: v.title, createdAt: v.createdAt, values, unavailable: analysis.unavailable, author: v.author, category: detail.categories.find((c) => c.id === v.categoryId)?.name ?? "未分类", contentId: v.contentId, baselineValues: baseline ? compareAnalyses(baseline, analysis).values : void 0, sections: analysis.sections, columns: analysis.columns, changes: comparison?.changes, changeCount: comparison?.changeCount });
-    previous = analysis;
   }
   const visible = onlyExclusive ? versions.filter((v) => !other.has(v.id)) : versions;
   const countBy = (field) => {
