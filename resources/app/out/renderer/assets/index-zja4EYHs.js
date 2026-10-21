@@ -67943,7 +67943,9 @@ function EdgeEditor({ x, y, label: label2, note: note2, style, onPreview, onSave
       const start2 = drag2.current;
       if (start2?.pointerId === e.pointerId) setPosition(clamp2({ left: start2.left + e.clientX - start2.x, top: start2.top + e.clientY - start2.y }));
     }, onPointerUp: (e) => {
-      if (drag2.current?.pointerId !== e.pointerId) return;
+      const start2 = drag2.current;
+      if (start2?.pointerId !== e.pointerId) return;
+      setPosition(clamp2({ left: start2.left + e.clientX - start2.x, top: start2.top + e.clientY - start2.y }));
       drag2.current = null;
       e.currentTarget.releasePointerCapture(e.pointerId);
     }, onPointerCancel: () => {
