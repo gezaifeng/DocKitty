@@ -69146,7 +69146,7 @@ function Workspace({ modePicker } = {}) {
           ] }),
           detail && /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { "aria-label": "查看范围", title: "仅筛选显示的版本，不切换编辑分支", value: branchFilter, onChange: (e) => setBranchFilter(e.target.value), children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs("option", { value: "current", children: [
-              "仅看 · ",
+              "编辑分支 · ",
               detail?.currentBranch
             ] }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "all", children: "全部分支的版本" }),

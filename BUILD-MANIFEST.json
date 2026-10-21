@@ -2,7 +2,7 @@
   "archiveKind": "compiled-application-snapshot",
   "originalTypeScriptAvailable": false,
   "version": "0.5.13",
-  "originalDirectory": "gaomiao-0.5.13-windows-x64",
+  "originalDirectory": "gaomiao-windows-KN3Ufe",
   "electronVersion": "32.3.3",
   "files": {
     "Hairline-LICENSE.txt": "948d56f0bc8c383c04c453136dcfb78407f97de65ff8bb4fabff2b79ddd17f59",
@@ -108,13 +108,14 @@
     "resources/app/out/preload/index.cjs": "8b761b009ca2407430295b4d001cf28d11ae87e4b81fee888b799be1d828df70",
     "resources/app/out/renderer/assets/cat-D_fsyJ-0.png": "ca72804eb1178fcc1fe98b23c99bc386e909f5aca12c8aca14df37e4ccfe6b3a",
     "resources/app/out/renderer/assets/gaomiao-D-Hjr120.png": "3d5821b769db49e20ae2301205ddeeeadc227123b9c981c9bcb4ff40118c38ce",
+    "resources/app/out/renderer/assets/index-B9KbqEel.js": "a5d64d654dd3b60281eec1db9dedb3aee5c4e7bca7667c50ecadf84d602560fe",
     "resources/app/out/renderer/assets/index-D_6JHT6u.css": "e59063df1391187132363dbba4b1afd037166e1f38c7a1f62b44d27c1be1d845",
-    "resources/app/out/renderer/assets/index-wb2AbH4A.js": "706ff9344a74fd85ceafa35a85459e3b4330656931f7bc7f5456094268416a3d",
     "resources/app/out/renderer/assets/paper-CsFc-hZ7.png": "f45dff6f97cebeba52dfb8b9ff5c94debd9bc0942814aee6a34856bbc6dc54de",
-    "resources/app/out/renderer/index.html": "3eae16c9bd77c15a6f54c7adf507709d365a8eb5a24775f60b1f6f510283a2ef",
+    "resources/app/out/renderer/index.html": "06f4715a990bba5b5d737241fe69c821b810db566734fa645fc8f428bfe07e96",
     "resources/app/package.json": "7a9cf54bef1e93504d344ac8a7044ebca57bdfe2952dc3e8861437f4d03c6630",
     "resources/app/resources/icon.ico": "9fc2dd00a90413ce71fe6c31e63d41591a287f0c72647562b3dbfb10b5162bc2",
     "resources/app/resources/icon.png": "3d5821b769db49e20ae2301205ddeeeadc227123b9c981c9bcb4ff40118c38ce",
-    "使用教程.md": "f6d787c8e88ba6d10d22c69db296df13a423a3cac555048b1c1c3306949140ad"
+    "resources/app/resources/installer-mode.json": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "使用教程.md": "e7e60e1b14826c98248645ff47db9a21e999999179e9539db51b9693bb6e25b0"
   }
 }
