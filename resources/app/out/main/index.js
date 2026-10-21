@@ -1,4 +1,4 @@
-import { ipcMain, app, shell, dialog, BrowserWindow } from "electron";
+import { ipcMain, app, shell, dialog, nativeTheme, BrowserWindow, Menu } from "electron";
 import path$1, { resolve, join as join$1, relative, sep } from "node:path";
 import { promises } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
@@ -67681,6 +67681,7 @@ function registerAllHandlers() {
 }
 let win = null;
 function createWindow() {
+  Menu.setApplicationMenu(null);
   win = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -67716,6 +67717,11 @@ function createWindow() {
 }
 app.whenReady().then(() => {
   app.setAppUserModelId("com.wordgit.app");
+  ipcMain.handle("appearance.theme", (_event, args) => {
+    const theme = args?.theme;
+    if (theme !== "light" && theme !== "dark" && theme !== "system") throw new Error("无效主题");
+    nativeTheme.themeSource = theme;
+  });
   createWindow();
 });
 app.on("window-all-closed", () => {

@@ -26220,6 +26220,9 @@ const ChartColumn = createLucideIcon("ChartColumn", [
   ["path", { d: "M8 17v-3", key: "17ska0" }]
 ]);
 const Check = createLucideIcon("Check", [["path", { d: "M20 6 9 17l-5-5", key: "1gmf2c" }]]);
+const ChevronDown = createLucideIcon("ChevronDown", [
+  ["path", { d: "m6 9 6 6 6-6", key: "qrunsl" }]
+]);
 const Columns3 = createLucideIcon("Columns3", [
   ["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2", key: "afitv7" }],
   ["path", { d: "M9 3v18", key: "fh3hqa" }],
@@ -61335,6 +61338,64 @@ function SettingsPage() {
     ] })
   ] });
 }
+const themeOptions = [
+  { id: "blockframe", label: "BlockFrame 黑框积木", detail: "暖纸底色 · 黑框与硬投影" },
+  { id: "light", label: "浅色办公", detail: "白色纸面 · 克制细边框" },
+  { id: "paper", label: "纸张书房", detail: "暖纸与墨绿 · 宋体标题" },
+  { id: "dark", label: "石墨暗色", detail: "中性炭灰 · 柔和亮字" },
+  { id: "system", label: "跟随系统", detail: "随系统切换浅色与石墨" }
+];
+function ThemePicker() {
+  const { theme, setTheme } = useUiStore(), [open, setOpen] = reactExports.useState(false), [focus2, setFocus] = reactExports.useState(0), root = reactExports.useRef(null), trigger = reactExports.useRef(null);
+  reactExports.useEffect(() => {
+    if (!open) return;
+    const close = (e) => {
+      if (!root.current?.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, [open]);
+  reactExports.useEffect(() => {
+    if (open) root.current?.querySelector(`[data-option="${focus2}"]`)?.focus();
+  }, [open, focus2]);
+  const choose = (id2) => {
+    setTheme(id2);
+    setOpen(false);
+    trigger.current?.focus();
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-theme-picker", ref: root, children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { ref: trigger, className: "wg-theme-trigger", role: "combobox", "aria-label": "主题风格", "aria-haspopup": "listbox", "aria-expanded": open, "aria-controls": "wg-theme-options", "data-value": theme, onClick: () => {
+      setFocus(themeOptions.findIndex((t) => t.id === theme));
+      setOpen(!open);
+    }, onKeyDown: (e) => {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setOpen(true);
+        setFocus(themeOptions.findIndex((t) => t.id === theme));
+      }
+    }, children: [
+      themeOptions.find((t) => t.id === theme)?.label,
+      /* @__PURE__ */ jsxRuntimeExports.jsx(ChevronDown, { size: 14 })
+    ] }),
+    open && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { id: "wg-theme-options", className: "wg-theme-options", role: "listbox", "aria-label": "选择主题", onKeyDown: (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setOpen(false);
+        trigger.current?.focus();
+      } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        setFocus((n) => (n + (e.key === "ArrowDown" ? 1 : -1) + themeOptions.length) % themeOptions.length);
+      } else if (e.key === "Tab") setOpen(false);
+    }, children: themeOptions.map((t, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { "data-option": i, role: "option", "aria-selected": theme === t.id, onClick: () => choose(t.id), children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `wg-theme-swatch ${t.id}` }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: t.label }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: t.detail })
+      ] }),
+      theme === t.id && /* @__PURE__ */ jsxRuntimeExports.jsx(Check, { size: 14 })
+    ] }, t.id)) })
+  ] });
+}
 function VersionStatistics({ detail, onSelect }) {
   const repoRoot = useRepoStore((s) => s.repoRoot);
   const [branch, setBranch] = reactExports.useState(detail.currentBranch);
@@ -61607,7 +61668,7 @@ function HelpDocument({ repoRoot }) {
     ] })
   ] });
 }
-const brandIcon = "" + new URL("gaomiao-WI42HgCn.png", import.meta.url).href;
+const brandIcon = "" + new URL("gaomiao-Cp67HTa9.png", import.meta.url).href;
 const extension = (name) => name.includes(".") ? name.split(".").pop().toLowerCase() : "";
 const baseName = (name) => name.split(/[\\/]/).pop() ?? name;
 function FileIcon({ name, size = 18 }) {
@@ -61619,7 +61680,7 @@ function FileIcon({ name, size = 18 }) {
 }
 function Workspace() {
   const { repoRoot, repoName, setRepo } = useRepoStore();
-  const { selectedDocName, selectDoc, theme, setTheme, rightPanel, setRightPanel } = useUiStore();
+  const { selectedDocName, selectDoc, rightPanel, setRightPanel } = useUiStore();
   const queryClient2 = useQueryClient();
   const [view, setView] = reactExports.useState("overview");
   const [selectedVersionId, setSelectedVersionId] = reactExports.useState(null);
@@ -61864,15 +61925,9 @@ function Workspace() {
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-menubutton", onClick: () => open("help"), children: "使用帮助" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-menu-spacer" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "wg-theme-label", children: [
-        "主题",
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { "aria-label": "主题风格", value: theme, onChange: (e) => setTheme(e.target.value), children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "blockframe", children: "BlockFrame 黑框积木" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "light", children: "浅色办公" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "paper", children: "纸张书房" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "dark", children: "石墨暗色" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "system", children: "跟随系统" })
-        ] })
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-theme-label", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "主题" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(ThemePicker, {})
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "wg-local", children: "本地文档库" })
     ] }),
@@ -62355,22 +62410,13 @@ function Workspace() {
 function MainLayout() {
   return /* @__PURE__ */ jsxRuntimeExports.jsx(Workspace, {});
 }
-const cat = "" + new URL("cat-DZWUeuEu.png", import.meta.url).href;
-const paper = "" + new URL("paper-BG6CsGbY.png", import.meta.url).href;
+const cat = "" + new URL("cat-BRwcH-wu.png", import.meta.url).href;
+const paper = "" + new URL("paper-CQay4RUf.png", import.meta.url).href;
 const mascotImages = { cat, paper };
 function poseMascot(root, elapsed) {
-  const keys2 = [[0, 32, 0.88, 0.88, -7], [210, -4, 1.02, 1.02, 1], [345, 5, 1.035, 0.965, 0], [430, 5, 1.035, 0.965, 0], [630, -2, 0.99, 1.01, -0.5], [920, 0, 1, 1, 0]];
-  let pose = keys2.at(-1).slice(1);
-  for (let i = 1; i < keys2.length; i++) {
-    if (elapsed <= keys2[i][0]) {
-      const a = keys2[i - 1], b = keys2[i], t = Math.max(0, (elapsed - a[0]) / (b[0] - a[0])), p = t * t * (3 - 2 * t);
-      pose = a.slice(1).map((value, j) => value + (b[j + 1] - value) * p);
-      break;
-    }
-  }
-  const [y, sx, sy, angle] = pose;
-  root.style.opacity = String(Math.min(1, elapsed / 100));
-  root.style.transform = `translateY(${y + Math.sin(Math.max(0, elapsed - 920) / 1e3 * 2) * 0.6}px) rotate(${angle}deg) scale(${sx}, ${sy})`;
+  const t = Math.min(1, Math.max(0, elapsed / 620)), eased = 1 - Math.pow(1 - t, 3);
+  root.style.opacity = String(Math.min(1, elapsed / 130));
+  root.style.transform = `translate3d(0, ${18 * (1 - eased)}px, 0) scale(${0.98 + 0.02 * eased})`;
 }
 const Mascot = reactExports.forwardRef(function Mascot2(_, ref) {
   return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-mascot", ref, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-mascot-art", children: [
@@ -62399,14 +62445,14 @@ function StartupScreen({ ready, revealRef, onFinish }) {
     const tick = (now2) => {
       if (!active || exiting.current || !mascot.current) return;
       start ??= now2;
-      const elapsed = reduced ? 920 : now2 - start;
+      const elapsed = reduced ? 620 : now2 - start;
       poseMascot(mascot.current, elapsed);
-      if (elapsed >= 920 && !completed) {
+      if (elapsed >= 620 && !completed) {
         completed = true;
         setCaught(true);
         setPhase("waiting");
       }
-      if (!reduced) frame2 = requestAnimationFrame(tick);
+      if (!reduced && !completed) frame2 = requestAnimationFrame(tick);
     };
     const images = Array.from(document.querySelectorAll(".wg-page-origin,.wg-mascot img"));
     void Promise.allSettled(images.map((img) => img.decode?.())).then(() => {
@@ -62492,8 +62538,17 @@ function App() {
   const finishEntrance = reactExports.useCallback(() => setEntered(true), []);
   reactExports.useEffect(() => {
     const root = document.documentElement;
-    if (theme === "system") root.removeAttribute("data-theme");
-    else root.setAttribute("data-theme", theme);
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const apply = () => {
+      const resolved = theme === "system" ? media.matches ? "dark" : "light" : theme;
+      root.setAttribute("data-theme", resolved);
+      root.setAttribute("data-theme-preference", theme);
+      root.style.colorScheme = resolved === "dark" ? "dark" : "light";
+    };
+    apply();
+    media.addEventListener("change", apply);
+    void api.appearance?.setTheme(theme === "dark" ? "dark" : theme === "system" ? "system" : "light");
+    return () => media.removeEventListener("change", apply);
   }, [theme]);
   async function start() {
     setChecking(true);

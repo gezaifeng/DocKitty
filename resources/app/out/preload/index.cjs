@@ -1,6 +1,7 @@
 "use strict";
 const electron = require("electron");
 const api = {
+  appearance: { setTheme: (theme) => electron.ipcRenderer.invoke("appearance.theme", { theme }) },
   library: {
     list: () => electron.ipcRenderer.invoke("library.list", {}),
     detail: (docName) => electron.ipcRenderer.invoke("library.detail", { docName }),
