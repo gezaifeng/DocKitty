@@ -541,11 +541,11 @@ function requireScheduler_production() {
       if (last !== first) {
         heap[0] = last;
         a: for (var index = 0, length = heap.length, halfLength = length >>> 1; index < halfLength; ) {
-          var leftIndex = 2 * (index + 1) - 1, left2 = heap[leftIndex], rightIndex = leftIndex + 1, right2 = heap[rightIndex];
-          if (0 > compare(left2, last))
-            rightIndex < length && 0 > compare(right2, left2) ? (heap[index] = right2, heap[rightIndex] = last, index = rightIndex) : (heap[index] = left2, heap[leftIndex] = last, index = leftIndex);
-          else if (rightIndex < length && 0 > compare(right2, last))
-            heap[index] = right2, heap[rightIndex] = last, index = rightIndex;
+          var leftIndex = 2 * (index + 1) - 1, left = heap[leftIndex], rightIndex = leftIndex + 1, right = heap[rightIndex];
+          if (0 > compare(left, last))
+            rightIndex < length && 0 > compare(right, left) ? (heap[index] = right, heap[rightIndex] = last, index = rightIndex) : (heap[index] = left, heap[leftIndex] = last, index = leftIndex);
+          else if (rightIndex < length && 0 > compare(right, last))
+            heap[index] = right, heap[rightIndex] = last, index = rightIndex;
           else break a;
         }
       }
@@ -6270,17 +6270,17 @@ function requireReactDomClient_production() {
     }
     return lastContentRow;
   }
-  function initSuspenseListRenderState(workInProgress2, isBackwards, tail2, lastContentRow, tailMode, treeForkCount2) {
+  function initSuspenseListRenderState(workInProgress2, isBackwards, tail, lastContentRow, tailMode, treeForkCount2) {
     var renderState = workInProgress2.memoizedState;
     null === renderState ? workInProgress2.memoizedState = {
       isBackwards,
       rendering: null,
       renderingStartTime: 0,
       last: lastContentRow,
-      tail: tail2,
+      tail,
       tailMode,
       treeForkCount: treeForkCount2
-    } : (renderState.isBackwards = isBackwards, renderState.rendering = null, renderState.renderingStartTime = 0, renderState.last = lastContentRow, renderState.tail = tail2, renderState.tailMode = tailMode, renderState.treeForkCount = treeForkCount2);
+    } : (renderState.isBackwards = isBackwards, renderState.rendering = null, renderState.renderingStartTime = 0, renderState.last = lastContentRow, renderState.tail = tail, renderState.tailMode = tailMode, renderState.treeForkCount = treeForkCount2);
   }
   function reverseChildren(fiber) {
     var row = fiber.child;
@@ -19402,14 +19402,14 @@ const positionalValues = {
   width: ({ width, paddingLeft = "0", paddingRight = "0", boxSizing }, measureBox) => measureDimension(width, measureBox, "x", paddingLeft, paddingRight, boxSizing),
   height: ({ height, paddingTop = "0", paddingBottom = "0", boxSizing }, measureBox) => measureDimension(height, measureBox, "y", paddingTop, paddingBottom, boxSizing),
   top: ({ top }) => parseFloat(top),
-  left: ({ left: left2 }) => parseFloat(left2),
+  left: ({ left }) => parseFloat(left),
   bottom: ({ top }, measureBox) => {
     const { y } = measureBox();
     return parseFloat(top) + (y.max - y.min);
   },
-  right: ({ left: left2 }, measureBox) => {
+  right: ({ left }, measureBox) => {
     const { x } = measureBox();
-    return parseFloat(left2) + (x.max - x.min);
+    return parseFloat(left) + (x.max - x.min);
   },
   // Transform
   x: ({ transform }) => parseValueFromTransform(transform, "x"),
@@ -21014,9 +21014,9 @@ function buildSVGAttrs(state, {
     buildSVGPath(attrs, pathLength, pathSpacing, pathOffset, false);
   }
 }
-function convertBoundingBoxToBox({ top, left: left2, right: right2, bottom }) {
+function convertBoundingBoxToBox({ top, left, right, bottom }) {
   return {
-    x: { min: left2, max: right2 },
+    x: { min: left, max: right },
     y: { min: top, max: bottom }
   };
 }
@@ -23934,11 +23934,11 @@ function PopChild({ children, isPresent, anchorX, anchorY, root, pop }) {
   const childRef = pop !== false ? children.props?.ref ?? children?.ref : void 0;
   const composedRef = useComposedRefs$1(ref, childRef);
   reactExports.useInsertionEffect(() => {
-    const { width, height, top, left: left2, right: right2, bottom, direction } = size.current;
+    const { width, height, top, left, right, bottom, direction } = size.current;
     if (isPresent || pop === false || !ref.current || !width || !height)
       return;
     const isRTL = direction === "rtl";
-    const x = anchorX === "left" ? isRTL ? `right: ${right2}` : `left: ${left2}` : isRTL ? `left: ${left2}` : `right: ${right2}`;
+    const x = anchorX === "left" ? isRTL ? `right: ${right}` : `left: ${left}` : isRTL ? `left: ${left}` : `right: ${right}`;
     const y = anchorY === "bottom" ? `bottom: ${bottom}` : `top: ${top}`;
     ref.current.dataset.motionPopId = id2;
     const style = document.createElement("style");
@@ -24996,9 +24996,9 @@ function calcRelativeAxisConstraints(axis, min, max) {
     max: max !== void 0 ? axis.max + max - (axis.max - axis.min) : void 0
   };
 }
-function calcRelativeConstraints(layoutBox, { top, left: left2, bottom, right: right2 }) {
+function calcRelativeConstraints(layoutBox, { top, left, bottom, right }) {
   return {
-    x: calcRelativeAxisConstraints(layoutBox.x, left2, right2),
+    x: calcRelativeAxisConstraints(layoutBox.x, left, right),
     y: calcRelativeAxisConstraints(layoutBox.y, top, bottom)
   };
 }
@@ -27914,8 +27914,8 @@ function injectStyles(tag, css) {
   }
 }
 function insertStyleTag(tag) {
-  var head2 = document.head || document.getElementsByTagName("head")[0];
-  head2.appendChild(tag);
+  var head = document.head || document.getElementsByTagName("head")[0];
+  head.appendChild(tag);
 }
 var stylesheetSingleton = function() {
   var counter = 0;
@@ -27970,10 +27970,10 @@ var parse = function(x) {
 };
 var getOffset = function(gapMode) {
   var cs = window.getComputedStyle(document.body);
-  var left2 = cs[gapMode === "padding" ? "paddingLeft" : "marginLeft"];
+  var left = cs[gapMode === "padding" ? "paddingLeft" : "marginLeft"];
   var top = cs[gapMode === "padding" ? "paddingTop" : "marginTop"];
-  var right2 = cs[gapMode === "padding" ? "paddingRight" : "marginRight"];
-  return [parse(left2), parse(top), parse(right2)];
+  var right = cs[gapMode === "padding" ? "paddingRight" : "marginRight"];
+  return [parse(left), parse(top), parse(right)];
 };
 var getGapWidth = function(gapMode) {
   if (gapMode === void 0) {
@@ -27995,13 +27995,13 @@ var getGapWidth = function(gapMode) {
 var Style = styleSingleton();
 var lockAttribute = "data-scroll-locked";
 var getStyles = function(_a, allowRelative, gapMode, important) {
-  var left2 = _a.left, top = _a.top, right2 = _a.right, gap = _a.gap;
+  var left = _a.left, top = _a.top, right = _a.right, gap = _a.gap;
   if (gapMode === void 0) {
     gapMode = "margin";
   }
   return "\n  .".concat(noScrollbarsClassName, " {\n   overflow: hidden ").concat(important, ";\n   padding-right: ").concat(gap, "px ").concat(important, ";\n  }\n  body[").concat(lockAttribute, "] {\n    overflow: hidden ").concat(important, ";\n    overscroll-behavior: contain;\n    ").concat([
     allowRelative && "position: relative ".concat(important, ";"),
-    gapMode === "margin" && "\n    padding-left: ".concat(left2, "px;\n    padding-top: ").concat(top, "px;\n    padding-right: ").concat(right2, "px;\n    margin-left:0;\n    margin-top:0;\n    margin-right: ").concat(gap, "px ").concat(important, ";\n    "),
+    gapMode === "margin" && "\n    padding-left: ".concat(left, "px;\n    padding-top: ").concat(top, "px;\n    padding-right: ").concat(right, "px;\n    margin-left:0;\n    margin-top:0;\n    margin-right: ").concat(gap, "px ").concat(important, ";\n    "),
     gapMode === "padding" && "padding-right: ".concat(gap, "px ").concat(important, ";")
   ].filter(Boolean).join(""), "\n  }\n  \n  .").concat(zeroRightClassName, " {\n    right: ").concat(gap, "px ").concat(important, ";\n  }\n  \n  .").concat(fullWidthClassName, " {\n    margin-right: ").concat(gap, "px ").concat(important, ";\n  }\n  \n  .").concat(zeroRightClassName, " .").concat(zeroRightClassName, " {\n    right: 0 ").concat(important, ";\n  }\n  \n  .").concat(fullWidthClassName, " .").concat(fullWidthClassName, " {\n    margin-right: 0 ").concat(important, ";\n  }\n  \n  body[").concat(lockAttribute, "] {\n    ").concat(removedBarSizeVariable, ": ").concat(gap, "px;\n  }\n");
 };
@@ -36227,18 +36227,18 @@ class DocumentParser {
   parseIndentation(node, style) {
     var firstLine = globalXmlParser.lengthAttr(node, "firstLine");
     var hanging = globalXmlParser.lengthAttr(node, "hanging");
-    var left2 = globalXmlParser.lengthAttr(node, "left");
+    var left = globalXmlParser.lengthAttr(node, "left");
     var start = globalXmlParser.lengthAttr(node, "start");
-    var right2 = globalXmlParser.lengthAttr(node, "right");
+    var right = globalXmlParser.lengthAttr(node, "right");
     var end = globalXmlParser.lengthAttr(node, "end");
     if (firstLine)
       style["text-indent"] = firstLine;
     if (hanging)
       style["text-indent"] = `-${hanging}`;
-    if (left2 || start)
-      style["margin-inline-start"] = left2 || start;
-    if (right2 || end)
-      style["margin-inline-end"] = right2 || end;
+    if (left || start)
+      style["margin-inline-start"] = left || start;
+    if (right || end)
+      style["margin-inline-end"] = right || end;
   }
   parseSpacing(node, style) {
     var before = globalXmlParser.lengthAttr(node, "before");
@@ -36536,8 +36536,8 @@ function updateTabStop(elem, tabs, defaultTabSize, pixelToPoint = 72 / 96) {
   }
   const marginLeft = parseFloat(pcs.marginLeft);
   const pOffset = pbb.left + marginLeft;
-  const left2 = (ebb.left - pOffset) * pixelToPoint;
-  const tab = tabStops.find((t) => t.style != "clear" && t.pos > left2);
+  const left = (ebb.left - pOffset) * pixelToPoint;
+  const tab = tabStops.find((t) => t.style != "clear" && t.pos > left);
   if (tab == null)
     return;
   let width = 1;
@@ -36556,7 +36556,7 @@ function updateTabStop(elem, tabs, defaultTabSize, pixelToPoint = 72 / 96) {
     const offset = nextBB.left + mul * nextBB.width - (pbb.left - marginLeft);
     width = tab.pos - offset * pixelToPoint;
   } else {
-    width = tab.pos - left2;
+    width = tab.pos - left;
   }
   elem.innerHTML = "&nbsp;";
   elem.style.textDecoration = "inherit";
@@ -37282,9 +37282,9 @@ section.${c}>footer { z-index: 1; }
     let transform = elem.cssStyle?.transform;
     this.renderStyleValues(elem.cssStyle, result);
     if (elem.srcRect && elem.srcRect.some((x) => x != 0)) {
-      var [left2, top, right2, bottom] = elem.srcRect;
-      transform = `scale(${1 / (1 - left2 - right2)}, ${1 / (1 - top - bottom)})`;
-      result.style["clip-path"] = `rect(${(100 * top).toFixed(2)}% ${(100 * (1 - right2)).toFixed(2)}% ${(100 * (1 - bottom)).toFixed(2)}% ${(100 * left2).toFixed(2)}%)`;
+      var [left, top, right, bottom] = elem.srcRect;
+      transform = `scale(${1 / (1 - left - right)}, ${1 / (1 - top - bottom)})`;
+      result.style["clip-path"] = `rect(${(100 * top).toFixed(2)}% ${(100 * (1 - right)).toFixed(2)}% ${(100 * (1 - bottom)).toFixed(2)}% ${(100 * left).toFixed(2)}%)`;
     }
     if (elem.rotation)
       transform = `rotate(${elem.rotation}deg) ${transform ?? ""}`;
@@ -61377,7 +61377,7 @@ function HelpDocument({ repoRoot }) {
     ] })
   ] });
 }
-const brandIcon = "" + new URL("gaomiao-xdmXmmtv.png", import.meta.url).href;
+const brandIcon = "" + new URL("gaomiao-6OWytbL4.png", import.meta.url).href;
 const extension = (name) => name.includes(".") ? name.split(".").pop().toLowerCase() : "";
 const baseName = (name) => name.split(/[\\/]/).pop() ?? name;
 function FileIcon({ name, size = 18 }) {
@@ -61486,8 +61486,8 @@ function Workspace() {
       setForm((f) => ({ ...f, name: preference === "replace" ? workingVersion?.title ?? "修订内容" : "保存修改", mode: preference }));
     }
     if (kind === "edit" && detail && version) {
-      const head2 = Object.keys(detail.branchHeads).find((b) => detail.branchHeads[b] === version.id && !b.startsWith("保护-"));
-      setForm((f) => ({ ...f, branch: head2 ?? "", name: head2 ? "" : "改稿-" + (/* @__PURE__ */ new Date()).toISOString().slice(5, 16).replace(/[:T]/g, "-") }));
+      const head = Object.keys(detail.branchHeads).find((b) => detail.branchHeads[b] === version.id && !b.startsWith("保护-"));
+      setForm((f) => ({ ...f, branch: head ?? "", name: head ? "" : "改稿-" + (/* @__PURE__ */ new Date()).toISOString().slice(5, 16).replace(/[:T]/g, "-") }));
     }
     if (kind === "deleteBranch" && detail) setForm((f) => ({ ...f, branch: Object.keys(detail.branchHeads).find((b) => b !== detail.currentBranch) ?? "" }));
     setModal({ kind, version, category, action });
@@ -62096,7 +62096,7 @@ function Workspace() {
               changeForm("name", "");
             }, children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "创建新的改稿路线" }),
-              Object.entries(detail?.branchHeads ?? {}).filter(([, head2]) => head2 === modal.version?.id).map(([branch]) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: branch, children: branch }, branch))
+              Object.entries(detail?.branchHeads ?? {}).filter(([, head]) => head === modal.version?.id).map(([branch]) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: branch, children: branch }, branch))
             ] })
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "wg-field", children: [
@@ -62117,58 +62117,24 @@ function Workspace() {
 function MainLayout() {
   return /* @__PURE__ */ jsxRuntimeExports.jsx(Workspace, {});
 }
-const body = "" + new URL("body-D0zqlhw_.png", import.meta.url).href;
-const head = "" + new URL("head-CJZ3_ZYK.png", import.meta.url).href;
-const tail = "" + new URL("tail-DdRZUdld.png", import.meta.url).href;
-const left = "" + new URL("left-paw-BFHLPUy1.png", import.meta.url).href;
-const right = "" + new URL("right-paw-DSaC6A30.png", import.meta.url).href;
-const paper = "" + new URL("paper-DxDhwF9j.png", import.meta.url).href;
-const mascotImages = { body, head, tail, left, right, paper };
+const paper = "data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='127%20156%2048%2049'%3e%3cg%20stroke='%23284f45'%20stroke-linecap='round'%20stroke-linejoin='round'%3e%3cpath%20d='M133%20158H161L173%20170V199Q173%20203%20169%20203H133Q129%20203%20129%20199V162Q129%20158%20133%20158Z'%20fill='%23dceee4'%20stroke-width='3'/%3e%3cpath%20d='M161%20158V170H173'%20fill='%23fffdf6'%20stroke-width='2.3'/%3e%3cpath%20d='M137%20179H164M137%20187H164M137%20195H153'%20fill='none'%20stroke='%236e9481'%20stroke-width='2.4'/%3e%3c/g%3e%3c/svg%3e";
+const mascotImages = { paper };
 function poseMascot(root, elapsed) {
-  const t = Math.min(1, elapsed / 900);
-  const clamp2 = (v) => Math.max(0, Math.min(1, v));
-  const ease2 = (a, b) => {
-    const v = clamp2((t - a) / (b - a));
-    return v * v * (3 - 2 * v);
-  };
-  const contact = 0.43, grip = ease2(contact, 0.75);
-  const impact = Math.sin(Math.PI * clamp2((t - contact) / 0.35)) * (1 - clamp2((t - contact) / 0.35));
-  const idle = Math.max(0, elapsed - 900) / 1e3;
-  const breathe = Math.sin(idle * 2.2) * 1.1;
-  const y = t < contact ? -100 + 276 * clamp2(t / contact) ** 2 : 176 + 12 * impact + breathe;
-  const x = 150 + 24 * (1 - ease2(0, contact));
-  const angle = -14 * (1 - ease2(0, contact)) + 3 * impact;
-  const apply = (name, transform) => {
-    const node = root.querySelector('[data-part="' + name + '"]');
-    node.style.transform = transform;
-  };
-  root.style.opacity = String(ease2(0, 0.08));
-  apply("body", `translateY(${7 * impact + breathe}px) scale(${1 + 0.03 * impact},${1 - 0.04 * impact})`);
-  apply("tail", `rotate(${-8 * Math.sin(t * Math.PI) + 5 * Math.sin(idle * 2.8)}deg)`);
-  const headTransform = `translateY(${5 * impact + breathe}px) rotate(${-5 * (1 - grip) + 2 * impact + 1.2 * Math.sin(idle * 1.8)}deg)`;
-  apply("head", headTransform);
-  apply("paper", `translate(${x - 150}px,${y - 176}px) rotate(${angle}deg)`);
-  const pawY = t < contact ? 22 * ease2(0.18, contact) : y - 176 + 22 * (1 - grip);
-  for (const side of ["left", "right"]) {
-    const dx = (side === "left" ? -1 : 1) * (7 * (1 - grip));
-    const rotation = (side === "left" ? 1 : -1) * (12 * (1 - grip));
-    for (const layer of ["back", "front"]) apply(side + "-" + layer, `translate(${dx}px,${pawY}px) rotate(${rotation}deg)`);
-  }
+  const t = Math.min(1, elapsed / 800);
+  const arrival = Math.min(1, t / 0.55);
+  const landing = Math.max(0, Math.min(1, (t - 0.55) / 0.45));
+  const settle = Math.sin(landing * Math.PI * 2) * (1 - landing);
+  const idle = Math.max(0, elapsed - 800) / 1e3;
+  const y = -22 * (1 - arrival) ** 3 + 5 * settle + Math.sin(idle * 2) * 0.6;
+  root.style.opacity = String(Math.min(1, t / 0.12));
+  root.style.transform = `translateY(${y}px) rotate(${-4 * (1 - arrival) ** 2 + settle}deg)`;
 }
+const cat = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 260" role="img" aria-label="稿喵，戴着折角文档胸牌的小猫">\n  <g stroke="#284f45" stroke-linecap="round" stroke-linejoin="round">\n    <path d="M190 194C216 213 249 195 243 169C239 152 223 151 220 164" fill="none" stroke-width="15"/>\n    <path d="M190 194C216 213 249 195 243 169C239 152 223 151 220 164" fill="none" stroke="#e9b98b" stroke-width="8"/>\n    <path d="M112 123C95 137 89 162 94 187C97 207 108 219 126 219H175C193 219 203 207 206 187C210 162 204 136 187 123Z" fill="#fffdf6" stroke-width="4.5"/>\n    <path d="M99 97V54L125 72Q150 63 178 72L202 48L202 98C206 130 182 146 150 146C117 146 94 129 99 97Z" fill="#fffdf6" stroke-width="4.5"/>\n    <path d="M100 54L125 72L106 76Z" fill="#e9b98b" stroke-width="3"/>\n    <path d="M183 78L195 63V86Z" fill="#e9b98b" stroke="none"/>\n    <path d="M124 103V108M175 103V108" fill="none" stroke-width="5"/>\n    <path d="M145 120L150 123L155 120" fill="none" stroke-width="3"/>\n    <path d="M150 123V128Q143 135 137 128M150 128Q157 135 163 128" fill="none" stroke-width="2.7"/>\n    <path d="M112 117L94 113M112 125L94 129M188 117L206 113M188 125L206 129" fill="none" stroke-width="2.7"/>\n    <path d="M115 147Q150 167 185 147" fill="none" stroke="#7da893" stroke-width="3"/>\n    <path d="M110 162Q105 179 118 187Q126 190 132 182M190 162Q195 179 182 187Q174 190 168 182" fill="none" stroke-width="3.3"/>\n    <path d="M121 207V218M178 207V218" fill="none" stroke-width="3"/>\n    <svg data-cat-paper="true" x="127" y="156" width="48" height="49" viewBox="127 156 48 49">\n      <path d="M133 158H161L173 170V199Q173 203 169 203H133Q129 203 129 199V162Q129 158 133 158Z" fill="#dceee4" stroke-width="3"/>\n      <path d="M161 158V170H173" fill="#fffdf6" stroke-width="2.3"/>\n      <path d="M137 179H164M137 187H164M137 195H153" fill="none" stroke="#6e9481" stroke-width="2.4"/>\n    </svg>\n  </g>\n</svg>\r\n';
 const Mascot = reactExports.forwardRef(function Mascot2(_, ref) {
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-mascot", ref, role: "img", "aria-label": "灵动的小猫接住文稿", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx("img", { "data-part": "tail", src: mascotImages.tail, alt: "" }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("img", { "data-part": "body", src: mascotImages.body, alt: "" }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("img", { "data-part": "head", src: mascotImages.head, alt: "" }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("img", { "data-part": "left-back", src: mascotImages.left, alt: "" }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("img", { "data-part": "right-back", src: mascotImages.right, alt: "" }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("img", { "data-part": "paper", "data-cat-paper": "true", src: mascotImages.paper, alt: "" }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("img", { "data-part": "left-front", src: mascotImages.left, alt: "" }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("img", { "data-part": "right-front", src: mascotImages.right, alt: "" })
-  ] });
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-mascot", ref, dangerouslySetInnerHTML: { __html: cat } });
 });
 function StartupScreen({ ready, revealRef, onFinish }) {
-  const cat = reactExports.useRef(null);
+  const cat2 = reactExports.useRef(null);
   const backdrop = reactExports.useRef(null);
   const exiting = reactExports.useRef(false);
   const [caught, setCaught] = reactExports.useState(false);
@@ -62181,23 +62147,23 @@ function StartupScreen({ ready, revealRef, onFinish }) {
     return () => media?.removeEventListener("change", change);
   }, []);
   reactExports.useEffect(() => {
-    if (!cat.current) return;
+    if (!cat2.current) return;
     let frame2 = 0, active = true, completed = false;
     let start;
     exiting.current = false;
     const tick = (now2) => {
-      if (!active || exiting.current || !cat.current) return;
+      if (!active || exiting.current || !cat2.current) return;
       start ??= now2;
-      const elapsed = reduced ? 900 : now2 - start;
-      poseMascot(cat.current, elapsed);
-      if (elapsed >= 900 && !completed) {
+      const elapsed = reduced ? 800 : now2 - start;
+      poseMascot(cat2.current, elapsed);
+      if (elapsed >= 800 && !completed) {
         completed = true;
         setCaught(true);
         setPhase("waiting");
       }
       if (!reduced) frame2 = requestAnimationFrame(tick);
     };
-    const images = Array.from(cat.current.querySelectorAll("img"));
+    const images = Array.from(document.querySelectorAll(".wg-page-origin"));
     void Promise.allSettled(images.map((img) => img.decode?.())).then(() => {
       if (!active) return;
       if (reduced) tick(performance.now());
@@ -62225,7 +62191,7 @@ function StartupScreen({ ready, revealRef, onFinish }) {
       finish();
       return;
     }
-    const source = cat.current?.querySelector("[data-cat-paper]");
+    const source = cat2.current?.querySelector("[data-cat-paper]");
     if (!source || !backdrop.current || !page.animate || !content || !origin) {
       finish();
       return;
@@ -62260,7 +62226,7 @@ function StartupScreen({ ready, revealRef, onFinish }) {
     };
   }, [ready, caught, reduced, revealRef, onFinish]);
   return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-startup", "data-phase": phase, role: "status", "aria-label": "稿喵正在启动", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-startup-backdrop", ref: backdrop, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-startup-content", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx(Mascot, { ref: cat }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(Mascot, { ref: cat2 }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: "稿喵" }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "每一稿，都有迹可循。" }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: ready ? "文档已就绪" : "正在打开你的文档…" })
