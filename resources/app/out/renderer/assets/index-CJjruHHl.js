@@ -17864,10 +17864,10 @@ let now;
 function clearTime() {
   now = void 0;
 }
-const time = {
+const time$1 = {
   now: () => {
     if (now === void 0) {
-      time.set(frameData.isProcessing || MotionGlobalConfig.useManualTiming ? frameData.timestamp : performance.now());
+      time$1.set(frameData.isProcessing || MotionGlobalConfig.useManualTiming ? frameData.timestamp : performance.now());
     }
     return now;
   },
@@ -18282,7 +18282,7 @@ const frameloopDriver = (update) => {
      * If we're processing this frame we can use the
      * framelocked timestamp to keep things in sync.
      */
-    now: () => frameData.isProcessing ? frameData.timestamp : time.now()
+    now: () => frameData.isProcessing ? frameData.timestamp : time$1.now()
   };
 };
 const generateLinearEasing = (easing, duration, resolution = 10) => {
@@ -18785,7 +18785,7 @@ function baseRecord(kind, animation) {
   return {
     kind,
     animation,
-    timestamp: time.now(),
+    timestamp: time$1.now(),
     frameTimestamp: frameData.timestamp,
     frameIsProcessing: frameData.isProcessing
   };
@@ -18859,8 +18859,8 @@ class JSAnimation extends WithPromise {
     };
     this.stop = () => {
       const { motionValue: motionValue2 } = this.options;
-      if (motionValue2 && motionValue2.updatedAt !== time.now()) {
-        this.tick(time.now());
+      if (motionValue2 && motionValue2.updatedAt !== time$1.now()) {
+        this.tick(time$1.now());
       }
       this.isStopped = true;
       if (this.state === "idle")
@@ -19030,7 +19030,7 @@ class JSAnimation extends WithPromise {
   set speed(newSpeed) {
     const hasChanged = this.playbackSpeed !== newSpeed;
     if (hasChanged && this.driver) {
-      this.updateTime(time.now());
+      this.updateTime(time$1.now());
     }
     this.playbackSpeed = newSpeed;
     if (hasChanged && this.driver) {
@@ -19063,7 +19063,7 @@ class JSAnimation extends WithPromise {
   }
   pause() {
     this.state = "paused";
-    this.updateTime(time.now());
+    this.updateTime(time$1.now());
     this.holdTime = this.currentTime;
   }
   complete() {
@@ -19830,7 +19830,7 @@ class NativeAnimationExtended extends NativeAnimation {
       ...options2,
       autoplay: false
     });
-    const sampleTime = Math.max(sampleDelta, time.now() - this.startTime);
+    const sampleTime = Math.max(sampleDelta, time$1.now() - this.startTime);
     const delta = clamp$2(0, sampleDelta, sampleTime - sampleDelta);
     const current = sampleAnimation.sample(sampleTime).value;
     const { name } = this.options;
@@ -19940,7 +19940,7 @@ class AsyncMotionValueAnimation extends WithPromise {
       }
       this.keyframeResolver?.cancel();
     };
-    this.createdAt = time.now();
+    this.createdAt = time$1.now();
     const { keyframes: keyframes2, name, motionValue: motionValue2, element } = options2;
     const optionsWithDefaults = options2;
     optionsWithDefaults.autoplay ?? (optionsWithDefaults.autoplay = true);
@@ -19956,7 +19956,7 @@ class AsyncMotionValueAnimation extends WithPromise {
   onKeyframesResolved(keyframes2, finalKeyframe, options2, sync) {
     this.keyframeResolver = void 0;
     const { name, type, velocity, delay: delay2, isHandoff, onUpdate } = options2;
-    this.resolvedAt = time.now();
+    this.resolvedAt = time$1.now();
     let canAnimateValue = true;
     if (!canAnimate(keyframes2, name, type, velocity)) {
       canAnimateValue = false;
@@ -20078,7 +20078,7 @@ class MotionValue {
     this.canTrackVelocity = null;
     this.events = {};
     this.updateAndNotify = (v) => {
-      const currentTime = time.now();
+      const currentTime = time$1.now();
       if (this.updatedAt !== currentTime) {
         this.setPrevFrameValue();
       }
@@ -20099,7 +20099,7 @@ class MotionValue {
   }
   setCurrent(current) {
     this.current = current;
-    this.updatedAt = time.now();
+    this.updatedAt = time$1.now();
     if (this.canTrackVelocity === null && current !== void 0) {
       this.canTrackVelocity = isFloat(this.current);
     }
@@ -20288,7 +20288,7 @@ class MotionValue {
    * @public
    */
   getVelocity() {
-    const currentTime = time.now();
+    const currentTime = time$1.now();
     if (!this.canTrackVelocity || this.prevFrameValue === void 0 || currentTime - this.updatedAt > MAX_VELOCITY_DELTA) {
       return 0;
     }
@@ -21574,7 +21574,7 @@ class VisualElement {
     };
     this.renderScheduledAt = 0;
     this.scheduleRender = () => {
-      const now2 = time.now();
+      const now2 = time$1.now();
       if (this.renderScheduledAt < now2) {
         this.renderScheduledAt = now2;
         frame$1.render(this.render, false, true);
@@ -22628,7 +22628,7 @@ class FlatTree {
   }
 }
 function delay(callback, timeout) {
-  const start2 = time.now();
+  const start2 = time$1.now();
   const checkElapsed = ({ timestamp }) => {
     const elapsed = timestamp - start2;
     if (elapsed >= timeout) {
@@ -23010,7 +23010,7 @@ function createProjectionNode$1({ attachResizeListener, defaultParent, measureSc
         this.nodes.forEach(notifyLayoutUpdate);
       }
       this.clearAllSnapshots();
-      const now2 = time.now();
+      const now2 = time$1.now();
       frameData.delta = clamp$2(0, 1e3 / 60, now2 - frameData.timestamp);
       frameData.timestamp = now2;
       frameData.isProcessing = true;
@@ -24804,7 +24804,7 @@ class PanSession {
       if (!isPanStarted && !isDistancePastThreshold)
         return;
       const { point: point2 } = info2;
-      this.history.push({ ...point2, timestamp: time.now() });
+      this.history.push({ ...point2, timestamp: time$1.now() });
       const { onStart, onMove } = this.handlers;
       if (!isPanStarted) {
         onStart && onStart(this.lastMoveEvent, info2);
@@ -26128,7 +26128,6 @@ const useUiStore = create$1()(
   )
 );
 const api = window.wordgit;
-var reactDomExports = requireReactDom();
 const toKebabCase = (string) => string.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
 const mergeClasses = (...classes) => classes.filter((className, index, array) => {
   return Boolean(className) && className.trim() !== "" && array.indexOf(className) === index;
@@ -26209,6 +26208,16 @@ const ArrowLeft = createLucideIcon("ArrowLeft", [
 const ArrowUp = createLucideIcon("ArrowUp", [
   ["path", { d: "m5 12 7-7 7 7", key: "hav0vg" }],
   ["path", { d: "M12 19V5", key: "x0mq9r" }]
+]);
+const BookOpen = createLucideIcon("BookOpen", [
+  ["path", { d: "M12 7v14", key: "1akyts" }],
+  [
+    "path",
+    {
+      d: "M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z",
+      key: "ruj8y"
+    }
+  ]
 ]);
 const CalendarDays = createLucideIcon("CalendarDays", [
   ["path", { d: "M8 2v4", key: "1cmpym" }],
@@ -26461,6 +26470,18 @@ const X = createLucideIcon("X", [
   ["path", { d: "M18 6 6 18", key: "1bl5f8" }],
   ["path", { d: "m6 6 12 12", key: "d8bk6v" }]
 ]);
+function AkCardArt({ kind = "" }) {
+  const enabled = useUiStore((s) => s.theme === "arknights");
+  if (!enabled) return null;
+  const type = kind.toLowerCase(), Icon2 = type === "folder" ? FolderOpen : type.includes("xls") ? FileSpreadsheet : type.includes("ppt") ? Presentation : type === "md" ? BookOpen : FileText;
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "wg-ak-card-art", "aria-hidden": "true", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx(Icon2, { strokeWidth: 1.2 }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("i", {}),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("i", {}),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("i", {})
+  ] });
+}
+var reactDomExports = requireReactDom();
 var __defProp$e = Object.defineProperty;
 var __name$e = (target, value) => __defProp$e(target, "name", { value, configurable: true });
 var canUseDOM = !!(typeof window !== "undefined" && window.document && window.document.createElement);
@@ -37102,6 +37123,7 @@ function VersionGraph({ detail, versions, selectedId, compareIds, connecting, la
                 onMoveBranch(branch, v.id);
               }
             }, children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(AkCardArt, { kind: detail.docName.split(".").pop() }),
               /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "wg-node-code", children: [
                 v.id.slice(0, 7),
                 v.deletedAt ? " · 已回收" : ""
@@ -37162,7 +37184,7 @@ function VersionBoard({ detail, versions, selectedId, compareIds, onSelect, onMo
               /* @__PURE__ */ jsxRuntimeExports.jsx("button", { "aria-label": `删除分类 ${category.name}`, onClick: () => onCategory("delete", category), children: /* @__PURE__ */ jsxRuntimeExports.jsx(Trash2, { size: 13 }) })
             ] })
           ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-cards", children: cards.map((version, index) => /* @__PURE__ */ jsxRuntimeExports.jsxs("article", { tabIndex: 0, draggable: true, className: `wg-version-card ${selectedId === version.id ? "selected" : ""} ${compareIds.includes(version.id) ? "compared" : ""} ${dragging === version.id ? "dragging" : ""}`, onClick: () => onSelect(version.id), onContextMenu: (e) => {
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-cards", children: cards.map((version, index) => /* @__PURE__ */ jsxRuntimeExports.jsxs("article", { tabIndex: 0, draggable: true, className: `wg-version-card ak-card ${selectedId === version.id ? "selected" : ""} ${compareIds.includes(version.id) ? "compared" : ""} ${dragging === version.id ? "dragging" : ""}`, onClick: () => onSelect(version.id), onContextMenu: (e) => {
             e.preventDefault();
             onSelect(version.id);
             onContext?.(version, e.clientX, e.clientY);
@@ -37192,6 +37214,7 @@ function VersionBoard({ detail, versions, selectedId, compareIds, onSelect, onMo
             setDragging(null);
             setOver(null);
           }, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(AkCardArt, { kind: detail.docName.split(".").pop() }),
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-branch-tags", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "wg-owner-tag", children: version.branches[0] }),
               category.id && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "wg-category-tag", children: category.name })
@@ -67148,6 +67171,7 @@ function SettingsPage() {
   ] });
 }
 const themeOptions = [
+  { id: "arknights", label: "明日方舟 / AK-UI", detail: "白色指令卡 · 浅灰图形与层叠入场" },
   { id: "redline", label: "赤幕 / REDLINE", detail: "红黑白 · 斜切拼贴与短促入场" },
   { id: "liquid", label: "液态玻璃", detail: "流动曲面 · 通透磨砂与边缘高光" },
   { id: "liquid-dark", label: "液态玻璃 · 深色", detail: "深色玻璃 · 柔和亮字与流动光影" },
@@ -69021,10 +69045,11 @@ function Workspace({ modePicker } = {}) {
                 ] })
               ] }),
               /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-document-grid-scroll", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-document-grid", role: "list", "aria-label": "受管文档", children: visibleDocs.map((doc) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { "data-drop-document": doc.docName, role: "listitem", "aria-label": `文档 ${doc.title}`, "aria-current": doc.docName === selectedDocName ? "true" : void 0, className: `wg-document-card ${doc.docName === selectedDocName ? "selected" : ""}`, onClick: () => selectDoc(doc.docName), onDoubleClick: () => {
+                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-document-grid", role: "list", "aria-label": "受管文档", children: visibleDocs.map((doc) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { "data-drop-document": doc.docName, role: "listitem", "aria-label": `文档 ${doc.title}`, "aria-current": doc.docName === selectedDocName ? "true" : void 0, className: `wg-document-card ak-card ak-card--outline ${doc.docName === selectedDocName ? "selected" : ""}`, onClick: () => selectDoc(doc.docName), onDoubleClick: () => {
                   selectDoc(doc.docName);
                   setView("graph");
                 }, children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(AkCardArt, { kind: extension(doc.docName) }),
                   /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-document-card-heading", children: [
                     /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "wg-document-type", children: [
                       /* @__PURE__ */ jsxRuntimeExports.jsx(FileIcon, { name: doc.docName, size: 25 }),
@@ -69639,6 +69664,7 @@ function projectEdge(from, to) {
 }
 function ProjectGraph({ nodes, relations, categories = [], selectedId, focusRequest, onSelect, onOpen, onContext, onMove, onRelation, onConnect, onEdgeContext, edgePreview, onRefresh, onImport, onImportFolder, onNewDocument, onNewFolder, canCreate = true, busy }) {
   const arrowId = `project-arrow-${reactExports.useId().replace(/:/g, "")}`;
+  const maskId = `project-mask-${reactExports.useId().replace(/:/g, "")}`;
   const [menu, setMenu] = reactExports.useState(null);
   const [zoom, setZoom] = reactExports.useState(1), [pan, setPan] = reactExports.useState({ x: 20, y: 100 });
   const [positions, setPositions] = reactExports.useState({});
@@ -69646,6 +69672,8 @@ function ProjectGraph({ nodes, relations, categories = [], selectedId, focusRequ
   const viewport = reactExports.useRef(null), moved = reactExports.useRef(false);
   const world = reactExports.useRef(null);
   const nodePosition = (n) => positions[n.id] ?? n.position;
+  const left = Math.min(0, ...nodes.map((n) => nodePosition(n).x)) - 64, top = Math.min(0, ...nodes.map((n) => nodePosition(n).y)) - 64;
+  const maskWidth = Math.max(0, ...nodes.map((n) => nodePosition(n).x + 225)) - left + 64, maskHeight = Math.max(0, ...nodes.map((n) => nodePosition(n).y + 112)) - top + 64;
   const wire = useGraphConnection({ canvas: viewport, world, zoom, selectedId, ids: nodes.map((n) => n.id), onConnect });
   const source = nodes.find((n) => n.id === wire.preview?.from);
   reactExports.useEffect(() => {
@@ -69755,30 +69783,39 @@ function ProjectGraph({ nodes, relations, categories = [], selectedId, focusRequ
       finish();
     }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { ref: world, className: "wg-graph-world", style: { transform: `translate(${pan.x}px,${pan.y}px) scale(${zoom})` }, children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { className: "wg-edges wg-project-edges", width: "1", height: "1", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("defs", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("marker", { id: arrowId, markerWidth: "8", markerHeight: "8", refX: "7", refY: "4", orient: "auto", markerUnits: "userSpaceOnUse", children: /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M0 0 L8 4 L0 8 Z", className: "wg-edge-arrow" }) }) }),
-        relations.map((edge) => {
-          const from = nodes.find((n) => n.id === edge.from), to = nodes.find((n) => n.id === edge.to);
-          if (!from || !to) return null;
-          const draft = edgePreview?.id === edge.id ? edgePreview.draft : void 0;
-          const { d, labelX, labelY } = projectEdge(nodePosition(draft?.reverse ? to : from), nodePosition(draft?.reverse ? from : to));
-          const label2 = draft?.label ?? edge.label;
-          return /* @__PURE__ */ jsxRuntimeExports.jsxs("g", { role: "button", tabIndex: 0, "aria-label": `关系 ${label2 || "未命名关系"}`, onPointerDown: (e) => e.stopPropagation(), onContextMenu: (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onEdgeContext?.(edge, e.clientX, e.clientY);
-          }, onDoubleClick: (e) => {
-            e.stopPropagation();
-            onRelation(edge, e.clientX, e.clientY);
-          }, onKeyDown: (e) => {
-            if (e.key === "Enter") onRelation(edge);
-          }, children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(GraphEdge, { d, style: draft?.style ?? edge.style, marker: "mid", from: edge.from, to: edge.to }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("path", { className: "wg-edge-hit", d }),
-            label2 && /* @__PURE__ */ jsxRuntimeExports.jsx("text", { x: labelX, y: labelY, textAnchor: "middle", children: label2 }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("title", { children: draft?.note ?? edge.note })
-          ] }, edge.id);
-        }),
-        wire.preview && source && /* @__PURE__ */ jsxRuntimeExports.jsx("path", { className: "wg-connection-preview", d: `M${nodePosition(source).x + 112.5},${nodePosition(source).y + 56} L${wire.preview.x},${wire.preview.y}`, markerEnd: `url(#${arrowId})` })
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("defs", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("marker", { id: arrowId, markerWidth: "8", markerHeight: "8", refX: "7", refY: "4", orient: "auto", markerUnits: "userSpaceOnUse", children: /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M0 0 L8 4 L0 8 Z", className: "wg-edge-arrow" }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("mask", { id: maskId, maskUnits: "userSpaceOnUse", x: left, y: top, width: maskWidth, height: maskHeight, style: { maskType: "luminance" }, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { x: left, y: top, width: maskWidth, height: maskHeight, fill: "white" }),
+            nodes.map((n) => /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { className: "wg-edge-card-mask", "data-occlusion-node": n.id, x: nodePosition(n).x, y: nodePosition(n).y, width: "225", height: "112", fill: "black" }, n.id))
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("g", { "data-project-occlusion": "true", mask: `url(#${maskId})`, children: [
+          relations.map((edge) => {
+            const from = nodes.find((n) => n.id === edge.from), to = nodes.find((n) => n.id === edge.to);
+            if (!from || !to) return null;
+            const draft = edgePreview?.id === edge.id ? edgePreview.draft : void 0;
+            const { d, labelX, labelY } = projectEdge(nodePosition(draft?.reverse ? to : from), nodePosition(draft?.reverse ? from : to));
+            const label2 = draft?.label ?? edge.label;
+            return /* @__PURE__ */ jsxRuntimeExports.jsxs("g", { role: "button", tabIndex: 0, "aria-label": `关系 ${label2 || "未命名关系"}`, onPointerDown: (e) => e.stopPropagation(), onContextMenu: (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onEdgeContext?.(edge, e.clientX, e.clientY);
+            }, onDoubleClick: (e) => {
+              e.stopPropagation();
+              onRelation(edge, e.clientX, e.clientY);
+            }, onKeyDown: (e) => {
+              if (e.key === "Enter") onRelation(edge);
+            }, children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(GraphEdge, { d, style: draft?.style ?? edge.style, marker: "mid", from: edge.from, to: edge.to }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("path", { className: "wg-edge-hit", d }),
+              label2 && /* @__PURE__ */ jsxRuntimeExports.jsx("text", { x: labelX, y: labelY, textAnchor: "middle", children: label2 }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("title", { children: draft?.note ?? edge.note })
+            ] }, edge.id);
+          }),
+          wire.preview && source && /* @__PURE__ */ jsxRuntimeExports.jsx("path", { className: "wg-connection-preview", d: `M${nodePosition(source).x + 112.5},${nodePosition(source).y + 56} L${wire.preview.x},${wire.preview.y}`, markerEnd: `url(#${arrowId})` })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("g", { "aria-hidden": "true", children: nodes.map((n) => /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { className: "wg-edge-card-shield", x: nodePosition(n).x, y: nodePosition(n).y, width: "225", height: "112", fill: "transparent", pointerEvents: "all" }, n.id)) })
       ] }),
       nodes.map((node) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { "data-graph-node": node.id, "data-drop-folder": node.kind === "folder" ? node.id : void 0, role: "button", tabIndex: 0, "aria-label": `项目节点 ${node.title}`, className: `wg-graph-node ${node.id === selectedId ? "selected" : ""} ${wire.preview?.target === node.id ? "wg-connect-target" : ""}`, style: nodePosition(node) && { left: nodePosition(node).x, top: nodePosition(node).y }, onClick: () => {
         if (!moved.current) onSelect(node.id);
@@ -69798,6 +69835,7 @@ function ProjectGraph({ nodes, relations, categories = [], selectedId, focusRequ
       }, children: [
         categories.find((c) => c.id === node.categoryId) && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-branch-tags", children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "wg-category-tag", title: categories.find((c) => c.id === node.categoryId).name, children: categories.find((c) => c.id === node.categoryId).name }) }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-node-body", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(AkCardArt, { kind: node.kind === "folder" ? "folder" : node.name.split(".").pop() }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "wg-node-code", children: [
             node.kind === "folder" ? /* @__PURE__ */ jsxRuntimeExports.jsx(Folder, { size: 16 }) : /* @__PURE__ */ jsxRuntimeExports.jsx(File, { size: 16 }),
             " ",
@@ -69857,7 +69895,7 @@ function ProjectBoard({ categories, nodes, selectedId, onSelect, onOpen, onMove,
               /* @__PURE__ */ jsxRuntimeExports.jsx("button", { "aria-label": `删除项目分类 ${category.name}`, onClick: () => onCategory("delete", category), children: /* @__PURE__ */ jsxRuntimeExports.jsx(Trash2, { size: 13 }) })
             ] })
           ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-cards", children: cards.map((node) => /* @__PURE__ */ jsxRuntimeExports.jsxs("article", { "data-drop-folder": node.kind === "folder" ? node.id : void 0, tabIndex: 0, role: "button", "aria-label": `看板资料 ${node.title}`, draggable: true, className: `wg-version-card ${selectedId === node.id ? "selected" : ""} ${dragging === node.id ? "dragging" : ""}`, onClick: () => onSelect(node.id), onDoubleClick: () => onOpen(node.id), onContextMenu: (e) => {
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-cards", children: cards.map((node) => /* @__PURE__ */ jsxRuntimeExports.jsxs("article", { "data-drop-folder": node.kind === "folder" ? node.id : void 0, tabIndex: 0, role: "button", "aria-label": `看板资料 ${node.title}`, draggable: true, className: `wg-version-card ak-card ${selectedId === node.id ? "selected" : ""} ${dragging === node.id ? "dragging" : ""}`, onClick: () => onSelect(node.id), onDoubleClick: () => onOpen(node.id), onContextMenu: (e) => {
             e.preventDefault();
             onContext(node, e.clientX, e.clientY);
           }, onKeyDown: (e) => {
@@ -69878,6 +69916,7 @@ function ProjectBoard({ categories, nodes, selectedId, onSelect, onOpen, onMove,
             setDragging(null);
             setOver(null);
           }, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(AkCardArt, { kind: node.kind === "folder" ? "folder" : node.name.split(".").pop() }),
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-card-eyebrow", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
                 node.kind === "folder" ? /* @__PURE__ */ jsxRuntimeExports.jsx(Folder, { size: 14 }) : /* @__PURE__ */ jsxRuntimeExports.jsx(File, { size: 14 }),
@@ -70573,7 +70612,8 @@ function ProjectWorkspace({ modePicker }) {
           /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "每个项目，一个资料库。" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "批量导入文件，或把整个项目文件夹带进来。每次进入只展示一层。" })
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-document-grid", role: "list", "aria-label": "项目文档库", children: libraries.data?.filter((p) => p.name.toLowerCase().includes(search.toLowerCase())).map((p) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { "data-drop-project": p.id, role: "listitem", className: "wg-document-card", "aria-label": `文档库 ${p.name}`, onClick: () => enter(p.id), children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-document-grid", role: "list", "aria-label": "项目文档库", children: libraries.data?.filter((p) => p.name.toLowerCase().includes(search.toLowerCase())).map((p) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { "data-drop-project": p.id, role: "listitem", className: "wg-document-card ak-card ak-card--outline", "aria-label": `文档库 ${p.name}`, onClick: () => enter(p.id), children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(AkCardArt, { kind: "folder" }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-document-card-heading", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "wg-document-type", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx(FolderOpen, { size: 28 }),
@@ -70616,11 +70656,12 @@ function ProjectWorkspace({ modePicker }) {
           setSelectedId(node.id);
           setMenu({ node, x: Math.min(x, window.innerWidth - 245), y: Math.min(y, window.innerHeight - 340) });
         } }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-document-grid-scroll", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-document-grid", role: "list", "aria-label": "当前层项目资料", children: nodes.map((node) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { "data-drop-folder": node.kind === "folder" ? node.id : void 0, role: "listitem", className: `wg-document-card ${selectedId === node.id ? "selected" : ""}`, "aria-label": `资料 ${node.title}`, onClick: () => select(node.id), onDoubleClick: () => openNode(node.id), onContextMenu: (e) => {
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-document-grid", role: "list", "aria-label": "当前层项目资料", children: nodes.map((node) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { "data-drop-folder": node.kind === "folder" ? node.id : void 0, role: "listitem", className: `wg-document-card ak-card ak-card--outline ${selectedId === node.id ? "selected" : ""}`, "aria-label": `资料 ${node.title}`, onClick: () => select(node.id), onDoubleClick: () => openNode(node.id), onContextMenu: (e) => {
             e.preventDefault();
             setSelectedId(node.id);
             setMenu({ node, x: Math.min(e.clientX, window.innerWidth - 245), y: Math.min(e.clientY, window.innerHeight - 340) });
           }, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(AkCardArt, { kind: node.kind === "folder" ? "folder" : node.name.split(".").pop() }),
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-document-card-heading", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "wg-document-type", children: [
                 node.kind === "folder" ? /* @__PURE__ */ jsxRuntimeExports.jsx(Folder, { size: 26 }) : /* @__PURE__ */ jsxRuntimeExports.jsx(File, { size: 26 }),
@@ -71180,6 +71221,72 @@ function LiquidGlassEffects() {
   }, [enabled, reduced2, glassBackgroundMotion]);
   return enabled ? reactDomExports.createPortal(/* @__PURE__ */ jsxRuntimeExports.jsx("div", { ref: backdrop, className: "wg-liquid-background", "data-palette": glassPalette, "aria-hidden": "true", dangerouslySetInnerHTML: { __html: background } }), document.body) : null;
 }
+const finite = (value, fallback) => Number.isFinite(value) ? value : fallback;
+const time = (value, fallback) => Math.max(0, finite(value, fallback));
+function createEntrance(element, options2 = {}) {
+  const view = element.ownerDocument.defaultView;
+  const preference = view.matchMedia("(prefers-reduced-motion: reduce)");
+  let animation;
+  let destroyed = false;
+  function cancel() {
+    animation?.cancel();
+    animation = void 0;
+  }
+  function play(next = {}) {
+    if (destroyed) return;
+    options2 = { ...options2, ...next };
+    cancel();
+    if (preference.matches || options2.disabled || !element.animate) return;
+    const distance2 = finite(options2.distance, 24);
+    const offsets = { up: `0 ${distance2}px`, down: `0 ${-distance2}px`, left: `${-distance2}px 0`, right: `${distance2}px 0`, fade: "0 0" };
+    animation = element.animate([
+      { opacity: 0, translate: offsets[options2.direction] ?? offsets.up },
+      { opacity: 1, translate: "0 0" }
+    ], { duration: time(options2.duration, 650), delay: time(options2.delay, 0), easing: "cubic-bezier(0.16, 1, 0.3, 1)", fill: "backwards" });
+  }
+  function changed() {
+    if (preference.matches) cancel();
+  }
+  preference.addEventListener("change", changed);
+  return { play, cancel, destroy() {
+    destroyed = true;
+    cancel();
+    preference.removeEventListener("change", changed);
+  } };
+}
+function AkThemeEffects() {
+  const theme = useUiStore((s) => s.theme), reduced2 = useUiStore((s) => s.reduceMotion);
+  reactExports.useEffect(() => {
+    if (theme !== "arknights" || reduced2) return;
+    const controllers = /* @__PURE__ */ new Map();
+    let frame2 = 0;
+    const scan = () => {
+      frame2 = 0;
+      for (const [node, controller] of controllers) if (!node.isConnected) {
+        controller.destroy();
+        controllers.delete(node);
+      }
+      let index = 0;
+      document.querySelectorAll(".wg-document-card,.wg-version-card,.wg-graph-node>.wg-node-body,.wg-stat-cards>section").forEach((node) => {
+        if (controllers.has(node)) return;
+        const controller = createEntrance(node, { duration: 420, delay: Math.min(index++ * 45, 180), distance: 16, direction: "left" });
+        controllers.set(node, controller);
+        controller.play();
+      });
+    };
+    const observer2 = new MutationObserver(() => {
+      if (!frame2) frame2 = requestAnimationFrame(scan);
+    });
+    observer2.observe(document.body, { childList: true, subtree: true });
+    scan();
+    return () => {
+      observer2.disconnect();
+      cancelAnimationFrame(frame2);
+      controllers.forEach((c) => c.destroy());
+    };
+  }, [theme, reduced2]);
+  return null;
+}
 function App() {
   const { repoRoot, setRepo } = useRepoStore();
   const theme = useUiStore((s) => s.theme);
@@ -71243,6 +71350,7 @@ function App() {
   }
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(MotionConfig, { reducedMotion: reduceMotion ? "always" : "user", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx(LiquidGlassEffects, {}),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(AkThemeEffects, {}),
     error ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex h-screen flex-col items-center justify-center gap-4 bg-background p-8", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-xl font-semibold", children: "稿喵暂时无法打开文档库" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("p", { role: "alert", className: "max-w-xl break-words text-sm text-destructive", children: error }),
