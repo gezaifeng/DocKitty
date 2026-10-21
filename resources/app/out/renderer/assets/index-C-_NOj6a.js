@@ -31231,6 +31231,14 @@ function VersionGraph({ detail, versions, selectedId, compareIds, onSelect, onCo
   const [zoom, setZoom] = reactExports.useState(0.85);
   const [pan, setPan] = reactExports.useState({ x: 25, y: 35 });
   const [moving, setMoving] = reactExports.useState(null);
+  const [placed, setPlaced] = reactExports.useState({});
+  const moves = reactExports.useRef(/* @__PURE__ */ new Map());
+  reactExports.useEffect(() => {
+    setPlaced((current) => Object.fromEntries(Object.entries(current).filter(([id2, p]) => {
+      const saved = detail.versions.find((v) => v.id === id2)?.position;
+      return saved?.x !== p.x || saved?.y !== p.y;
+    })));
+  }, [detail.versions]);
   const interaction = reactExports.useRef(null);
   const canvas = reactExports.useRef(null);
   const viewport = reactExports.useRef({ zoom, pan });
@@ -31270,7 +31278,7 @@ function VersionGraph({ detail, versions, selectedId, compareIds, onSelect, onCo
       return [v.id, v.position ?? { x: 65 + depth(v.id) * 265, y: 65 + lane * 170 }];
     }));
   }, [versions, detail.versions, detail.branchHeads, branches]);
-  const point = (id2) => moving?.id === id2 ? moving : points.get(id2);
+  const point = (id2) => moving?.id === id2 ? moving : placed[id2] ?? points.get(id2);
   const width = Math.max(1100, ...[...points.values()].map((p) => p.x + 350));
   const height = Math.max(650, ...[...points.values()].map((p) => p.y + 220));
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-graph", "aria-label": "版本关系图", children: [
@@ -31304,8 +31312,19 @@ function VersionGraph({ detail, versions, selectedId, compareIds, onSelect, onCo
       else setPan({ x: drag2.x + dx, y: drag2.y + dy });
     }, onPointerUp: () => {
       const drag2 = interaction.current;
-      if (drag2?.id && drag2.moved && moving) onPosition(drag2.id, { x: moving.x, y: moving.y });
-      else if (drag2?.id) {
+      if (drag2?.id && drag2.moved && moving) {
+        const id2 = drag2.id, position = { x: moving.x, y: moving.y };
+        const sequence = (moves.current.get(id2) ?? 0) + 1;
+        moves.current.set(id2, sequence);
+        setPlaced((current) => ({ ...current, [id2]: position }));
+        void onPosition(id2, position).then((saved) => {
+          if (!saved && moves.current.get(id2) === sequence) setPlaced((current) => {
+            const next = { ...current };
+            delete next[id2];
+            return next;
+          });
+        });
+      } else if (drag2?.id) {
         onSelect(drag2.id);
       }
       interaction.current = null;
@@ -62094,7 +62113,7 @@ function HelpDocument({ repoRoot }) {
     ] })
   ] });
 }
-const brandIcon = "" + new URL("gaomiao-Cp67HTa9.png", import.meta.url).href;
+const brandIcon = "" + new URL("gaomiao-D-Hjr120.png", import.meta.url).href;
 const viewLabels = { overview: "总览工作台", graph: "版本关系图", board: "分类看板", stats: "版本统计" };
 const formatLabels = { all: "全部文档", docx: "文稿", xlsx: "表格与数据", pptx: "演示资料", other: "其他格式" };
 const extension = (name) => name.includes(".") ? name.split(".").pop().toLowerCase() : "";
@@ -62635,7 +62654,8 @@ function Workspace() {
               /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { children: [
                 /* @__PURE__ */ jsxRuntimeExports.jsxs("strong", { children: [
                   detail.title,
-                  " / 全部分支版本"
+                  " / ",
+                  branchFilter === "all" ? "全部分支版本" : `${viewedBranch} 分支版本`
                 ] }),
                 /* @__PURE__ */ jsxRuntimeExports.jsx("button", { "aria-expanded": historyOpen, onClick: () => setHistoryOpen((v) => !v), children: historyOpen ? "收起 −" : "展开 ＋" })
               ] }),
@@ -62654,7 +62674,16 @@ function Workspace() {
               ] })
             ] })
           ] })
-        ] }) : detail ? view === "graph" ? /* @__PURE__ */ jsxRuntimeExports.jsx(VersionGraph, { detail, versions: detail.versions.filter((v) => (branchFilter === "all" || v.branches.includes(viewedBranch ?? "")) && matchesVersion(v)), selectedId: selectedVersionId, compareIds, onSelect: selectVersion, onContext: contextVersion, onPosition: (id2, position) => void mutate({ type: "version", docName: detail.docName, versionId: id2, position }), onMoveBranch: moveBranch }, detail.docName) : /* @__PURE__ */ jsxRuntimeExports.jsx(VersionBoard, { detail, versions, selectedId: selectedVersionId, compareIds, onSelect: selectVersion, onMove: moveVersion, onCategory: categoryAction, onContext: contextVersion }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-view-entry", "aria-label": `${viewLabels[view]}文档选择`, children: [
+        ] }) : detail ? view === "graph" ? /* @__PURE__ */ jsxRuntimeExports.jsx(VersionGraph, { detail, versions: detail.versions.filter((v) => (branchFilter === "all" || v.branches.includes(viewedBranch ?? "")) && matchesVersion(v)), selectedId: selectedVersionId, compareIds, onSelect: selectVersion, onContext: contextVersion, onPosition: async (id2, position) => {
+          try {
+            await api.library.mutate({ type: "version", docName: detail.docName, versionId: id2, position });
+            await queryClient2.invalidateQueries({ queryKey: ["documentDetail", repoRoot, detail.docName] });
+            return true;
+          } catch (error) {
+            setFailure(error.message);
+            return false;
+          }
+        }, onMoveBranch: moveBranch }, detail.docName) : /* @__PURE__ */ jsxRuntimeExports.jsx(VersionBoard, { detail, versions, selectedId: selectedVersionId, compareIds, onSelect: selectVersion, onMove: moveVersion, onCategory: categoryAction, onContext: contextVersion }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-view-entry", "aria-label": `${viewLabels[view]}文档选择`, children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "wg-entry-icon", children: view === "graph" ? /* @__PURE__ */ jsxRuntimeExports.jsx(GitBranch, { size: 32 }) : view === "board" ? /* @__PURE__ */ jsxRuntimeExports.jsx(Columns3, { size: 32 }) : /* @__PURE__ */ jsxRuntimeExports.jsx(GitCompare, { size: 32 }) }),
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
@@ -63050,13 +63079,19 @@ function Workspace() {
 function MainLayout() {
   return /* @__PURE__ */ jsxRuntimeExports.jsx(Workspace, {});
 }
-const cat = "" + new URL("cat-BRwcH-wu.png", import.meta.url).href;
-const paper = "" + new URL("paper-CQay4RUf.png", import.meta.url).href;
+const cat = "" + new URL("cat-D_fsyJ-0.png", import.meta.url).href;
+const paper = "" + new URL("paper-CsFc-hZ7.png", import.meta.url).href;
 const mascotImages = { cat, paper };
 function poseMascot(root, elapsed) {
-  const t = Math.min(1, Math.max(0, elapsed / 620)), eased = 1 - Math.pow(1 - t, 3);
-  root.style.opacity = String(Math.min(1, elapsed / 130));
-  root.style.transform = `translate3d(0, ${18 * (1 - eased)}px, 0) scale(${0.98 + 0.02 * eased})`;
+  const t = Math.min(1, Math.max(0, elapsed / 620));
+  const smooth = (v) => v * v * (3 - 2 * v);
+  const arriving = t < 0.7, p = smooth(arriving ? t / 0.7 : (t - 0.7) / 0.3);
+  const x = arriving ? -12 + 13 * p : 1 - p;
+  const y = arriving ? 22 - 25 * p : -3 + 3 * p;
+  const angle = arriving ? -5 + 6 * p : 1 - p;
+  const scale2 = arriving ? 0.96 + 0.04 * p : 1;
+  root.style.opacity = String(smooth(Math.min(1, t / 0.22)));
+  root.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(${angle}deg) scale(${scale2})`;
 }
 const Mascot = reactExports.forwardRef(function Mascot2(_, ref) {
   return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-mascot", ref, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-mascot-art", children: [
@@ -63130,22 +63165,19 @@ function StartupScreen({ ready, revealRef, onFinish }) {
     const rect = source.getBoundingClientRect();
     const inset = `inset(${rect.top}px ${window.innerWidth - rect.right}px ${window.innerHeight - rect.bottom}px ${rect.left}px round 8px)`;
     const transform = `translate(${rect.left}px,${rect.top}px) scale(${rect.width / window.innerWidth},${rect.height / window.innerHeight})`;
-    const squeeze = `inset(${rect.top + 2}px ${window.innerWidth - rect.right + 2}px ${window.innerHeight - rect.bottom + 2}px ${rect.left + 2}px round 8px)`;
-    const pressed = `translate(${rect.left + 2}px,${rect.top + 2}px) scale(${(rect.width - 4) / window.innerWidth},${(rect.height - 4) / window.innerHeight})`;
     Object.assign(page.style, { clipPath: inset, visibility: "visible" });
     origin.style.transform = transform;
     setPhase("expanding");
     const expansion = page.animate([
       { clipPath: inset, offset: 0 },
-      { clipPath: squeeze, offset: 0.1, easing: "cubic-bezier(.22,.8,.2,1)" },
       { clipPath: "inset(0px 0px 0px 0px round 0px)", offset: 1 }
-    ], { duration: 440, fill: "forwards" });
+    ], { duration: 360, easing: "cubic-bezier(.2,.85,.2,1)", fill: "forwards" });
     const animations2 = [
       expansion,
-      origin.animate([{ transform, offset: 0 }, { transform: pressed, offset: 0.1, easing: "cubic-bezier(.22,.8,.2,1)" }, { transform: "none", offset: 1 }], { duration: 440, fill: "forwards" }),
-      content.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, delay: 30, fill: "forwards" }),
-      origin.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 95, delay: 15, fill: "forwards" }),
-      backdrop.current.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 410, fill: "forwards" })
+      origin.animate([{ transform }, { transform: "none" }], { duration: 360, easing: "cubic-bezier(.2,.85,.2,1)", fill: "forwards" }),
+      content.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, delay: 45, fill: "forwards" }),
+      origin.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 90, delay: 35, fill: "forwards" }),
+      backdrop.current.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 360, fill: "forwards" })
     ];
     let active = true;
     expansion.finished.then(() => {
