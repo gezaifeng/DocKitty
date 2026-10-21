@@ -28,7 +28,7 @@
 .wg-project-toolbar { display: flex; gap: 16px; align-items: center; }
 .wg-project-breadcrumb { font-size: 12px; color: var(--wg-muted); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wg-project-toolbar .wg-search { width: min(260px, 25vw); }
-.wg-project-toolbar .wg-search input { width: 100%; }
+.wg-project-toolbar input { width: 100%; }
 .wg-project-inspector { flex-shrink: 0; overflow: auto; min-width: 260px; max-width: calc(100vw - 450px); }
 .wg-project-inspector h2 { font-size: 22px; line-height: 1.5; margin: 22px 0 10px; overflow-wrap: anywhere; }
 .wg-project-inspector section { margin: 20px 0; padding-top: 15px; border-top: 1px solid var(--wg-line); }
@@ -67,7 +67,7 @@
 .wg-project-type-picker { position: relative; flex-shrink: 0; }
 .wg-project-type-options { position: absolute; top: calc(100% + 10px); left: 0; z-index: 30; width: 190px; padding: 14px; background: var(--wg-surface); border: 1px solid var(--wg-line); box-shadow: var(--wg-shadow); border-radius: 7px; display: grid; gap: 12px; }
 .wg-project-type-options label { display: flex; gap: 10px; align-items: center; font-size: 12px; color: var(--wg-text); cursor: pointer; }
-.wg-project-type-options input { accent-color: var(--wg-accent); width: 14px; height: 14px; flex-shrink: 0; }
+.wg-project-type-options input { accent-color: var(--wg-accent); }
 [data-theme="blockframe"] .wg-project-type-options, [data-theme="raw"] .wg-project-type-options { border: 2px solid var(--wg-text); border-radius: 0; box-shadow: 4px 4px 0 var(--wg-text); }
 [data-theme="retro"] .wg-project-type-options { border-radius: 0; box-shadow: inset 1px 1px #fff, inset -1px -1px #666, 2px 2px #333; }
 [data-theme="capsule"] .wg-project-type-options { border-radius: 20px; }
