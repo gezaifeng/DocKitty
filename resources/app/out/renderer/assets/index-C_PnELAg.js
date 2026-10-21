@@ -35073,7 +35073,7 @@ discriminatedUnionType("type", [
   objectType({ type: literalType("document"), docName, title: stringType().min(1).optional(), deleted: booleanType().optional() }),
   objectType({ type: literalType("version"), docName, versionId, title: stringType().min(1).optional(), note: stringType().optional(), categoryId: stringType().optional(), order: numberType().finite().optional(), position: position.optional(), deleted: booleanType().optional() }),
   objectType({ type: literalType("layout"), docName }),
-  objectType({ type: literalType("relations"), docName, versionId, action: enumType(["disconnectPrevious", "disconnectNext", "connectPrevious", "connectNext", "moveBranch", "renameConnection", "reverseConnection", "styleConnection"]), targetVersionId: versionId.optional(), branch: stringType().optional(), label: stringType().max(1e4).optional(), style: EdgeStyleSchema.optional() }),
+  objectType({ type: literalType("relations"), docName, versionId, action: enumType(["disconnectPrevious", "disconnectNext", "connectPrevious", "connectNext", "moveBranch", "renameConnection", "reverseConnection", "styleConnection"]), targetVersionId: versionId.optional(), branch: stringType().optional(), label: stringType().max(1e4).optional(), note: stringType().max(1e4).optional(), style: EdgeStyleSchema.optional() }),
   objectType({ type: literalType("purgeVersion"), docName, versionId, deleteSource: booleanType(), confirmedSourcePath: stringType().optional() }),
   objectType({ type: literalType("category"), docName, action: enumType(["create", "rename", "delete"]), name: stringType().optional(), categoryId: stringType().optional() }),
   objectType({ type: literalType("arrange"), docName, categoryId: stringType(), versionIds: arrayType(versionId) }),
@@ -36835,7 +36835,7 @@ function useGraphConnection({ canvas, world, zoom, selectedId, ids, onConnect })
     }
   };
 }
-function VersionGraph({ detail, versions, selectedId, compareIds, connecting, layoutEpoch = 0, onArrange, onSelect, onContext, onPosition, onMoveBranch, onConnect, onRelation, onEdgeContext }) {
+function VersionGraph({ detail, versions, selectedId, compareIds, connecting, layoutEpoch = 0, onArrange, onSelect, onContext, onPosition, onMoveBranch, onConnect, onRelation, onEdgeContext, edgePreview }) {
   const arrowId = `version-arrow-${reactExports.useId().replace(/:/g, "")}`;
   const [menu, setMenu] = reactExports.useState(null);
   reactExports.useEffect(() => {
@@ -36992,7 +36992,8 @@ function VersionGraph({ detail, versions, selectedId, compareIds, connecting, la
           /* @__PURE__ */ jsxRuntimeExports.jsx("defs", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("marker", { id: arrowId, markerWidth: "8", markerHeight: "8", refX: "7", refY: "4", orient: "auto", markerUnits: "userSpaceOnUse", children: /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M0 0 L8 4 L0 8 Z", className: "wg-edge-arrow" }) }) }),
           versions.flatMap((v) => v.parents.map((parent) => {
             if (!points.has(parent)) return null;
-            const a = point(parent), b = point(v.id);
+            const draft = edgePreview?.from === parent && edgePreview.to === v.id ? edgePreview.draft : void 0;
+            const a = point(draft?.reverse ? v.id : parent), b = point(draft?.reverse ? parent : v.id);
             const horizontal = Math.abs(b.x - a.x) >= 225;
             const forward = horizontal ? b.x >= a.x : b.y >= a.y;
             const startX = horizontal ? a.x + (forward ? 225 : 0) : a.x + 112.5;
@@ -37000,20 +37001,21 @@ function VersionGraph({ detail, versions, selectedId, compareIds, connecting, la
             const startY = horizontal ? a.y + 56 : a.y + (forward ? 112 : 0);
             const endY = horizontal ? b.y + 56 : b.y + (forward ? -10 : 122);
             const d = horizontal ? `M${startX},${startY} C${(startX + endX) / 2},${startY} ${(startX + endX) / 2},${endY} ${endX},${endY}` : `M${startX},${startY} C${startX},${(startY + endY) / 2} ${endX},${(startY + endY) / 2} ${endX},${endY}`;
-            const label2 = v.parentLabels?.[parent] ?? "";
+            const label2 = draft?.label ?? v.parentLabels?.[parent] ?? "";
             return /* @__PURE__ */ jsxRuntimeExports.jsxs("g", { className: "wg-edge-action", role: "button", tabIndex: 0, "aria-label": `版本连线 ${label2 || "未命名"}`, onPointerDown: (e) => e.stopPropagation(), onContextMenu: (e) => {
               e.preventDefault();
               e.stopPropagation();
               onEdgeContext?.({ from: parent, to: v.id, label: label2 }, e.clientX, e.clientY);
             }, onDoubleClick: (e) => {
               e.stopPropagation();
-              onRelation?.({ from: parent, to: v.id, label: label2 });
+              onRelation?.({ from: parent, to: v.id, label: label2 }, e.clientX, e.clientY);
             }, onKeyDown: (e) => {
               if (e.key === "Enter") onRelation?.({ from: parent, to: v.id, label: label2 });
             }, children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(GraphEdge, { d, style: v.parentStyles?.[parent], from: parent, to: v.id }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(GraphEdge, { d, style: draft?.style ?? v.parentStyles?.[parent], from: parent, to: v.id }),
               /* @__PURE__ */ jsxRuntimeExports.jsx("path", { className: "wg-edge-hit", d }),
-              label2 && /* @__PURE__ */ jsxRuntimeExports.jsx("text", { className: "wg-edge-label", x: (startX + endX) / 2, y: (startY + endY) / 2 - 12, textAnchor: "middle", children: label2 })
+              label2 && /* @__PURE__ */ jsxRuntimeExports.jsx("text", { className: "wg-edge-label", x: (startX + endX) / 2, y: (startY + endY) / 2 - 12, textAnchor: "middle", children: label2 }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("title", { children: draft?.note ?? v.parentNotes?.[parent] })
             ] }, parent + v.id);
           })),
           wire.preview && points.has(wire.preview.from) && /* @__PURE__ */ jsxRuntimeExports.jsx("path", { className: "wg-connection-preview", d: `M${point(wire.preview.from).x + 112.5},${point(wire.preview.from).y + 56} L${wire.preview.x},${wire.preview.y}`, markerEnd: `url(#${arrowId})` })
@@ -67758,7 +67760,7 @@ function HelpDocument({ repoRoot }) {
         "按“初稿 / 导师审阅 / 定稿”等自定义分类整理版本。拖动卡片改变分类和顺序；也可以用排序按钮，或聚焦卡片后按 Alt + 左 / 右切换分类。"
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "版本名称、说明和分类可直接修改。所有版本卡的右键菜单提供“编辑备注”，右侧版本详情展示备注，也可直接编辑；备注不会修改文档正文。分支指向各路线末端。所选节点是目标分支末端时可继续，即使其他分支已有后继；位于目标分支历史中则需从此节点新建分支。分支用于保留不同编辑路线，分类用于整理稿件，两者互不替代。右键菜单可修改分支归属，断开或手动连接前后版本；移动归属先断开旧连接，可接到目标分支的指定稿件，也可保持独立。连接不能形成循环。" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "左键选中卡片后，按住右键拖到另一张卡片，松开即可连接；源卡片保持不动，默认不命名。松到空白处取消，Esc 或 Ctrl+Z 可取消未完成连线。双击连线可命名或反转箭头；版本反转会交换前后关系，保留正文、分支与位置，不能形成循环。右键连线可调整箭头形状、大小、实线/虚线/双实线和粗细，预览后点击“应用样式”。" })
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "左键选中卡片后，按住右键拖到另一张卡片，松开即可连接；源卡片保持不动，默认不命名。松到空白处取消，Esc 或 Ctrl+Z 可取消未完成连线。双击或右键连线均打开同一个“编辑连线”面板，可填写关系标签与关系备注、反转箭头、调整箭头形状和大小、线型与粗细。参数改变立即在关系图中预览；点击“保存”保留全部修改，取消、点击面板外或按 Esc 恢复原样。版本反转会交换前后关系，保留正文、分支与位置，不能形成循环；关系备注与稿件备注分别保存。" })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "05 · 预览、比较与导出" }),
@@ -67772,7 +67774,7 @@ function HelpDocument({ repoRoot }) {
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "撤回与重做" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "“文件”菜单提供撤回和重做。Ctrl+Z 撤回，Ctrl+Shift+Z 或 Ctrl+Y 重做，覆盖本次启动的最近 100 次可恢复的软件操作，包括导入、移除、连线及样式、名称备注、分类和布局。输入框中的快捷键仍处理文字。关闭软件后不保留操作记录。永久删除会清空记录；Word 或 Agent 对来源和编辑文件的新修改不会被回退。外部更新管理数据时，过期记录会清除以免覆盖新内容。备份恢复、保存位置迁移及导出不属于撤回范围。" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "“文件”菜单保留新建、导入、保存位置与备份设置，并提供撤回和重做。撤回 / 重做提示约 2.5 秒后消失。Ctrl+Z 撤回，Ctrl+Shift+Z 或 Ctrl+Y 重做，覆盖本次启动的最近 100 次可恢复的软件操作，包括导入、移除、连线及样式、名称备注、分类和布局。输入框中的快捷键仍处理文字。关闭软件后不保留操作记录。永久删除会清空记录；Word 或 Agent 对来源和编辑文件的新修改不会被回退。外部更新管理数据时，过期记录会清除以免覆盖新内容。备份恢复、保存位置迁移及导出不属于撤回范围。" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "菜单会在点击外部区域、移出焦点或按 Esc 时收起。" })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
@@ -67874,37 +67876,61 @@ function SidebarCat() {
     menu && reactDomExports.createPortal(/* @__PURE__ */ jsxRuntimeExports.jsx("div", { role: "menu", "aria-label": "抚摸小猫", className: "wg-cat-menu", style: { left: menu.x, top: menu.y }, children: gestures.map((gesture, index) => /* @__PURE__ */ jsxRuntimeExports.jsx("button", { role: "menuitem", onClick: () => pet(index), children: gesture }, gesture)) }), document.body)
   ] });
 }
-function EdgeStyleMenu({ x, y, style, onSave, onEdit, onClose }) {
-  const menu = reactExports.useRef(null), [value, setValue] = reactExports.useState(resolvedEdgeStyle(style)), [saving, setSaving] = reactExports.useState(false);
-  const [sizeInput, setSizeInput] = reactExports.useState(String(value.arrowSize)), [widthInput, setWidthInput] = reactExports.useState(String(value.width));
+function EdgeEditor({ x, y, label: label2, note: note2, style, onPreview, onSave, onDelete, onClose }) {
+  const menu = reactExports.useRef(null), [value, setValue] = reactExports.useState({ label: label2, note: note2, reverse: false, style: resolvedEdgeStyle(style) }), [saving, setSaving] = reactExports.useState(false);
+  const [sizeInput, setSizeInput] = reactExports.useState(String(value.style.arrowSize)), [widthInput, setWidthInput] = reactExports.useState(String(value.style.width));
+  const savingRef = reactExports.useRef(saving);
+  savingRef.current = saving;
   reactExports.useEffect(() => {
     const outside = (e) => {
-      if (!menu.current?.contains(e.target)) onClose();
+      if (!savingRef.current && !menu.current?.contains(e.target)) onClose();
     };
     const key = (e) => {
-      if (e.key === "Escape") {
+      if (e.key === "Escape" && !savingRef.current) {
         e.stopPropagation();
         onClose();
       }
     };
     document.addEventListener("pointerdown", outside);
     document.addEventListener("keydown", key);
-    menu.current?.querySelector("select")?.focus();
+    menu.current?.querySelector("input")?.focus();
     return () => {
       document.removeEventListener("pointerdown", outside);
       document.removeEventListener("keydown", key);
     };
   }, []);
-  const valid = value.arrowSize >= 6 && value.arrowSize <= 24 && value.width >= 1 && value.width <= 6;
-  return reactDomExports.createPortal(/* @__PURE__ */ jsxRuntimeExports.jsxs("div", { ref: menu, className: "wg-cat-menu wg-edge-style-menu", role: "dialog", "aria-label": "连线样式", style: { left: Math.max(8, Math.min(x, window.innerWidth - 296)), top: Math.max(8, Math.min(y, window.innerHeight - 398)) }, onContextMenu: (e) => e.preventDefault(), onPointerDown: (e) => e.stopPropagation(), children: [
+  const valid = Number(value.style.arrowSize) >= 6 && Number(value.style.arrowSize) <= 24 && Number(value.style.width) >= 1 && Number(value.style.width) <= 6;
+  const preview = { ...value, style: { ...value.style, arrowSize: Math.max(6, Math.min(24, Number(value.style.arrowSize))), width: Math.max(1, Math.min(6, Number(value.style.width))) } };
+  reactExports.useEffect(() => {
+    onPreview(preview);
+  }, [value]);
+  const changeStyle = (style2) => setValue((v) => ({ ...v, style: { ...v.style, ...style2 } }));
+  const save = async () => {
+    setSaving(true);
+    try {
+      if (await onSave(value)) onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+  return reactDomExports.createPortal(/* @__PURE__ */ jsxRuntimeExports.jsxs("div", { ref: menu, className: "wg-cat-menu wg-edge-style-menu wg-edge-editor", role: "dialog", "aria-label": "编辑连线", style: { left: Math.max(8, Math.min(x, window.innerWidth - 376)), top: Math.max(8, Math.min(y, window.innerHeight - 592)) }, onContextMenu: (e) => e.preventDefault(), onPointerDown: (e) => e.stopPropagation(), children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "连线样式" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { "aria-label": "关闭连线样式", onClick: onClose, children: "×" })
+      /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "编辑连线" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { "aria-label": "关闭连线编辑", disabled: saving, onClick: onClose, children: "×" })
     ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("svg", { className: "wg-edges wg-edge-style-preview", viewBox: "0 0 240 40", "aria-label": "线条样式预览", children: /* @__PURE__ */ jsxRuntimeExports.jsx(GraphEdge, { d: "M14 20 L224 20", style: { ...value, arrowSize: Math.max(6, Math.min(24, value.arrowSize)), width: Math.max(1, Math.min(6, value.width)) } }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "wg-edge-text-field", children: [
+      "关系标签",
+      /* @__PURE__ */ jsxRuntimeExports.jsx("input", { "aria-label": "关系标签", value: value.label, placeholder: "留空表示不命名", maxLength: 1e4, onChange: (e) => setValue((v) => ({ ...v, label: e.target.value })) })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "wg-edge-text-field", children: [
+      "关系备注",
+      /* @__PURE__ */ jsxRuntimeExports.jsx("textarea", { "aria-label": "关系备注", rows: 2, maxLength: 1e4, value: value.note, onChange: (e) => setValue((v) => ({ ...v, note: e.target.value })) })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-button wg-edge-reverse", disabled: saving, "aria-pressed": value.reverse, onClick: () => setValue((v) => ({ ...v, reverse: !v.reverse })), children: "反转箭头" }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("svg", { className: "wg-edges wg-edge-style-preview", viewBox: "0 0 240 40", "aria-label": "线条样式预览", children: /* @__PURE__ */ jsxRuntimeExports.jsx(GraphEdge, { d: value.reverse ? "M224 20 L14 20" : "M14 20 L224 20", style: preview.style }) }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
       "箭头形状",
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { "aria-label": "箭头形状", value: value.arrow, onChange: (e) => setValue((v) => ({ ...v, arrow: e.target.value })), children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { "aria-label": "箭头形状", value: value.style.arrow, onChange: (e) => changeStyle({ arrow: e.target.value }), children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "triangle", children: "实心三角" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "chevron", children: "开放箭头" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "diamond", children: "菱形箭头" }),
@@ -67916,14 +67942,14 @@ function EdgeStyleMenu({ x, y, style, onSave, onEdit, onClose }) {
       /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("input", { "aria-label": "箭头大小", type: "number", min: "6", max: "24", step: "1", value: sizeInput, onChange: (e) => {
           setSizeInput(e.target.value);
-          setValue((v) => ({ ...v, arrowSize: Number(e.target.value) || 0 }));
+          changeStyle({ arrowSize: Number(e.target.value) || 0 });
         } }),
         " px"
       ] })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
       "线条格式",
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { "aria-label": "线条格式", value: value.line, onChange: (e) => setValue((v) => ({ ...v, line: e.target.value })), children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { "aria-label": "线条格式", value: value.style.line, onChange: (e) => changeStyle({ line: e.target.value }), children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "solid", children: "实线" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "dashed", children: "虚线" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "double", children: "双实线" })
@@ -67934,25 +67960,36 @@ function EdgeStyleMenu({ x, y, style, onSave, onEdit, onClose }) {
       /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("input", { "aria-label": "线条粗细", type: "number", min: "1", max: "6", step: "0.5", value: widthInput, onChange: (e) => {
           setWidthInput(e.target.value);
-          setValue((v) => ({ ...v, width: Number(e.target.value) || 0 }));
+          changeStyle({ width: Number(e.target.value) || 0 });
         } }),
         " px"
       ] })
     ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "wg-edge-style-range", children: "箭头 6–24 px · 线宽 1–6 px" }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-edge-edit", disabled: saving, onClick: onEdit, children: "编辑名称 / 反转箭头…" }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "wg-edge-style-range", children: "图中实时预览 · 箭头 6–24 px · 线宽 1–6 px" }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("footer", { children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-button", disabled: saving, onClick: onClose, children: "取消" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-button primary", disabled: saving || !valid, onClick: async () => {
+      onDelete && /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-button", disabled: saving, onClick: async () => {
         setSaving(true);
         try {
-          if (await onSave(value)) onClose();
+          if (await onDelete()) onClose();
         } finally {
           setSaving(false);
         }
-      }, children: saving ? "保存中…" : "应用样式" })
+      }, children: "删除关系" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-button", disabled: saving, onClick: onClose, children: "取消" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-button primary", disabled: saving || !valid, onClick: () => void save(), children: saving ? "保存中…" : "保存" })
     ] })
   ] }), document.body);
+}
+function useNotice(defaultDuration) {
+  const [notice, setNotice] = reactExports.useState(""), timer = reactExports.useRef(void 0);
+  const show = reactExports.useCallback((message) => {
+    clearTimeout(timer.current);
+    setNotice(message);
+    const duration = /^(已撤回|已重做)/.test(message) ? 2500 : defaultDuration;
+    if (message && duration) timer.current = setTimeout(() => setNotice(""), duration);
+  }, [defaultDuration]);
+  reactExports.useEffect(() => () => clearTimeout(timer.current), []);
+  return [notice, show];
 }
 function FileMenu({ children, busy = false, onError, onNotice }) {
   const menu = reactExports.useRef(null), running = reactExports.useRef(false), { repoRoot } = useRepoStore(), client2 = useQueryClient();
@@ -68077,12 +68114,19 @@ function Workspace({ modePicker } = {}) {
   const [modal, setModal] = reactExports.useState(null);
   const [form, setForm] = reactExports.useState({});
   const [busy, setBusy] = reactExports.useState(false);
-  const [notice, setNotice] = reactExports.useState("");
+  const [notice, setNotice] = useNotice(5500);
   const [failure, setFailure] = reactExports.useState("");
   const [edgeContext, setEdgeContext] = reactExports.useState(null);
-  reactExports.useEffect(() => {
+  const [edgePreview, setEdgePreview] = reactExports.useState(null);
+  const closeEdge = () => {
     setEdgeContext(null);
-  }, [selectedDocName, view]);
+    setEdgePreview(null);
+  };
+  reactExports.useEffect(closeEdge, [selectedDocName, view]);
+  reactExports.useEffect(() => {
+    window.addEventListener("wordgit:history-applied", closeEdge);
+    return () => window.removeEventListener("wordgit:history-applied", closeEdge);
+  }, []);
   const [context, setContext] = reactExports.useState(null);
   const [inspectorWidth, setInspectorWidth] = reactExports.useState(() => Number(localStorage.getItem("gaomiao-inspector-width")) || 320);
   const resizing = reactExports.useRef(null);
@@ -68169,11 +68213,6 @@ function Workspace({ modePicker } = {}) {
     queryClient2.invalidateQueries({ queryKey: ["library", repoRoot] });
     queryClient2.invalidateQueries({ queryKey: ["documentDetail", repoRoot] });
   }), [queryClient2, repoRoot, selectedDocName, detail?.currentBranch]);
-  reactExports.useEffect(() => {
-    if (!notice) return;
-    const timer = setTimeout(() => setNotice(""), 5500);
-    return () => clearTimeout(timer);
-  }, [notice]);
   async function refresh() {
     await Promise.all([
       queryClient2.invalidateQueries({ queryKey: ["library"] }),
@@ -68205,7 +68244,7 @@ function Workspace({ modePicker } = {}) {
   const mutate = (request2, success = "") => run2(() => api.library.mutate(request2), success);
   const changeForm = (key, value) => setForm((f) => ({ ...f, [key]: value }));
   function open2(kind, version, category, action) {
-    if (kind === "confirm" || kind === "edge") return;
+    if (kind === "confirm") return;
     setFailure("");
     setForm({
       name: kind === "version" ? version?.title ?? "" : kind === "document" ? detail?.title ?? "" : kind === "category" ? category?.name ?? "" : "",
@@ -68256,12 +68295,12 @@ function Workspace({ modePicker } = {}) {
     setFailure("");
     setModal({ kind: "confirm", title, description, task, success });
   }
-  function editEdge(edge) {
+  function editEdge(edge, x = window.innerWidth / 2 - 180, y = 100) {
     setFailure("");
     setConnection(null);
     setContext(null);
-    setForm({ label: edge.label, reverse: "false" });
-    setModal({ kind: "edge", from: edge.from, to: edge.to });
+    setEdgePreview(null);
+    setEdgeContext({ ...edge, x, y });
   }
   function tidyLayout() {
     setContext(null);
@@ -68332,11 +68371,6 @@ function Workspace({ modePicker } = {}) {
       if (modal.kind === "confirm") {
         await modal.task();
         setNotice(modal.success);
-        return;
-      }
-      if (modal.kind === "edge") {
-        await api.library.mutate({ type: "relations", docName: selectedDocName, versionId: modal.from, targetVersionId: modal.to, action: form.reverse === "true" ? "reverseConnection" : "renameConnection", label: form.label });
-        setNotice(form.reverse === "true" ? "连线已反转，前后关系已更新" : "连线名称已保存");
         return;
       }
       if (modal.kind === "new") {
@@ -68421,8 +68455,8 @@ function Workspace({ modePicker } = {}) {
     });
     if (ok) setModal(null);
   }
-  const modalTitle = !modal ? "" : modal.kind === "confirm" ? modal.title : modal.kind === "edge" ? "编辑版本连线" : { import: "把文件放到正确的位置", new: "新建一份受管文档", save: "保存这次修改", version: "整理版本信息", document: "修改文档显示名称", category: modal.action === "rename" ? "重命名分类" : "添加版本分类", edit: "从这份稿件继续编辑", branch: "从此版本创建分支", deleteBranch: "删除一条分支引用", compare: "两份版本的内容比较", help: "稿喵使用帮助", preview: "展开历史文档预览", relations: "调整版本归属与连接", deleteVersion: "删除这个版本", note: "编辑版本备注" }[modal.kind];
-  const modalDescription = modal?.kind === "edge" ? "反转箭头会交换前后连接关系；正文、分支与位置保留，不允许形成循环。" : modal?.kind === "note" ? "记录这一稿的修改内容、投稿用途或待办事项。备注保存在版本信息中，不改变文档正文。" : modal?.kind === "relations" ? "可以保持独立，也可以手动建立前后连接；软件会阻止循环连接。" : modal?.kind === "deleteVersion" ? "从管理中删除可还原；彻底删除会清除该版本的文件内容，请核对路径。" : modal?.kind === "preview" ? "只读查看历史快照；预览和展开不会修改文档。" : modal?.kind === "help" ? "从第一份文档到多次修订：开始、编辑、整理、备份。" : modal?.kind === "confirm" ? modal.description : modal?.kind === "compare" ? "比较只读取历史快照，不改变当前文档。Word 正文、Excel 单元格和幻灯片文本可比较；复杂排版与修订语义不在此视图中呈现。" : modal?.kind === "save" ? `当前编辑来源：${workingVersion?.title ?? "工作区"}。小修小改可覆盖同版本，重要变化可另存为新版本。` : modal?.kind === "import" ? "同一份文档的旧稿和新稿，选择“已有文档的版本”，工作台就只显示一份文档。" : "操作会保存在当前仓库，三个视图共用同一份数据。";
+  const modalTitle = !modal ? "" : modal.kind === "confirm" ? modal.title : { import: "把文件放到正确的位置", new: "新建一份受管文档", save: "保存这次修改", version: "整理版本信息", document: "修改文档显示名称", category: modal.action === "rename" ? "重命名分类" : "添加版本分类", edit: "从这份稿件继续编辑", branch: "从此版本创建分支", deleteBranch: "删除一条分支引用", compare: "两份版本的内容比较", help: "稿喵使用帮助", preview: "展开历史文档预览", relations: "调整版本归属与连接", deleteVersion: "删除这个版本", note: "编辑版本备注" }[modal.kind];
+  const modalDescription = modal?.kind === "note" ? "记录这一稿的修改内容、投稿用途或待办事项。备注保存在版本信息中，不改变文档正文。" : modal?.kind === "relations" ? "可以保持独立，也可以手动建立前后连接；软件会阻止循环连接。" : modal?.kind === "deleteVersion" ? "从管理中删除可还原；彻底删除会清除该版本的文件内容，请核对路径。" : modal?.kind === "preview" ? "只读查看历史快照；预览和展开不会修改文档。" : modal?.kind === "help" ? "从第一份文档到多次修订：开始、编辑、整理、备份。" : modal?.kind === "confirm" ? modal.description : modal?.kind === "compare" ? "比较只读取历史快照，不改变当前文档。Word 正文、Excel 单元格和幻灯片文本可比较；复杂排版与修订语义不在此视图中呈现。" : modal?.kind === "save" ? `当前编辑来源：${workingVersion?.title ?? "工作区"}。小修小改可覆盖同版本，重要变化可另存为新版本。` : modal?.kind === "import" ? "同一份文档的旧稿和新稿，选择“已有文档的版本”，工作台就只显示一份文档。" : "操作会保存在当前仓库，三个视图共用同一份数据。";
   if (!repoRoot) return null;
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wordgit-workspace", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { className: "wg-menubar", children: [
@@ -68700,10 +68734,7 @@ function Workspace({ modePicker } = {}) {
             setFailure(error.message);
             return false;
           }
-        }, onMoveBranch: moveBranch, onRelation: editEdge, onEdgeContext: (edge, x, y) => {
-          setContext(null);
-          setEdgeContext({ ...edge, x, y });
-        }, onConnect: (from, to) => {
+        }, onMoveBranch: moveBranch, onRelation: editEdge, onEdgeContext: editEdge, edgePreview: edgeContext && edgePreview ? { from: edgeContext.from, to: edgeContext.to, draft: edgePreview } : null, onConnect: (from, to) => {
           if (detail.versions.find((v) => v.id === to)?.parents.includes(from)) {
             setNotice("这两个版本已有同方向连线");
             return;
@@ -68913,10 +68944,7 @@ function Workspace({ modePicker } = {}) {
       /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: notice }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("button", { "aria-label": "关闭提示", onClick: () => setNotice(""), children: /* @__PURE__ */ jsxRuntimeExports.jsx(X, { size: 14 }) })
     ] }) }),
-    edgeContext && detail && /* @__PURE__ */ jsxRuntimeExports.jsx(EdgeStyleMenu, { x: edgeContext.x, y: edgeContext.y, style: detail.versions.find((v) => v.id === edgeContext.to)?.parentStyles?.[edgeContext.from], onClose: () => setEdgeContext(null), onEdit: () => {
-      editEdge({ from: edgeContext.from, to: edgeContext.to, label: detail.versions.find((v) => v.id === edgeContext.to)?.parentLabels?.[edgeContext.from] ?? "" });
-      setEdgeContext(null);
-    }, onSave: (style) => mutate({ type: "relations", docName: detail.docName, versionId: edgeContext.from, targetVersionId: edgeContext.to, action: "styleConnection", style }, "连线样式已保存") }, edgeContext.from + edgeContext.to),
+    edgeContext && detail && /* @__PURE__ */ jsxRuntimeExports.jsx(EdgeEditor, { x: edgeContext.x, y: edgeContext.y, label: detail.versions.find((v) => v.id === edgeContext.to)?.parentLabels?.[edgeContext.from] ?? "", note: detail.versions.find((v) => v.id === edgeContext.to)?.parentNotes?.[edgeContext.from] ?? "", style: detail.versions.find((v) => v.id === edgeContext.to)?.parentStyles?.[edgeContext.from], onClose: closeEdge, onPreview: setEdgePreview, onSave: (draft) => mutate({ type: "relations", docName: detail.docName, versionId: edgeContext.from, targetVersionId: edgeContext.to, action: draft.reverse ? "reverseConnection" : "renameConnection", label: draft.label, note: draft.note, style: draft.style }, "连线已保存") }, edgeContext.from + edgeContext.to),
     context && reactDomExports.createPortal(/* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-version-menu", role: "menu", "aria-label": "版本操作", style: { left: context.x, top: context.y }, children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: context.version.title }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("button", { role: "menuitem", disabled: busy || !!context.version.deletedAt || !Object.values(detail?.branchHeads ?? {}).includes(context.version.id), onClick: () => {
@@ -68986,18 +69014,6 @@ function Workspace({ modePicker } = {}) {
         e.preventDefault();
         void submit();
       }, children: [
-        modal.kind === "edge" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-connection-direction", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: detail?.versions.find((v) => v.id === (form.reverse === "true" ? modal.to : modal.from))?.title }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("b", { children: "→" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: detail?.versions.find((v) => v.id === (form.reverse === "true" ? modal.from : modal.to))?.title })
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "wg-field", children: [
-            "连线名称",
-            /* @__PURE__ */ jsxRuntimeExports.jsx("input", { autoFocus: true, "aria-label": "连线名称", value: form.label ?? "", placeholder: "留空表示不命名", onChange: (e) => changeForm("label", e.target.value) })
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", className: "wg-button", "aria-pressed": form.reverse === "true", onClick: () => changeForm("reverse", form.reverse === "true" ? "false" : "true"), children: "反转箭头" })
-        ] }),
         modal.kind === "import" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-radio-options", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
@@ -69262,7 +69278,7 @@ function projectEdge(from, to) {
   const gap = Math.min(length, boundary + 12);
   return { d: `M${x},${y} L${tx - ux * gap},${ty - uy * gap} L${tx},${ty}`, labelX: (x + tx) / 2 + uy * 12, labelY: (y + ty) / 2 - ux * 12 };
 }
-function ProjectGraph({ nodes, relations, categories = [], selectedId, focusRequest, onSelect, onOpen, onContext, onMove, onRelation, onConnect, onEdgeContext }) {
+function ProjectGraph({ nodes, relations, categories = [], selectedId, focusRequest, onSelect, onOpen, onContext, onMove, onRelation, onConnect, onEdgeContext, edgePreview }) {
   const arrowId = `project-arrow-${reactExports.useId().replace(/:/g, "")}`;
   const [zoom, setZoom] = reactExports.useState(1), [pan, setPan] = reactExports.useState({ x: 20, y: 100 });
   const [positions, setPositions] = reactExports.useState({});
@@ -69368,20 +69384,23 @@ function ProjectGraph({ nodes, relations, categories = [], selectedId, focusRequ
         relations.map((edge) => {
           const from = nodes.find((n) => n.id === edge.from), to = nodes.find((n) => n.id === edge.to);
           if (!from || !to) return null;
-          const { d, labelX, labelY } = projectEdge(nodePosition(from), nodePosition(to));
-          return /* @__PURE__ */ jsxRuntimeExports.jsxs("g", { role: "button", tabIndex: 0, "aria-label": `关系 ${edge.label || "未命名关系"}`, onPointerDown: (e) => e.stopPropagation(), onContextMenu: (e) => {
+          const draft = edgePreview?.id === edge.id ? edgePreview.draft : void 0;
+          const { d, labelX, labelY } = projectEdge(nodePosition(draft?.reverse ? to : from), nodePosition(draft?.reverse ? from : to));
+          const label2 = draft?.label ?? edge.label;
+          return /* @__PURE__ */ jsxRuntimeExports.jsxs("g", { role: "button", tabIndex: 0, "aria-label": `关系 ${label2 || "未命名关系"}`, onPointerDown: (e) => e.stopPropagation(), onContextMenu: (e) => {
             e.preventDefault();
             e.stopPropagation();
             onEdgeContext?.(edge, e.clientX, e.clientY);
           }, onDoubleClick: (e) => {
             e.stopPropagation();
-            onRelation(edge);
+            onRelation(edge, e.clientX, e.clientY);
           }, onKeyDown: (e) => {
             if (e.key === "Enter") onRelation(edge);
           }, children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(GraphEdge, { d, style: edge.style, marker: "mid", from: edge.from, to: edge.to }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(GraphEdge, { d, style: draft?.style ?? edge.style, marker: "mid", from: edge.from, to: edge.to }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("path", { className: "wg-edge-hit", d }),
-            edge.label && /* @__PURE__ */ jsxRuntimeExports.jsx("text", { x: labelX, y: labelY, textAnchor: "middle", children: edge.label })
+            label2 && /* @__PURE__ */ jsxRuntimeExports.jsx("text", { x: labelX, y: labelY, textAnchor: "middle", children: label2 }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("title", { children: draft?.note ?? edge.note })
           ] }, edge.id);
         }),
         wire.preview && source && /* @__PURE__ */ jsxRuntimeExports.jsx("path", { className: "wg-connection-preview", d: `M${nodePosition(source).x + 112.5},${nodePosition(source).y + 56} L${wire.preview.x},${wire.preview.y}`, markerEnd: `url(#${arrowId})` })
@@ -69692,18 +69711,33 @@ function FilePreview({ projectId, node, project }) {
   ] });
 }
 function ProjectWorkspace({ modePicker }) {
-  const { repoRoot } = useRepoStore(), client2 = useQueryClient();
+  const { repoRoot, setRepo } = useRepoStore(), client2 = useQueryClient();
+  const { rightPanel, setRightPanel } = useUiStore();
   const [projectId, setProjectId] = reactExports.useState(null), [parentId, setParentId] = reactExports.useState(null);
   const [selectedId, setSelectedId] = reactExports.useState(null), [view, setView] = reactExports.useState("grid"), [search, setSearch] = reactExports.useState("");
   const [types, setTypes] = reactExports.useState([]), [typesOpen, setTypesOpen] = reactExports.useState(false);
   const [mcpOpen, setMcpOpen] = reactExports.useState(false), [helpOpen, setHelpOpen] = reactExports.useState(false);
   const typesPicker = reactExports.useRef(null);
-  const [modal, setModal] = reactExports.useState(null), [form, setForm] = reactExports.useState({}), [busy, setBusy] = reactExports.useState(false), [error, setError] = reactExports.useState(""), [notice, setNotice] = reactExports.useState("");
+  const [modal, setModal] = reactExports.useState(null), [form, setForm] = reactExports.useState({}), [busy, setBusy] = reactExports.useState(false), [error, setError] = reactExports.useState("");
+  const [notice, setNotice] = useNotice();
   const [connection, setConnection] = reactExports.useState(null), [menu, setMenu] = reactExports.useState(null);
   const [edgeContext, setEdgeContext] = reactExports.useState(null);
-  reactExports.useEffect(() => {
+  const [edgePreview, setEdgePreview] = reactExports.useState(null);
+  const closeEdge = () => {
     setEdgeContext(null);
-  }, [projectId, parentId, view]);
+    setEdgePreview(null);
+  };
+  reactExports.useEffect(closeEdge, [projectId, parentId, view, rightPanel]);
+  reactExports.useEffect(() => {
+    window.addEventListener("wordgit:history-applied", closeEdge);
+    return () => window.removeEventListener("wordgit:history-applied", closeEdge);
+  }, []);
+  reactExports.useEffect(() => {
+    setProjectId(null);
+    setParentId(null);
+    setSelectedId(null);
+    closeEdge();
+  }, [repoRoot]);
   const [focusRequest, setFocusRequest] = reactExports.useState(null);
   const [width, setWidth] = reactExports.useState(() => Number(localStorage.getItem("dockitty-project-inspector-width")) || 320), resize2 = reactExports.useRef(null);
   const libraries = useQuery({ queryKey: ["projects", repoRoot], queryFn: () => request({ action: "list" }), refetchInterval: 2e3 });
@@ -69779,6 +69813,7 @@ function ProjectWorkspace({ modePicker }) {
     });
   };
   function enter(id2) {
+    setRightPanel("preview");
     setProjectId(id2);
     setParentId(null);
     setSelectedId(null);
@@ -69824,10 +69859,18 @@ function ProjectWorkspace({ modePicker }) {
     setForm({ name: category?.name ?? "" });
     setError("");
   }
-  function editRelation(edge) {
+  function editRelation(edge, x = window.innerWidth / 2 - 180, y = 100) {
     setError("");
-    setModal({ kind: "relation", edge });
-    setForm({ from: edge.from, to: edge.to, kind: edge.kind, label: edge.label, note: edge.note });
+    setMenu(null);
+    setEdgePreview(null);
+    setEdgeContext({ edge, x, y });
+  }
+  async function changeLocation() {
+    const parent2 = await api.dialog.pickFolder("选择文档库新的保存文件夹");
+    if (parent2) {
+      setError("");
+      setModal({ kind: "relocate", parent: parent2 });
+    }
   }
   async function exportNode(node) {
     const destination = await api.dialog.savePath(node.kind === "folder" ? "导出整个文件夹到新位置" : "导出文件副本", node.name);
@@ -69848,7 +69891,15 @@ function ProjectWorkspace({ modePicker }) {
       else if (modal.kind === "iteration") {
         const result = await request({ action: "recordIteration", projectId, nodeId: modal.node.id, title: form.title, requestId: crypto.randomUUID() });
         setSelectedId(result.nodeIds[0]);
-      } else if (modal.kind === "relation") await request({ action: "setRelation", projectId, relation: { id: modal.edge.id, from: form.from, to: form.to, kind: form.kind, label: form.label, note: form.note } });
+      } else if (modal.kind === "relocate") {
+        const relocated = await api.repo.relocate(modal.parent);
+        client2.clear();
+        setProjectId(null);
+        setParentId(null);
+        setSelectedId(null);
+        setRepo(relocated.repoRoot, relocated.repoName);
+        setRightPanel("preview");
+      }
       setModal(null);
     }, "已保存");
   }
@@ -69859,7 +69910,14 @@ function ProjectWorkspace({ modePicker }) {
         /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "稿喵" })
       ] }),
       modePicker,
-      /* @__PURE__ */ jsxRuntimeExports.jsx(FileMenu, { busy, onError: setError, onNotice: setNotice }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(FileMenu, { busy, onError: setError, onNotice: setNotice, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { disabled: busy || !!parent?.snapshot, onClick: () => void importFiles(false), children: "批量导入文件…" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { disabled: busy || !!parent?.snapshot, onClick: () => void importFiles(true), children: "导入文件夹…" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("hr", {}),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { disabled: busy, onClick: () => void changeLocation().catch((e) => setError(e.message)), children: "更改保存位置…" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("hr", {}),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setRightPanel("settings"), children: "备份与保存设置" })
+      ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-menubutton", onClick: () => setMcpOpen(true), children: "接入 Agent" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-menubutton", onClick: () => setHelpOpen(true), children: "使用帮助" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-menu-spacer" }),
@@ -69888,15 +69946,24 @@ function ProjectWorkspace({ modePicker }) {
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-viewbar", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("nav", { "aria-label": "项目视图", children: detail && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: view === "grid" ? "active" : "", "aria-pressed": view === "grid", onClick: () => setView("grid"), children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: view === "grid" ? "active" : "", "aria-pressed": view === "grid", onClick: () => {
+          setView("grid");
+          setRightPanel("preview");
+        }, children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(Grid2x2, { size: 16 }),
           " 文件浏览"
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: view === "graph" ? "active" : "", "aria-pressed": view === "graph", onClick: () => setView("graph"), children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: view === "graph" ? "active" : "", "aria-pressed": view === "graph", onClick: () => {
+          setView("graph");
+          setRightPanel("preview");
+        }, children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(GitBranch, { size: 16 }),
           " 文件关系图"
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: view === "board" ? "active" : "", "aria-pressed": view === "board", onClick: () => setView("board"), children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: view === "board" ? "active" : "", "aria-pressed": view === "board", onClick: () => {
+          setView("board");
+          setRightPanel("preview");
+        }, children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(Columns3, { size: 16 }),
           " 分类看板"
         ] })
@@ -69947,7 +70014,13 @@ function ProjectWorkspace({ modePicker }) {
       connection === "choose" ? "点击第一个文件或文件夹，再点击关系目标。" : "起点已选择，请点击第二项资料。",
       " 可按 Esc 或“取消连接”退出。"
     ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("main", { className: "wg-project-main", children: !detail ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+    rightPanel === "settings" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-settings", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "wg-button", onClick: () => setRightPanel("preview"), children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(ArrowLeft, { size: 14 }),
+        " 返回项目"
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(SettingsPage, {})
+    ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("main", { className: "wg-project-main", children: !detail ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("aside", { className: "wg-nav", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "文档库" }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "active", children: [
@@ -69999,10 +70072,7 @@ function ProjectWorkspace({ modePicker }) {
         setMenu({ node, x: Math.min(x, window.innerWidth - 245), y: Math.min(y, window.innerHeight - 340) });
       }, onMove: async (nodeId, position2) => {
         await run2(() => request({ action: "updateNode", projectId, nodeId, position: position2 }));
-      }, onRelation: editRelation, onConnect: connect, onEdgeContext: (edge, x, y) => {
-        setMenu(null);
-        setEdgeContext({ edge, x, y });
-      } }, projectId + ":" + (parentId ?? "root")) : view === "board" ? /* @__PURE__ */ jsxRuntimeExports.jsx(ProjectBoard, { categories: detail.categories ?? [], nodes, selectedId, onSelect: select, onOpen: openNode, onMove: (nodeId, categoryId) => act(() => request({ action: "updateNode", projectId, nodeId, categoryId }), "分类已更新"), onCategory: editCategory, onContext: (node, x, y) => {
+      }, onRelation: editRelation, onConnect: connect, onEdgeContext: editRelation, edgePreview: edgeContext && edgePreview ? { id: edgeContext.edge.id, draft: edgePreview } : null }, projectId + ":" + (parentId ?? "root")) : view === "board" ? /* @__PURE__ */ jsxRuntimeExports.jsx(ProjectBoard, { categories: detail.categories ?? [], nodes, selectedId, onSelect: select, onOpen: openNode, onMove: (nodeId, categoryId) => act(() => request({ action: "updateNode", projectId, nodeId, categoryId }), "分类已更新"), onCategory: editCategory, onContext: (node, x, y) => {
         setSelectedId(node.id);
         setMenu({ node, x: Math.min(x, window.innerWidth - 245), y: Math.min(y, window.innerHeight - 340) });
       } }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-document-grid-scroll", children: [
@@ -70155,14 +70225,18 @@ function ProjectWorkspace({ modePicker }) {
       /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: notice }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setNotice(""), children: "关闭" })
     ] }),
-    edgeContext && detail && /* @__PURE__ */ jsxRuntimeExports.jsx(EdgeStyleMenu, { x: edgeContext.x, y: edgeContext.y, style: detail.relations.find((e) => e.id === edgeContext.edge.id)?.style, onClose: () => setEdgeContext(null), onEdit: () => {
-      editRelation(detail.relations.find((e) => e.id === edgeContext.edge.id) ?? edgeContext.edge);
-      setEdgeContext(null);
-    }, onSave: async (style) => {
+    edgeContext && detail && /* @__PURE__ */ jsxRuntimeExports.jsx(EdgeEditor, { x: edgeContext.x, y: edgeContext.y, label: edgeContext.edge.label, note: edgeContext.edge.note, style: edgeContext.edge.style, onClose: closeEdge, onPreview: setEdgePreview, onDelete: async () => {
+      try {
+        await run2(() => request({ action: "deleteRelation", projectId, relationId: edgeContext.edge.id }), "关系已删除");
+        return true;
+      } catch {
+        return false;
+      }
+    }, onSave: async (draft) => {
       const edge = detail.relations.find((e) => e.id === edgeContext.edge.id);
       if (!edge) return false;
       try {
-        await run2(() => request({ action: "setRelation", projectId, relation: { ...edge, style } }), "连线样式已保存");
+        await run2(() => request({ action: "setRelation", projectId, relation: { ...edge, from: draft.reverse ? edge.to : edge.from, to: draft.reverse ? edge.from : edge.to, label: draft.label, note: draft.note, style: draft.style } }), "连线已保存");
         return true;
       } catch {
         return false;
@@ -70196,9 +70270,9 @@ function ProjectWorkspace({ modePicker }) {
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "“编辑原文件”会打开导入来源，修改后点击刷新。打开软件以及 MCP 写入后也会同步。刷新更新当前卡片，不生成历史；需要保存一轮时，在再次刷新之前点击“记录下一轮”，保留上次受管内容并读取当前来源形成下一轮。文件夹可以整体记录。" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "来源删除会同步移除当前和历史卡片及连线；来源改名按新文件导入。若想长期保留历史，可先导出副本。软件中的“移除”只删除管理卡片，不删除来源。" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: "资料关系" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "左键选中卡片后按住右键拖到另一张卡片即可连接，源卡片不动，松到空白处取消；默认不命名。连线按卡片中心连接并位于卡片下层，箭头指向目标。双击连线可命名、编辑备注或反转箭头。可按 Esc 或点击“取消连接”退出。跨文件夹关系在详情里列出，点击路径跳转到目标资料。右键连线调整箭头形状、大小、实线/虚线/双实线与粗细；预览后点击“应用样式”。" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "左键选中卡片后按住右键拖到另一张卡片即可连接，源卡片不动，松到空白处取消；默认不命名。连线按卡片中心连接并位于卡片下层，箭头指向目标。双击或右键连线均打开“编辑连线”面板，可填写关系标签与备注、反转箭头以及调整箭头形状、大小、线型与粗细。改变参数立即在关系图预览；保存后保留，取消、点击面板外或按 Esc 恢复原样。可按 Esc 或点击“取消连接”退出连线模式。跨文件夹关系在详情里列出，点击路径跳转到目标资料。" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: "撤回与重做" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "文件菜单提供撤回与重做；Ctrl+Z 撤回，Ctrl+Shift+Z 或 Ctrl+Y 重做。本次启动保留最近 100 次可恢复操作，包含导入、移除、关系、样式、名称备注、分类与布局。输入框保留文字撤回；外部文件修改不回退。重启或永久删除会清空记录，外部管理数据更新会清除过期记录以保护新内容。" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "文件菜单保留批量导入文件、导入文件夹、更改保存位置、备份与保存设置，并提供撤回与重做；撤回和重做提示约 2.5 秒后消失。Ctrl+Z 撤回，Ctrl+Shift+Z 或 Ctrl+Y 重做。本次启动保留最近 100 次可恢复操作，包含导入、移除、关系、样式、名称备注、分类与布局。输入框保留文字撤回；外部文件修改不回退。重启或永久删除会清空记录，外部管理数据更新会清除过期记录以保护新内容。" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: "分类看板" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "项目内共用分类名称，看板只展示当前文件夹这一层的资料。添加分类后可拖动卡片归类，或在详情和名称编辑窗口中选择分类。重命名会同步更新图卡标签；删除分类只让资料回到未分类，文件、文件夹与关系都会保留。" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: "查看与 Agent" }),
@@ -70210,8 +70284,8 @@ function ProjectWorkspace({ modePicker }) {
     /* @__PURE__ */ jsxRuntimeExports.jsx(Dialog, { open: !!modal, onOpenChange: (open2) => {
       if (!open2 && !busy) setModal(null);
     }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(DialogContent, { className: "wg-dialog", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(DialogTitle, { children: modal?.kind === "category" ? modal.action === "create" ? "添加项目分类" : modal.action === "rename" ? "重命名项目分类" : "删除项目分类" : modal?.kind === "import" ? "导入项目资料" : modal?.kind === "relation" ? "编辑资料关系" : modal?.kind === "iteration" ? "记录下一轮迭代" : modal?.kind === "delete" ? "从文档库移除资料" : "编辑名称与备注" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(DialogDescription, { children: modal?.kind === "category" ? modal.action === "delete" ? "资料将回到未分类，保留所有文件、文件夹与连线。" : "分类在整个项目内共用，看板只展示当前层资料。" : modal?.kind === "import" ? "选择已有文档库，或把这一组资料创建为新文档库。" : modal?.kind === "relation" ? "箭头从起点指向目标；标签可以自由填写。跨文件夹关系可在详情中跳转。" : modal?.kind === "iteration" ? "保留当前卡片为历史，读取来源最新内容形成下一轮。刷新不会自动创建迭代。" : modal?.kind === "delete" ? "只移除受管卡片、其子项和相关连线，不删除原文件或文件夹。" : "显示名称与备注不会改写来源文件。" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(DialogTitle, { children: modal?.kind === "category" ? modal.action === "create" ? "添加项目分类" : modal.action === "rename" ? "重命名项目分类" : "删除项目分类" : modal?.kind === "import" ? "导入项目资料" : modal?.kind === "relocate" ? "更改文档保存位置" : modal?.kind === "iteration" ? "记录下一轮迭代" : modal?.kind === "delete" ? "从文档库移除资料" : "编辑名称与备注" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(DialogDescription, { children: modal?.kind === "category" ? modal.action === "delete" ? "资料将回到未分类，保留所有文件、文件夹与连线。" : "分类在整个项目内共用，看板只展示当前层资料。" : modal?.kind === "import" ? "选择已有文档库，或把这一组资料创建为新文档库。" : modal?.kind === "relocate" ? "请先保存并关闭 Word / WPS 等正在编辑的文件。所有文档、版本、项目与整理信息会复制到新位置；原位置保留。" : modal?.kind === "iteration" ? "保留当前卡片为历史，读取来源最新内容形成下一轮。刷新不会自动创建迭代。" : modal?.kind === "delete" ? "只移除受管卡片、其子项和相关连线，不删除原文件或文件夹。" : "显示名称与备注不会改写来源文件。" }),
       modal?.kind === "category" ? modal.action === "delete" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
         "确认删除“",
         modal.category?.name,
@@ -70243,22 +70317,7 @@ function ProjectWorkspace({ modePicker }) {
           " 个导入来源"
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-project-import-paths", children: modal.paths.map((p) => /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-source-row", children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: p }) }, p)) })
-      ] }) : modal?.kind === "relation" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-form", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-connection-direction", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: detail?.nodes.find((n) => n.id === form.from)?.title }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("b", { children: "→" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: detail?.nodes.find((n) => n.id === form.to)?.title })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", className: "wg-button", onClick: () => setForm((p) => ({ ...p, from: p.to, to: p.from })), children: "反转箭头" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "wg-field", children: [
-          "关系标签",
-          /* @__PURE__ */ jsxRuntimeExports.jsx("input", { "aria-label": "关系标签", value: form.label, placeholder: "留空表示不命名", onChange: (e) => setForm((p) => ({ ...p, label: e.target.value })) })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "wg-field", children: [
-          "关系备注",
-          /* @__PURE__ */ jsxRuntimeExports.jsx("textarea", { "aria-label": "关系备注", value: form.note, onChange: (e) => setForm((p) => ({ ...p, note: e.target.value })) })
-        ] })
-      ] }) : modal?.kind === "delete" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
+      ] }) : modal?.kind === "relocate" ? /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "wg-project-path", children: modal.parent }) : modal?.kind === "delete" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
         "将移除“",
         modal.node.title,
         "”",
@@ -70283,10 +70342,6 @@ function ProjectWorkspace({ modePicker }) {
       ] }),
       error && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { role: "alert", children: error }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-dialog-actions", children: [
-        modal?.kind === "relation" && modal.edge.id && /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-button", disabled: busy, onClick: () => act(async () => {
-          await request({ action: "deleteRelation", projectId, relationId: modal.edge.id });
-          setModal(null);
-        }, "已移除关系，资料仍保留"), children: "删除关系" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-button", disabled: busy, onClick: () => setModal(null), children: "取消" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-button primary", disabled: busy, onClick: () => void submit().catch(() => {
         }), children: busy ? "正在保存…" : modal?.kind === "import" ? "开始导入" : modal?.kind === "delete" ? "确认移除" : "保存" })

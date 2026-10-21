@@ -2242,6 +2242,7 @@ async function documentDetail(repo, docName2) {
           contentId,
           parents: v.parents ?? original.parents,
           parentLabels: v.parentLabels,
+          parentNotes: v.parentNotes,
           parentStyles: v.parentStyles,
           title: v.title ?? original.message,
           note: v.note ?? "",
@@ -2271,6 +2272,7 @@ async function documentDetail(repo, docName2) {
         contentId: v.contentId ?? id2,
         parents: v.parents ?? original.parents,
         parentLabels: v.parentLabels,
+        parentNotes: v.parentNotes,
         parentStyles: v.parentStyles,
         title: v.title ?? original.message,
         note: v.note ?? "",
@@ -6461,6 +6463,7 @@ async function editVersionRelations(repo, docName2, id2, request2) {
     const parents = new Map(detail.versions.map((v) => [v.id, [...v.parents]]));
     const affected = /* @__PURE__ */ new Set();
     const labels = new Map(detail.versions.map((v) => [v.id, { ...v.parentLabels }]));
+    const notes = new Map(detail.versions.map((v) => [v.id, { ...v.parentNotes }]));
     const styles = new Map(detail.versions.map((v) => [v.id, { ...v.parentStyles }]));
     const replace = (versionId2, previous) => {
       parents.set(versionId2, previous);
@@ -6481,15 +6484,19 @@ async function editVersionRelations(repo, docName2, id2, request2) {
       const target = byId.get(request2.targetVersionId ?? "");
       if (!target || target.deletedAt || !target.parents.includes(id2)) throw new Error("连接不存在，请重新选择连线");
       if (request2.label !== void 0 && (typeof request2.label !== "string" || request2.label.length > 1e4)) throw new Error("连线名称无效");
+      if (request2.note !== void 0 && (typeof request2.note !== "string" || request2.note.length > 1e4)) throw new Error("连线备注无效");
+      const note2 = request2.note?.trim() ?? notes.get(target.id)[id2] ?? "";
       const label2 = request2.label?.trim() ?? labels.get(target.id)[id2] ?? "";
       const style = request2.style ? { ...styles.get(target.id)[id2], ...EdgeStyleSchema.parse(request2.style) } : styles.get(target.id)[id2];
       if (request2.action === "reverseConnection") {
         replace(target.id, target.parents.filter((parent2) => parent2 !== id2));
         replace(id2, [.../* @__PURE__ */ new Set([...parents.get(id2) ?? [], target.id])]);
         labels.get(id2)[target.id] = label2;
+        notes.get(id2)[target.id] = note2;
         if (style) styles.get(id2)[target.id] = style;
       } else {
         labels.get(target.id)[id2] = label2;
+        notes.get(target.id)[id2] = note2;
         if (style) styles.get(target.id)[id2] = style;
         affected.add(target.id);
       }
@@ -6520,6 +6527,7 @@ async function editVersionRelations(repo, docName2, id2, request2) {
       const v = meta.versions[node2] ??= {};
       v.parents = parents.get(node2);
       v.parentLabels = Object.fromEntries(Object.entries(labels.get(node2)).filter(([parent2]) => v.parents.includes(parent2)));
+      v.parentNotes = Object.fromEntries(Object.entries(notes.get(node2)).filter(([parent2]) => v.parents.includes(parent2)));
       v.parentStyles = Object.fromEntries(Object.entries(styles.get(node2)).filter(([parent2]) => v.parents.includes(parent2)));
       v.branchMembership ??= byId.get(node2).branches;
     }
@@ -6573,6 +6581,7 @@ async function purgeVersion(repo, docName2, id2, opts) {
       if (v.parents.includes(id2)) {
         record2.parents = v.parents.filter((p) => p !== id2);
         if (record2.parentLabels) delete record2.parentLabels[id2];
+        if (record2.parentNotes) delete record2.parentNotes[id2];
         if (record2.parentStyles) delete record2.parentStyles[id2];
       }
     }
@@ -6639,6 +6648,7 @@ async function purgeVersion(repo, docName2, id2, opts) {
     record.purgedAt = (/* @__PURE__ */ new Date()).toISOString();
     record.parents = [];
     record.parentLabels = {};
+    record.parentNotes = {};
     record.parentStyles = {};
     record.branchMembership = [];
     meta.purgedContentIds = [.../* @__PURE__ */ new Set([...meta.purgedContentIds ?? [], ...removedContents])];
@@ -7235,7 +7245,7 @@ const LibraryMutationSchema = discriminatedUnionType("type", [
   objectType({ type: literalType("document"), docName, title: stringType().min(1).optional(), deleted: booleanType().optional() }),
   objectType({ type: literalType("version"), docName, versionId, title: stringType().min(1).optional(), note: stringType().optional(), categoryId: stringType().optional(), order: numberType().finite().optional(), position: position.optional(), deleted: booleanType().optional() }),
   objectType({ type: literalType("layout"), docName }),
-  objectType({ type: literalType("relations"), docName, versionId, action: enumType(["disconnectPrevious", "disconnectNext", "connectPrevious", "connectNext", "moveBranch", "renameConnection", "reverseConnection", "styleConnection"]), targetVersionId: versionId.optional(), branch: stringType().optional(), label: stringType().max(1e4).optional(), style: EdgeStyleSchema.optional() }),
+  objectType({ type: literalType("relations"), docName, versionId, action: enumType(["disconnectPrevious", "disconnectNext", "connectPrevious", "connectNext", "moveBranch", "renameConnection", "reverseConnection", "styleConnection"]), targetVersionId: versionId.optional(), branch: stringType().optional(), label: stringType().max(1e4).optional(), note: stringType().max(1e4).optional(), style: EdgeStyleSchema.optional() }),
   objectType({ type: literalType("purgeVersion"), docName, versionId, deleteSource: booleanType(), confirmedSourcePath: stringType().optional() }),
   objectType({ type: literalType("category"), docName, action: enumType(["create", "rename", "delete"]), name: stringType().optional(), categoryId: stringType().optional() }),
   objectType({ type: literalType("arrange"), docName, categoryId: stringType(), versionIds: arrayType(versionId) }),

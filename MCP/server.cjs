@@ -27360,7 +27360,7 @@ var edgeStyle = object({ arrow: _enum(["triangle", "chevron", "diamond", "none"]
 var relation = object({ id: id.optional(), from: id, to: id, kind: _enum(["iteration", "reference", "example", "dependency", "custom"]).optional().describe("Legacy compatibility only. Omit for free-text relationships; edits preserve the stored kind."), label: string2().max(1e4), note: string2().max(1e4).default(""), style: edgeStyle.optional() });
 var importSchema = object({ ...project, paths: array(string2().min(1)).min(1), parentId: id.nullable().optional(), unpackFolder: boolean2().default(false), previousNodeId: id.optional(), requestId: string2().min(1).max(1e4).optional(), snapshot: boolean2().default(false), title: string2().min(1).max(1e4).optional() });
 function createDocKittyServer(repo) {
-  const server = new McpServer({ name: "dockitty", version: "0.5.2" });
+  const server = new McpServer({ name: "dockitty", version: "0.5.3" });
   function tool(name, description, inputSchema, action, readOnly = false, destructive = false) {
     server.registerTool(name, { description, inputSchema, annotations: { readOnlyHint: readOnly, destructiveHint: destructive, openWorldHint: false } }, async (request) => {
       try {
