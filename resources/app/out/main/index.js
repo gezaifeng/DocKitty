@@ -42,14 +42,15 @@ async function* readFileBlocks(filePath, blockSize = 1024 * 1024) {
 async function writeFileAtomic(target, data) {
   await promises.mkdir(path$1.dirname(target), { recursive: true });
   const tmp2 = `${target}.tmp-${process.pid}-${Math.random().toString(36).slice(2)}`;
-  const fh = await promises.open(tmp2, "w");
   try {
-    await fh.write(data);
-    await fh.sync();
-  } finally {
-    await fh.close();
-  }
-  try {
+    const fh = await promises.open(tmp2, "w");
+    try {
+      if (Symbol.asyncIterator in data) for await (const block of data) await fh.writeFile(block);
+      else await fh.writeFile(data);
+      await fh.sync();
+    } finally {
+      await fh.close();
+    }
     for (let attempt = 0; ; attempt++) {
       try {
         await promises.rename(tmp2, target);
@@ -76,6 +77,154 @@ function teeHash(stream2) {
     digest: async () => hash.digest("hex")
   };
 }
+const RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i;
+function validateDocName(name) {
+  if (!name || name !== name.trim() || /[<>:"/\\|?*\x00-\x1f]/.test(name) || name === "." || name === ".." || /[. ]$/.test(name) || RESERVED.test(name)) {
+    throw new Error("文档名称不合法，请使用不含路径或特殊字符的文件名");
+  }
+  return name;
+}
+function validateBranchName(name) {
+  if (!/^[\p{L}\p{N}][\p{L}\p{N} _.-]*$/u.test(name) || /[. ]$/.test(name) || name.toUpperCase() === "HEAD" || RESERVED.test(name)) {
+    throw new Error("分支名称不合法，可用中文、字母、数字、空格、下划线或短横线，不能使用 HEAD");
+  }
+  return name;
+}
+function containedPath(root, relative2) {
+  if (path$1.isAbsolute(relative2)) throw new Error("文件路径必须位于目标目录内");
+  const base = path$1.resolve(root);
+  const result = path$1.resolve(base, relative2);
+  if (result !== base && !result.startsWith(base + path$1.sep)) throw new Error("文件路径越出目标目录");
+  return result;
+}
+function docIdOf(name) {
+  return encodeURIComponent(name);
+}
+function docNameOf(docId) {
+  return decodeURIComponent(docId);
+}
+function headsDir(repo, docId) {
+  return path$1.join(repo.root, "refs", "heads", docId);
+}
+async function docIds(repo) {
+  const base = path$1.join(repo.root, "refs", "heads");
+  try {
+    const es = await promises.readdir(base, { withFileTypes: true });
+    return es.filter((e) => e.isDirectory()).map((e) => docNameOf(e.name));
+  } catch {
+    return [];
+  }
+}
+async function listBranches(repo, docId) {
+  try {
+    const es = await promises.readdir(headsDir(repo, docId), { withFileTypes: true });
+    return es.filter((e) => e.isFile() && e.name !== "HEAD").map((e) => e.name).sort();
+  } catch {
+    return [];
+  }
+}
+async function readHead(repo, docId, branch) {
+  try {
+    return (await promises.readFile(path$1.join(headsDir(repo, docId), branch), "utf8")).trim();
+  } catch {
+    return null;
+  }
+}
+async function writeHead(repo, docId, branch, commitId) {
+  await writeFileAtomic(path$1.join(headsDir(repo, docId), branch), new TextEncoder().encode(commitId));
+}
+async function readCurrentBranch(repo, docId) {
+  try {
+    return (await promises.readFile(path$1.join(headsDir(repo, docId), "HEAD"), "utf8")).trim() || "main";
+  } catch {
+    return "main";
+  }
+}
+async function writeCurrentBranch(repo, docId, branch) {
+  await writeFileAtomic(path$1.join(headsDir(repo, docId), "HEAD"), new TextEncoder().encode(branch));
+}
+async function deleteBranch(repo, docId, branch) {
+  const current = await readCurrentBranch(repo, docId);
+  if (branch === current) throw new Error(`不能删除当前分支：${branch}`);
+  await promises.rm(path$1.join(headsDir(repo, docId), branch));
+}
+async function readLibraryMeta(repo, docName2) {
+  validateDocName(docName2);
+  try {
+    const value = JSON.parse(await promises.readFile(path$1.join(repo.root, "library", docIdOf(docName2) + ".json"), "utf8"));
+    if (value.format !== 1 || !Array.isArray(value.categories) || !value.versions) throw new Error("文档整理数据格式无效");
+    return value;
+  } catch (error2) {
+    if (error2.code !== "ENOENT") throw error2;
+    return { format: 1, categories: [], versions: {} };
+  }
+}
+async function writeLibraryMeta(repo, docName2, meta) {
+  validateDocName(docName2);
+  await writeFileAtomic(path$1.join(repo.root, "library", docIdOf(docName2) + ".json"), new TextEncoder().encode(JSON.stringify(meta, null, 2)));
+}
+async function workingVersion(repo, docName2, id2) {
+  const meta = await readLibraryMeta(repo, docName2);
+  meta.workingVersionId = id2;
+  meta.workingContentId = meta.versions[id2]?.contentId ?? id2;
+  await writeLibraryMeta(repo, docName2, meta);
+}
+async function resolveVersion(repo, docName2, id2) {
+  const meta = await readLibraryMeta(repo, docName2);
+  if (meta.versions[id2]?.purgedAt) throw new Error("该版本文件已彻底删除");
+  return meta.versions[id2]?.contentId ?? id2;
+}
+const exists$1 = async (file2) => promises.lstat(file2).then(() => true, (error2) => {
+  if (error2.code === "ENOENT") return false;
+  throw error2;
+});
+function stagePath(repo, name) {
+  if (!/^\.checkout-[a-zA-Z0-9-]+$/.test(name)) throw new Error("工作区事务暂存路径无效");
+  return containedPath(path$1.join(repo.root, "workspace"), name);
+}
+async function discardCheckoutStage(repo, name) {
+  await promises.rm(stagePath(repo, name), { recursive: true, force: true });
+}
+async function recoverWorkspaceCheckout(repo, entry) {
+  validateDocName(entry.docName);
+  validateBranchName(entry.beforeBranch);
+  if (entry.beforeMeta?.format !== 1 || !entry.beforeMeta.versions || typeof entry.hadPrevious !== "boolean") throw new Error("工作区事务恢复信息无效");
+  const stage = stagePath(repo, entry.stage), current = containedPath(path$1.join(repo.root, "workspace"), entry.docName);
+  const previous = path$1.join(stage, "previous"), next = path$1.join(stage, "next");
+  if (!await exists$1(stage)) throw new Error("工作区事务暂存内容缺失，请保留日志并从备份恢复");
+  const hasPrevious = await exists$1(previous), hasCurrent = await exists$1(current);
+  if (hasCurrent && (hasPrevious || !entry.hadPrevious && !await exists$1(next))) {
+    const recovery = containedPath(repo.root, `recovery/${entry.stage}/${entry.docName}`);
+    await promises.mkdir(path$1.dirname(recovery), { recursive: true });
+    if (await exists$1(recovery)) throw new Error("工作区恢复副本已存在，请先保留该文件后重试");
+    await promises.rename(current, recovery);
+  }
+  if (hasPrevious) await promises.rename(previous, current);
+  else if (entry.hadPrevious && !hasCurrent) throw new Error("原工作区与恢复副本均缺失，请保留事务日志");
+  await writeLibraryMeta(repo, entry.docName, entry.beforeMeta);
+  await writeCurrentBranch(repo, docIdOf(entry.docName), entry.beforeBranch);
+}
+async function publishWorkspaceCheckout(repo, docName2, stageName, versionId2, switchBranch2) {
+  const stage = stagePath(repo, stageName), current = containedPath(path$1.join(repo.root, "workspace"), docName2);
+  const journal = path$1.join(repo.root, "journal", stageName + ".json");
+  const entry = { op: "checkout", docName: docName2, stage: stageName, hadPrevious: await exists$1(current), beforeMeta: await readLibraryMeta(repo, docName2), beforeBranch: await readCurrentBranch(repo, docIdOf(docName2)) };
+  await writeFileAtomic(journal, Buffer.from(JSON.stringify(entry)));
+  try {
+    if (entry.hadPrevious) await promises.rename(current, path$1.join(stage, "previous"));
+    await promises.rename(path$1.join(stage, "next"), current);
+    await workingVersion(repo, docName2, versionId2);
+    if (switchBranch2) await writeCurrentBranch(repo, docIdOf(docName2), switchBranch2);
+    await promises.rm(journal);
+  } catch (error2) {
+    try {
+      await recoverWorkspaceCheckout(repo, entry);
+      await promises.rm(journal);
+    } catch (recoveryError) {
+      throw new Error(`工作区切换未完成，恢复内容保留在 ${stage}；${recoveryError.message}`, { cause: error2 });
+    }
+    throw error2;
+  }
+}
 async function openJournal(repo, op, docName2, branch) {
   const id2 = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const entry = { id: id2, op, docName: docName2, branch, startedAt: (/* @__PURE__ */ new Date()).toISOString() };
@@ -100,7 +249,10 @@ async function recoverJournal(repo) {
   let count = 0;
   for (const name of names) {
     if (!name.endsWith(".json")) continue;
+    const entry = JSON.parse(await promises.readFile(path$1.join(jDir, name), "utf8"));
+    if (entry.op === "checkout") await recoverWorkspaceCheckout(repo, entry);
     await promises.rm(path$1.join(jDir, name), { force: true });
+    if (entry.op === "checkout") await discardCheckoutStage(repo, entry.stage);
     count++;
   }
   return count;
@@ -121,6 +273,49 @@ async function cleanDir(dir2) {
     const p = path$1.join(dir2, e.name);
     if (e.isDirectory()) await cleanDir(p);
     else if (e.isFile() && e.name.includes(".tmp-")) await promises.rm(p, { force: true });
+  }
+}
+const pending = /* @__PURE__ */ new Map();
+const held = new AsyncLocalStorage();
+async function withRepoWrite(repo, action) {
+  const root = path$1.resolve(repo.root);
+  if (held.getStore()?.has(root)) return action();
+  const previous = pending.get(root) ?? Promise.resolve();
+  const task = previous.catch(() => {
+  }).then(async () => {
+    const lockPath = path$1.join(root, ".write.lock");
+    let lock;
+    try {
+      lock = await promises.open(lockPath, "wx");
+    } catch (e) {
+      if (e.code !== "EEXIST") throw e;
+      let alive = true;
+      const owner = Number(await promises.readFile(lockPath, "utf8"));
+      if (Number.isInteger(owner) && owner > 0) {
+        try {
+          process.kill(owner, 0);
+        } catch (error2) {
+          alive = error2.code !== "ESRCH";
+        }
+      }
+      if (alive) throw new Error("仓库正在被另一个进程写入，请稍后重试或关闭另一窗口");
+      await promises.rm(lockPath);
+      lock = await promises.open(lockPath, "wx");
+    }
+    try {
+      await lock.writeFile(String(process.pid));
+      await lock.sync();
+      return await held.run(/* @__PURE__ */ new Set([...held.getStore() ?? [], root]), action);
+    } finally {
+      await lock.close();
+      await promises.rm(lockPath, { force: true });
+    }
+  });
+  pending.set(root, task);
+  try {
+    return await task;
+  } finally {
+    if (pending.get(root) === task) pending.delete(root);
   }
 }
 const FORMAT_VERSION = 1;
@@ -168,7 +363,7 @@ class Repo {
       throw new Error(`仓库格式版本过旧（${config.formatVersion}），需要迁移工具（M2 提供）`);
     }
     const repo = new Repo(root);
-    await recoverJournal(repo);
+    await withRepoWrite(repo, () => recoverJournal(repo));
     return repo;
   }
   objectsDir(sub) {
@@ -883,9 +1078,114 @@ var wbytes = function(d, b, v) {
   for (; v; ++b)
     d[b] = v, v >>>= 8;
 };
+var Deflate = /* @__PURE__ */ (function() {
+  function Deflate2(opts, cb) {
+    if (typeof opts == "function")
+      cb = opts, opts = {};
+    this.ondata = cb;
+    this.o = opts || {};
+    this.s = { l: 0, i: 32768, w: 32768, z: 32768 };
+    this.b = new u8(98304);
+    if (this.o.dictionary) {
+      var dict = this.o.dictionary.subarray(-32768);
+      this.b.set(dict, 32768 - dict.length);
+      this.s.i = 32768 - dict.length;
+    }
+  }
+  Deflate2.prototype.p = function(c, f) {
+    this.ondata(dopt(c, this.o, 0, 0, this.s), f);
+  };
+  Deflate2.prototype.push = function(chunk, final) {
+    if (!this.ondata)
+      err(5);
+    if (this.s.l)
+      err(4);
+    var endLen = chunk.length + this.s.z;
+    if (endLen > this.b.length) {
+      if (endLen > 2 * this.b.length - 32768) {
+        var newBuf = new u8(endLen & -32768);
+        newBuf.set(this.b.subarray(0, this.s.z));
+        this.b = newBuf;
+      }
+      var split = this.b.length - this.s.z;
+      this.b.set(chunk.subarray(0, split), this.s.z);
+      this.s.z = this.b.length;
+      this.p(this.b, false);
+      this.b.set(this.b.subarray(-32768));
+      this.b.set(chunk.subarray(split), 32768);
+      this.s.z = chunk.length - split + 32768;
+      this.s.i = 32766, this.s.w = 32768;
+    } else {
+      this.b.set(chunk, this.s.z);
+      this.s.z += chunk.length;
+    }
+    this.s.l = final & 1;
+    if (this.s.z > this.s.w + 8191 || final) {
+      this.p(this.b, final || false);
+      this.s.w = this.s.i, this.s.i -= 2;
+    }
+    if (final) {
+      this.s = this.o = {};
+      this.b = et;
+    }
+  };
+  Deflate2.prototype.flush = function(sync2) {
+    if (!this.ondata)
+      err(5);
+    if (this.s.l)
+      err(4);
+    this.p(this.b, false);
+    this.s.w = this.s.i, this.s.i -= 2;
+    if (sync2) {
+      var c = new u8(6);
+      c[0] = this.s.r >> 3;
+      var ep = wfblk(c, this.s.r, et);
+      this.s.r = 0;
+      this.ondata(c.subarray(0, ep >> 3), false);
+    }
+  };
+  return Deflate2;
+})();
 function deflateSync(data, opts) {
   return dopt(data, opts || {}, 0, 0);
 }
+var Inflate = /* @__PURE__ */ (function() {
+  function Inflate2(opts, cb) {
+    if (typeof opts == "function")
+      cb = opts, opts = {};
+    this.ondata = cb;
+    var dict = opts && opts.dictionary && opts.dictionary.subarray(-32768);
+    this.s = { i: 0, b: dict ? dict.length : 0 };
+    this.o = new u8(32768);
+    this.p = new u8(0);
+    if (dict)
+      this.o.set(dict);
+  }
+  Inflate2.prototype.e = function(c) {
+    if (!this.ondata)
+      err(5);
+    if (this.d)
+      err(4);
+    if (!this.p.length)
+      this.p = c;
+    else if (c.length) {
+      var n = new u8(this.p.length + c.length);
+      n.set(this.p), n.set(c, this.p.length), this.p = n;
+    }
+  };
+  Inflate2.prototype.c = function(final) {
+    this.s.i = +(this.d = final || false);
+    var bts = this.s.b;
+    var dt = inflt(this.p, this.s, this.o);
+    this.ondata(slc(dt, bts, this.s.b), this.d);
+    this.o = slc(dt, this.s.b - 32768), this.s.b = this.o.length;
+    this.p = slc(this.p, this.s.p / 8 | 0), this.s.p &= 7;
+  };
+  Inflate2.prototype.push = function(chunk, final) {
+    this.e(chunk), this.c(final);
+  };
+  return Inflate2;
+})();
 function inflateSync(data, opts) {
   return inflt(data, { i: 2 }, opts && opts.out, opts && opts.dictionary);
 }
@@ -969,6 +1269,9 @@ function strFromU8(dat, latin1) {
     return s;
   }
 }
+var dbf = function(l) {
+  return l == 1 ? 3 : l < 6 ? 2 : l == 9 ? 1 : 0;
+};
 var slzh = function(d, b) {
   return b + 30 + b2(d, b + 26) + b2(d, b + 28);
 };
@@ -1054,6 +1357,175 @@ var wzf = function(o, b, c, d, e) {
   wbytes(o, b + 12, d);
   wbytes(o, b + 16, e);
 };
+var ZipPassThrough = /* @__PURE__ */ (function() {
+  function ZipPassThrough2(filename) {
+    this.filename = filename;
+    this.c = crc();
+    this.size = 0;
+    this.compression = 0;
+  }
+  ZipPassThrough2.prototype.process = function(chunk, final) {
+    this.ondata(null, chunk, final);
+  };
+  ZipPassThrough2.prototype.push = function(chunk, final) {
+    if (!this.ondata)
+      err(5);
+    this.c.p(chunk);
+    this.size += chunk.length;
+    if (final)
+      this.crc = this.c.d();
+    this.process(chunk, final || false);
+  };
+  return ZipPassThrough2;
+})();
+var ZipDeflate = /* @__PURE__ */ (function() {
+  function ZipDeflate2(filename, opts) {
+    var _this = this;
+    if (!opts)
+      opts = {};
+    ZipPassThrough.call(this, filename);
+    this.d = new Deflate(opts, function(dat, final) {
+      _this.ondata(null, dat, final);
+    });
+    this.compression = 8;
+    this.flag = dbf(opts.level);
+  }
+  ZipDeflate2.prototype.process = function(chunk, final) {
+    try {
+      this.d.push(chunk, final);
+    } catch (e) {
+      this.ondata(e, null, final);
+    }
+  };
+  ZipDeflate2.prototype.push = function(chunk, final) {
+    ZipPassThrough.prototype.push.call(this, chunk, final);
+  };
+  return ZipDeflate2;
+})();
+var Zip = /* @__PURE__ */ (function() {
+  function Zip2(cb) {
+    this.ondata = cb;
+    this.u = [];
+    this.d = 1;
+  }
+  Zip2.prototype.add = function(file2) {
+    var _this = this;
+    if (!this.ondata)
+      err(5);
+    if (this.d & 2)
+      this.ondata(err(4 + (this.d & 1) * 8, 0, 1), null, false);
+    else {
+      var f = strToU8(file2.filename), fl_1 = f.length;
+      var com = file2.comment, o = com && strToU8(com);
+      var u = fl_1 != file2.filename.length || o && com.length != o.length;
+      var hl_1 = fl_1 + exfl(file2.extra) + 30;
+      if (fl_1 > 65535)
+        this.ondata(err(11, 0, 1), null, false);
+      var header = new u8(hl_1);
+      wzh(header, 0, file2, f, u, -1);
+      var chks_1 = [header];
+      var pAll_1 = function() {
+        for (var _i = 0, chks_2 = chks_1; _i < chks_2.length; _i++) {
+          var chk = chks_2[_i];
+          _this.ondata(null, chk, false);
+        }
+        chks_1 = [];
+      };
+      var tr_1 = this.d;
+      this.d = 0;
+      var ind_1 = this.u.length;
+      var uf_1 = mrg(file2, {
+        f,
+        u,
+        o,
+        t: function() {
+          if (file2.terminate)
+            file2.terminate();
+        },
+        r: function() {
+          pAll_1();
+          if (tr_1) {
+            var nxt = _this.u[ind_1 + 1];
+            if (nxt)
+              nxt.r();
+            else
+              _this.d = 1;
+          }
+          tr_1 = 1;
+        }
+      });
+      var cl_1 = 0;
+      file2.ondata = function(err2, dat, final) {
+        if (err2) {
+          _this.ondata(err2, dat, final);
+          _this.terminate();
+        } else {
+          cl_1 += dat.length;
+          chks_1.push(dat);
+          if (final) {
+            var dd = new u8(16);
+            wbytes(dd, 0, 134695760);
+            wbytes(dd, 4, file2.crc);
+            wbytes(dd, 8, cl_1);
+            wbytes(dd, 12, file2.size);
+            chks_1.push(dd);
+            uf_1.c = cl_1, uf_1.b = hl_1 + cl_1 + 16, uf_1.crc = file2.crc, uf_1.size = file2.size;
+            if (tr_1)
+              uf_1.r();
+            tr_1 = 1;
+          } else if (tr_1)
+            pAll_1();
+        }
+      };
+      this.u.push(uf_1);
+    }
+  };
+  Zip2.prototype.end = function() {
+    var _this = this;
+    if (this.d & 2) {
+      this.ondata(err(4 + (this.d & 1) * 8, 0, 1), null, true);
+      return;
+    }
+    if (this.d)
+      this.e();
+    else
+      this.u.push({
+        r: function() {
+          if (!(_this.d & 1))
+            return;
+          _this.u.splice(-1, 1);
+          _this.e();
+        },
+        t: function() {
+        }
+      });
+    this.d = 3;
+  };
+  Zip2.prototype.e = function() {
+    var bt = 0, l = 0, tl = 0;
+    for (var _i = 0, _a2 = this.u; _i < _a2.length; _i++) {
+      var f = _a2[_i];
+      tl += 46 + f.f.length + exfl(f.extra) + (f.o ? f.o.length : 0);
+    }
+    var out = new u8(tl + 22);
+    for (var _b2 = 0, _c = this.u; _b2 < _c.length; _b2++) {
+      var f = _c[_b2];
+      wzh(out, bt, f, f.f, f.u, -f.c - 2, l, f.o);
+      bt += 46 + f.f.length + exfl(f.extra) + (f.o ? f.o.length : 0), l += f.b;
+    }
+    wzf(out, bt, this.u.length, tl, l);
+    this.ondata(null, out, true);
+    this.d = 2;
+  };
+  Zip2.prototype.terminate = function() {
+    for (var _i = 0, _a2 = this.u; _i < _a2.length; _i++) {
+      var f = _a2[_i];
+      f.t();
+    }
+    this.d = 2;
+  };
+  return Zip2;
+})();
 function zipSync(data, opts) {
   if (!opts)
     opts = {};
@@ -1097,6 +1569,163 @@ function zipSync(data, opts) {
   wzf(out, o, files.length, cdl, oe);
   return out;
 }
+var UnzipPassThrough = /* @__PURE__ */ (function() {
+  function UnzipPassThrough2() {
+  }
+  UnzipPassThrough2.prototype.push = function(chunk, final) {
+    this.ondata(null, chunk, final);
+  };
+  UnzipPassThrough2.compression = 0;
+  return UnzipPassThrough2;
+})();
+var UnzipInflate = /* @__PURE__ */ (function() {
+  function UnzipInflate2() {
+    var _this = this;
+    this.i = new Inflate(function(dat, final) {
+      _this.ondata(null, dat, final);
+    });
+  }
+  UnzipInflate2.prototype.push = function(chunk, final) {
+    try {
+      this.i.push(chunk, final);
+    } catch (e) {
+      this.ondata(e, null, final);
+    }
+  };
+  UnzipInflate2.compression = 8;
+  return UnzipInflate2;
+})();
+var Unzip = /* @__PURE__ */ (function() {
+  function Unzip2(cb) {
+    this.onfile = cb;
+    this.k = [];
+    this.o = {
+      0: UnzipPassThrough
+    };
+    this.p = et;
+  }
+  Unzip2.prototype.push = function(chunk, final) {
+    var _this = this;
+    if (!this.onfile)
+      err(5);
+    if (!this.p)
+      err(4);
+    if (this.c > 0) {
+      var len = Math.min(this.c, chunk.length);
+      var toAdd = chunk.subarray(0, len);
+      this.c -= len;
+      if (this.d)
+        this.d.push(toAdd, !this.c);
+      else
+        this.k[0].push(toAdd);
+      chunk = chunk.subarray(len);
+      if (chunk.length)
+        return this.push(chunk, final);
+    } else {
+      var f = 0, i2 = 0, is = void 0, buf = void 0;
+      if (!this.p.length)
+        buf = chunk;
+      else if (!chunk.length)
+        buf = this.p;
+      else {
+        buf = new u8(this.p.length + chunk.length);
+        buf.set(this.p), buf.set(chunk, this.p.length);
+      }
+      var l = buf.length, oc = this.c, add = oc && this.d;
+      var _loop_2 = function() {
+        var sig = b4(buf, i2);
+        if (sig == 67324752) {
+          f = 1, is = i2;
+          this_1.d = null;
+          this_1.c = 0;
+          var bf = b2(buf, i2 + 6), cmp_1 = b2(buf, i2 + 8), u = bf & 2048, dd = bf & 8, fnl = b2(buf, i2 + 26), es = b2(buf, i2 + 28);
+          if (l > i2 + 30 + fnl + es) {
+            var chks_3 = [];
+            this_1.k.unshift(chks_3);
+            f = 2;
+            var lsc = b4(buf, i2 + 18), lsu = b4(buf, i2 + 22);
+            var fn_1 = strFromU8(buf.subarray(i2 + 30, i2 += 30 + fnl), !u);
+            var _a2 = z64hs(buf, i2, es, 2, lsc, lsu, 0), sc_1 = _a2[0], su_1 = _a2[1], z64 = _a2[3];
+            if (dd)
+              sc_1 = -1 - z64;
+            i2 += es;
+            this_1.c = sc_1;
+            var d_1;
+            var file_1 = {
+              name: fn_1,
+              compression: cmp_1,
+              start: function() {
+                if (!file_1.ondata)
+                  err(5);
+                if (!sc_1)
+                  file_1.ondata(null, et, true);
+                else {
+                  var ctr = _this.o[cmp_1];
+                  if (!ctr)
+                    file_1.ondata(err(14, "unknown compression type " + cmp_1, 1), null, false);
+                  d_1 = sc_1 < 0 ? new ctr(fn_1) : new ctr(fn_1, sc_1, su_1);
+                  d_1.ondata = function(err2, dat3, final2) {
+                    file_1.ondata(err2, dat3, final2);
+                  };
+                  for (var _i = 0, chks_4 = chks_3; _i < chks_4.length; _i++) {
+                    var dat2 = chks_4[_i];
+                    d_1.push(dat2, false);
+                  }
+                  if (_this.k[0] == chks_3 && _this.c)
+                    _this.d = d_1;
+                  else
+                    d_1.push(et, true);
+                }
+              },
+              terminate: function() {
+                if (d_1 && d_1.terminate)
+                  d_1.terminate();
+              }
+            };
+            if (sc_1 >= 0)
+              file_1.size = sc_1, file_1.originalSize = su_1;
+            this_1.onfile(file_1);
+          }
+          return "break";
+        } else if (oc) {
+          if (sig == 134695760) {
+            is = i2 += 12 + (oc == -2 && 8), f = 3, this_1.c = 0;
+            return "break";
+          } else if (sig == 33639248) {
+            is = i2 -= 4, f = 3, this_1.c = 0;
+            return "break";
+          }
+        }
+      };
+      var this_1 = this;
+      for (; i2 < l - 4; ++i2) {
+        var state_1 = _loop_2();
+        if (state_1 === "break")
+          break;
+      }
+      this.p = et;
+      if (oc < 0) {
+        var dat = f ? buf.subarray(0, is - 12 - (oc == -2 && 8) - (b4(buf, is - 16) == 134695760 && 4)) : buf.subarray(0, i2);
+        if (add)
+          add.push(dat, !!f);
+        else
+          this.k[+(f == 2)].push(dat);
+      }
+      if (f & 2)
+        return this.push(buf.subarray(i2), final);
+      this.p = buf.subarray(i2);
+    }
+    if (final) {
+      if (this.c)
+        err(13);
+      this.p = null;
+    }
+  };
+  Unzip2.prototype.register = function(decoder) {
+    this.o[decoder.compression] = decoder;
+  };
+  return Unzip2;
+})();
 function unzipSync(data, opts) {
   var files = {};
   var e = data.length - 22;
@@ -1146,31 +1775,23 @@ class ObjectStore {
   }
   dir;
   pathFor(id2) {
+    if (!/^[a-f0-9]{64}$/.test(id2)) throw new Error("对象标识无效");
     return path$1.join(this.dir, id2.slice(0, 2), id2.slice(2, 4), id2.slice(4));
   }
   async put(buf) {
     const id2 = await sha256(buf);
     const target = this.pathFor(id2);
-    if (await this.has(id2)) return id2;
-    await promises.mkdir(path$1.dirname(target), { recursive: true });
-    const tmp2 = `${target}.tmp-${process.pid}-${Math.random().toString(36).slice(2)}`;
-    const fh = await promises.open(tmp2, "w");
-    try {
-      await fh.write(deflateSync(buf));
-      await fh.sync();
-    } finally {
-      await fh.close();
+    if (await this.has(id2)) {
+      await this.get(id2);
+      return id2;
     }
-    try {
-      await promises.rename(tmp2, target);
-    } catch (e) {
-      await promises.rm(tmp2, { force: true });
-      if (!await this.has(id2)) throw e;
-    }
+    await writeFileAtomic(target, deflateSync(buf));
     return id2;
   }
   async get(id2) {
-    return inflateSync(await promises.readFile(this.pathFor(id2)));
+    const raw = inflateSync(await promises.readFile(this.pathFor(id2)));
+    if (await sha256(raw) !== id2) throw new Error(`历史对象校验失败：${id2}`);
+    return raw;
   }
   async has(id2) {
     try {
@@ -1366,6 +1987,23 @@ async function* streamOnce(buf) {
 async function materializeFile(ctx, m) {
   return m.encoding === "ooxml" ? decodeOoxml(ctx, m) : materializeGeneric(ctx, m);
 }
+async function* materializeFileStream(ctx, m) {
+  if (m.encoding === "ooxml") {
+    yield await decodeOoxml(ctx, m);
+    return;
+  }
+  if (!Number.isSafeInteger(m.size) || m.size < 0) throw new Error("历史文件大小无效");
+  const hash = createHash("sha256");
+  let size = 0;
+  for (const id2 of m.ref.chunks) {
+    const block = await ctx.chunks.get(id2);
+    hash.update(block);
+    size += block.length;
+    if (size > m.size) throw new Error("历史文件大小校验失败");
+    yield block;
+  }
+  if (size !== m.size || hash.digest("hex") !== m.sha256) throw new Error("历史文件内容校验失败");
+}
 function canonical(m) {
   return JSON.stringify(m);
 }
@@ -1405,146 +2043,6 @@ async function writeTree(ctx, t) {
 }
 async function readTree(ctx, id2) {
   return JSON.parse(new TextDecoder().decode(await ctx.blobs.get(id2)));
-}
-function docIdOf(name) {
-  return encodeURIComponent(name);
-}
-function docNameOf(docId) {
-  return decodeURIComponent(docId);
-}
-function headsDir(repo, docId) {
-  return path$1.join(repo.root, "refs", "heads", docId);
-}
-async function docIds(repo) {
-  const base = path$1.join(repo.root, "refs", "heads");
-  try {
-    const es = await promises.readdir(base, { withFileTypes: true });
-    return es.filter((e) => e.isDirectory()).map((e) => docNameOf(e.name));
-  } catch {
-    return [];
-  }
-}
-async function listBranches(repo, docId) {
-  try {
-    const es = await promises.readdir(headsDir(repo, docId), { withFileTypes: true });
-    return es.filter((e) => e.isFile() && e.name !== "HEAD").map((e) => e.name).sort();
-  } catch {
-    return [];
-  }
-}
-async function readHead(repo, docId, branch) {
-  try {
-    return (await promises.readFile(path$1.join(headsDir(repo, docId), branch), "utf8")).trim();
-  } catch {
-    return null;
-  }
-}
-async function writeHead(repo, docId, branch, commitId) {
-  await writeFileAtomic(path$1.join(headsDir(repo, docId), branch), new TextEncoder().encode(commitId));
-}
-async function readCurrentBranch(repo, docId) {
-  try {
-    return (await promises.readFile(path$1.join(headsDir(repo, docId), "HEAD"), "utf8")).trim() || "main";
-  } catch {
-    return "main";
-  }
-}
-async function writeCurrentBranch(repo, docId, branch) {
-  await writeFileAtomic(path$1.join(headsDir(repo, docId), "HEAD"), new TextEncoder().encode(branch));
-}
-async function deleteBranch(repo, docId, branch) {
-  const current = await readCurrentBranch(repo, docId);
-  if (branch === current) throw new Error(`不能删除当前分支：${branch}`);
-  await promises.rm(path$1.join(headsDir(repo, docId), branch));
-}
-const RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i;
-function validateDocName(name) {
-  if (!name || name !== name.trim() || /[<>:"/\\|?*\x00-\x1f]/.test(name) || name === "." || name === ".." || /[. ]$/.test(name) || RESERVED.test(name)) {
-    throw new Error("文档名称不合法，请使用不含路径或特殊字符的文件名");
-  }
-  return name;
-}
-function validateBranchName(name) {
-  if (!/^[\p{L}\p{N}][\p{L}\p{N} _.-]*$/u.test(name) || /[. ]$/.test(name) || name.toUpperCase() === "HEAD" || RESERVED.test(name)) {
-    throw new Error("分支名称不合法，可用中文、字母、数字、空格、下划线或短横线，不能使用 HEAD");
-  }
-  return name;
-}
-function containedPath(root, relative2) {
-  if (path$1.isAbsolute(relative2)) throw new Error("文件路径必须位于目标目录内");
-  const base = path$1.resolve(root);
-  const result = path$1.resolve(base, relative2);
-  if (result !== base && !result.startsWith(base + path$1.sep)) throw new Error("文件路径越出目标目录");
-  return result;
-}
-const pending = /* @__PURE__ */ new Map();
-const held = new AsyncLocalStorage();
-async function withRepoWrite(repo, action) {
-  const root = path$1.resolve(repo.root);
-  if (held.getStore()?.has(root)) return action();
-  const previous = pending.get(root) ?? Promise.resolve();
-  const task = previous.catch(() => {
-  }).then(async () => {
-    const lockPath = path$1.join(root, ".write.lock");
-    let lock;
-    try {
-      lock = await promises.open(lockPath, "wx");
-    } catch (e) {
-      if (e.code !== "EEXIST") throw e;
-      let alive = true;
-      const owner = Number(await promises.readFile(lockPath, "utf8"));
-      if (Number.isInteger(owner) && owner > 0) {
-        try {
-          process.kill(owner, 0);
-        } catch (error2) {
-          alive = error2.code !== "ESRCH";
-        }
-      }
-      if (alive) throw new Error("仓库正在被另一个进程写入，请稍后重试或关闭另一窗口");
-      await promises.rm(lockPath);
-      lock = await promises.open(lockPath, "wx");
-    }
-    try {
-      await lock.writeFile(String(process.pid));
-      await lock.sync();
-      return await held.run(/* @__PURE__ */ new Set([...held.getStore() ?? [], root]), action);
-    } finally {
-      await lock.close();
-      await promises.rm(lockPath, { force: true });
-    }
-  });
-  pending.set(root, task);
-  try {
-    return await task;
-  } finally {
-    if (pending.get(root) === task) pending.delete(root);
-  }
-}
-async function readLibraryMeta(repo, docName2) {
-  validateDocName(docName2);
-  try {
-    const value = JSON.parse(await promises.readFile(path$1.join(repo.root, "library", docIdOf(docName2) + ".json"), "utf8"));
-    if (value.format !== 1 || !Array.isArray(value.categories) || !value.versions) throw new Error("文档整理数据格式无效");
-    return value;
-  } catch (error2) {
-    if (error2.code !== "ENOENT") throw error2;
-    return { format: 1, categories: [], versions: {} };
-  }
-}
-async function writeLibraryMeta(repo, docName2, meta) {
-  validateDocName(docName2);
-  await writeFileAtomic(path$1.join(repo.root, "library", docIdOf(docName2) + ".json"), new TextEncoder().encode(JSON.stringify(meta, null, 2)));
-}
-async function workingVersion(repo, docName2, id2) {
-  const meta = await readLibraryMeta(repo, docName2);
-  meta.workingVersionId = id2;
-  meta.workingContentId = meta.versions[id2]?.contentId ?? id2;
-  await writeLibraryMeta(repo, docName2, meta);
-}
-async function resolveVersion(repo, docName2, id2) {
-  const meta = await readLibraryMeta(repo, docName2);
-  if (meta.versions[id2]?.purgedAt) throw new Error("该版本文件已彻底删除");
-  return meta.versions[id2]?.contentId ?? id2;
 }
 async function registerImportSource(repo, docName2, id2, source) {
   const config = JSON.parse(await promises.readFile(path$1.join(repo.root, "repo.yaml"), "utf8"));
@@ -1678,24 +2176,21 @@ async function checkoutDocUnlocked(repo, docName2, opts) {
   if (!commitId) throw new Error(`没有可检出的提交（branch=${branch}）`);
   const commit = await readCommit(ctx, await resolveVersion(repo, docName2, commitId));
   const tree = await readTree(ctx, commit.tree);
-  const docAbs = path$1.join(repo.root, "workspace", docName2);
-  const materialized = [];
-  for (const [rel, manifestId] of Object.entries(tree.entries)) {
-    const m = await getManifest(ctx, manifestId);
-    materialized.push({ target: containedPath(docAbs, rel), data: await materializeFile(ctx, m) });
+  path$1.join(repo.root, "workspace", docName2);
+  const stage = await promises.mkdtemp(path$1.join(repo.root, "workspace", ".checkout-")), stageName = path$1.basename(stage);
+  try {
+    const next = path$1.join(stage, "next");
+    if (!Object.hasOwn(tree.entries, "")) await promises.mkdir(next);
+    for (const [rel, manifestId] of Object.entries(tree.entries)) {
+      const m = await getManifest(ctx, manifestId);
+      await writeFileAtomic(containedPath(next, rel), materializeFileStream(ctx, m));
+    }
+    if ((await workspaceStatus(repo, docName2)).dirty) await commitDocUnlocked(repo, docName2, { message: "恢复或切换前自动保护的工作区", author: "word_git" });
+    await publishWorkspaceCheckout(repo, docName2, stageName, commitId, opts.switchBranch ? branch : void 0);
+  } finally {
+    const pending2 = await promises.access(path$1.join(repo.root, "journal", stageName + ".json")).then(() => true, () => false);
+    if (!pending2) await discardCheckoutStage(repo, stageName);
   }
-  if ((await workspaceStatus(repo, docName2)).dirty) {
-    await commitDocUnlocked(repo, docName2, { message: "恢复或切换前自动保护的工作区", author: "word_git" });
-  }
-  if (Object.keys(tree.entries).length === 0) await promises.mkdir(docAbs, { recursive: true });
-  for (const item of materialized) await writeFileAtomic(item.target, item.data);
-  const keep = new Set(Object.keys(tree.entries));
-  const present = [];
-  await collectDocPaths(docAbs, "", present);
-  for (const rel of present) {
-    if (!keep.has(rel)) await promises.rm(containedPath(docAbs, rel));
-  }
-  await workingVersion(repo, docName2, commitId);
   return { docId, commitId };
 }
 async function importDoc(repo, sourcePath, name) {
@@ -1758,8 +2253,7 @@ async function switchBranchUnlocked(repo, docName2, branch) {
   validateBranchName(branch);
   const docId = docIdOf(docName2);
   if (!await readHead(repo, docId, branch)) throw new Error(`分支不存在：${branch}`);
-  await checkoutDocUnlocked(repo, docName2, { branch });
-  await writeCurrentBranch(repo, docId, branch);
+  await checkoutDocUnlocked(repo, docName2, { branch, switchBranch: true });
 }
 async function deleteBranchSafe(repo, docName2, branch) {
   return withRepoWrite(repo, () => deleteBranchSafeUnlocked(repo, docName2, branch));
@@ -1823,133 +2317,321 @@ async function purgeQuarantine(repo, beforeMs) {
   return count;
 }
 async function scrub(repo) {
+  return withRepoWrite(repo, () => scrubUnlocked(repo));
+}
+async function scrubUnlocked(repo) {
   const dirs = [repo.objectsDir("blobs"), repo.objectsDir("chunks"), repo.objectsDir("ooxml")];
   let checked = 0;
   const corrupted = [];
+  const required = /* @__PURE__ */ new Map(), present = /* @__PURE__ */ new Set();
+  const problem = (objectPath2, expected, actual) => corrupted.push({ objectPath: objectPath2, expected, actual });
+  const readJson = async (file2) => {
+    try {
+      return JSON.parse(await promises.readFile(file2, "utf8"));
+    } catch (error2) {
+      problem(file2, "valid JSON", error2.message);
+      return null;
+    }
+  };
+  const entries = async (dir2) => {
+    try {
+      return await promises.readdir(dir2, { withFileTypes: true });
+    } catch (error2) {
+      if (error2.code !== "ENOENT") problem(dir2, "readable directory", error2.message);
+      return [];
+    }
+  };
+  const metadata = [];
+  for (const entry of await entries(path$1.join(repo.root, "library"))) {
+    if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
+    const file2 = path$1.join(repo.root, "library", entry.name), value = await readJson(file2);
+    if (value) {
+      if (value.format !== 1 || !value.versions || !Array.isArray(value.categories)) problem(file2, "valid library metadata", "invalid format");
+      else metadata.push(value);
+    }
+  }
+  const purged = new Set(metadata.flatMap((meta) => meta.purgedContentIds ?? []));
+  const requireObject2 = (kind, id2) => {
+    if (typeof id2 !== "string" || !/^[a-f0-9]{64}$/.test(id2)) {
+      problem(repo.objectsDir(kind), "SHA-256 object id", String(id2));
+      return;
+    }
+    if (kind === "blobs" && purged.has(id2)) return;
+    required.set(path$1.join(repo.objectsDir(kind), id2.slice(0, 2), id2.slice(2, 4), id2.slice(4)), id2);
+  };
+  for (const meta of metadata) {
+    if (meta.workingContentId) requireObject2("blobs", meta.workingContentId);
+    for (const [id2, version2] of Object.entries(meta.versions)) {
+      if (version2.purgedAt) continue;
+      requireObject2("blobs", id2);
+      if (version2.contentId) requireObject2("blobs", version2.contentId);
+      for (const revision of version2.revisions ?? []) requireObject2("blobs", revision);
+    }
+  }
+  for (const doc of await entries(path$1.join(repo.root, "refs", "heads"))) {
+    if (!doc.isDirectory()) continue;
+    for (const branch of await entries(path$1.join(repo.root, "refs", "heads", doc.name))) {
+      if (!branch.isFile() || branch.name === "HEAD" || branch.name.includes(".tmp-")) continue;
+      const file2 = path$1.join(repo.root, "refs", "heads", doc.name, branch.name);
+      try {
+        requireObject2("blobs", (await promises.readFile(file2, "utf8")).trim());
+      } catch (error2) {
+        problem(file2, "readable branch", error2.message);
+      }
+    }
+  }
+  for (const entry of await entries(path$1.join(repo.root, "quarantine"))) {
+    if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
+    const value = await readJson(path$1.join(repo.root, "quarantine", entry.name));
+    if (value) requireObject2("blobs", value.commitId);
+  }
+  const fileReferences = (value) => {
+    if (value.ref?.blob) requireObject2("blobs", value.ref.blob);
+    for (const id2 of value.ref?.chunks ?? []) requireObject2("chunks", id2);
+    for (const entry of Object.values(value.entries ?? {})) {
+      if (entry.ref?.blob) requireObject2("blobs", entry.ref.blob);
+      for (const id2 of entry.ref?.chunks ?? []) requireObject2("chunks", id2);
+    }
+    for (const id2 of value.original?.ref?.chunks ?? []) requireObject2("chunks", id2);
+  };
   for (const dir2 of dirs) {
     await walkObjects(dir2, async (objectPath2, expectedId) => {
-      const compressed = await promises.readFile(objectPath2);
+      present.add(objectPath2);
       let raw;
       try {
-        raw = inflateSync(new Uint8Array(compressed));
-      } catch {
-        corrupted.push({ objectPath: objectPath2, expected: expectedId, actual: "(inflate failed)" });
+        raw = inflateSync(new Uint8Array(await promises.readFile(objectPath2)));
+      } catch (error2) {
+        problem(objectPath2, expectedId, `(read/inflate failed: ${error2.message})`);
         checked++;
         return;
       }
       const actual = await sha256(raw);
-      if (actual !== expectedId) corrupted.push({ objectPath: objectPath2, expected: expectedId, actual });
+      if (actual !== expectedId) problem(objectPath2, expectedId, actual);
       checked++;
-    });
+      if (dir2 !== repo.objectsDir("blobs") || purged.has(expectedId)) return;
+      let value;
+      try {
+        value = JSON.parse(new TextDecoder().decode(raw));
+      } catch {
+        return;
+      }
+      if (!value || typeof value !== "object") return;
+      if (typeof value.tree === "string" && Array.isArray(value.parents)) {
+        requireObject2("blobs", value.tree);
+        for (const id2 of value.parents) requireObject2("blobs", id2);
+      } else if (value.encoding === "generic" || value.encoding === "ooxml") fileReferences(value);
+      else if (value.entries && Object.values(value.entries).every((id2) => typeof id2 === "string")) for (const id2 of Object.values(value.entries)) requireObject2("blobs", id2);
+    }, entries);
+  }
+  const projectDir = path$1.join(repo.root, "objects", "project-files");
+  const catalogPath = path$1.join(repo.root, "projects", "catalog.json");
+  if ((await entries(path$1.dirname(catalogPath))).some((entry) => entry.name === "catalog.json")) {
+    const catalog = await readJson(catalogPath);
+    if (catalog && catalog.format === 1 && Array.isArray(catalog.projects)) {
+      for (const project of catalog.projects) for (const node2 of project.nodes ?? []) {
+        if (node2.kind !== "file" || node2.linkTarget) continue;
+        if (typeof node2.contentHash !== "string" || !/^[a-f0-9]{64}$/.test(node2.contentHash)) problem(catalogPath, "project snapshot id", String(node2.contentHash));
+        else required.set(path$1.join(projectDir, node2.contentHash), node2.contentHash);
+      }
+    } else if (catalog) problem(catalogPath, "valid project catalog", "invalid format");
+  }
+  for (const entry of await entries(projectDir)) {
+    if (!entry.isFile() || !/^[a-f0-9]{64}$/.test(entry.name)) continue;
+    const file2 = path$1.join(projectDir, entry.name);
+    present.add(file2);
+    checked++;
+    try {
+      const hash = teeHash(readFileBlocks(file2));
+      for await (const _2 of hash.stream) {
+      }
+      const actual = await hash.digest();
+      if (actual !== entry.name) problem(file2, entry.name, actual);
+    } catch (error2) {
+      problem(file2, entry.name, error2.message);
+    }
+  }
+  for (const [file2, id2] of required) if (!present.has(file2)) {
+    checked++;
+    problem(file2, id2, "(missing referenced object)");
   }
   return { checked, corrupted };
 }
-async function walkObjects(dir2, cb) {
-  let l1;
-  try {
-    l1 = await promises.readdir(dir2, { withFileTypes: true });
-  } catch {
-    return;
-  }
-  for (const e1 of l1.filter((e) => e.isDirectory())) {
+async function walkObjects(dir2, cb, entries) {
+  for (const e1 of (await entries(dir2)).filter((e) => e.isDirectory() && /^[a-f0-9]{2}$/.test(e.name))) {
     const d1 = path$1.join(dir2, e1.name);
-    let l2;
-    try {
-      l2 = await promises.readdir(d1, { withFileTypes: true });
-    } catch {
-      continue;
-    }
-    for (const e2 of l2.filter((e) => e.isDirectory())) {
+    for (const e2 of (await entries(d1)).filter((e) => e.isDirectory() && /^[a-f0-9]{2}$/.test(e.name))) {
       const d2 = path$1.join(d1, e2.name);
-      let l3;
-      try {
-        l3 = await promises.readdir(d2, { withFileTypes: true });
-      } catch {
-        continue;
-      }
-      for (const e3 of l3.filter((e) => e.isFile())) {
+      for (const e3 of (await entries(d2)).filter((e) => e.isFile() && /^[a-f0-9]{60}$/.test(e.name))) {
         await cb(path$1.join(d2, e3.name), e1.name + e2.name + e3.name);
       }
     }
   }
 }
-const EXCLUDE_DIRS = /* @__PURE__ */ new Set(["journal", "index"]);
-async function exportBackup(repo, destPath) {
-  const relative2 = path$1.relative(repo.root, path$1.resolve(destPath));
-  if (!relative2 || !relative2.startsWith(".." + path$1.sep) && relative2 !== ".." && !path$1.isAbsolute(relative2)) throw new Error("备份文件必须保存在仓库之外");
-  return withRepoWrite(repo, async () => {
-    const manifest = {
-      version: 1,
-      createdAt: (/* @__PURE__ */ new Date()).toISOString(),
-      repoName: path$1.basename(repo.root),
-      files: []
+function validateBackupPath(name) {
+  if (typeof name !== "string" || !name || name.includes("\\") || name.split("/").some((part) => !part || part === "." || part === ".." || /[<>:"|?*\x00-\x1f]/.test(part))) throw new Error("备份包含无效路径");
+}
+async function* streamBackupFiles(root, manifest) {
+  const output = [];
+  let failure = null;
+  const zip2 = new Zip((error2, bytes) => {
+    if (error2) failure = error2;
+    else output.push(bytes);
+  });
+  async function* files(dir2) {
+    for (const entry of await promises.readdir(dir2, { withFileTypes: true })) {
+      if (dir2 === root && ["journal", "index", ".write.lock"].includes(entry.name)) continue;
+      const file2 = path$1.join(dir2, entry.name);
+      if (entry.isDirectory()) yield* files(file2);
+      else if (entry.isFile()) yield file2;
+      else if (entry.isSymbolicLink()) throw new Error("库内存在未受管链接，请移出该链接后重试备份");
+    }
+  }
+  for await (const file2 of files(root)) {
+    const name = path$1.relative(root, file2).split(path$1.sep).join("/");
+    validateBackupPath(name);
+    if (name.toLowerCase() === "_manifest.json") throw new Error("文档库根目录的 _manifest.json 为备份保留名称，请移出该文件后重试");
+    const before = await promises.stat(file2), hash = createHash("sha256"), entry = new ZipDeflate(name);
+    let size = 0;
+    zip2.add(entry);
+    while (output.length) yield output.shift();
+    for await (const bytes of readFileBlocks(file2, 64 * 1024)) {
+      hash.update(bytes);
+      size += bytes.length;
+      entry.push(bytes, false);
+      if (failure) throw failure;
+      while (output.length) yield output.shift();
+    }
+    const after = await promises.stat(file2);
+    if (before.size !== size || before.size !== after.size || before.mtimeMs !== after.mtimeMs || before.ino !== after.ino) throw new Error(`备份期间文件发生变化，请保存编辑内容后重试：${name}`);
+    entry.push(new Uint8Array(), true);
+    if (failure) throw failure;
+    while (output.length) yield output.shift();
+    manifest.files.push({ path: name, sha256: hash.digest("hex") });
+  }
+  const metadata = new ZipDeflate("_manifest.json");
+  zip2.add(metadata);
+  metadata.push(new TextEncoder().encode(JSON.stringify(manifest)), true);
+  zip2.end();
+  if (failure) throw failure;
+  while (output.length) yield output.shift();
+}
+async function extractBackupArchive(source, stage) {
+  const hashes = /* @__PURE__ */ new Map(), names = /* @__PURE__ */ new Set();
+  const handles = /* @__PURE__ */ new Map();
+  const output = [];
+  let failure = null;
+  const unzip2 = new Unzip((entry) => {
+    validateBackupPath(entry.name);
+    const key2 = entry.name.toLowerCase();
+    if (names.has(key2)) throw new Error("备份包含重复路径");
+    names.add(key2);
+    entry.ondata = (error2, bytes, final) => {
+      if (error2) failure = error2;
+      else output.push({ name: entry.name, bytes, final });
     };
-    const fileMap = {};
-    await collectFiles(repo.root, repo.root, fileMap, manifest);
-    fileMap["_manifest.json"] = new TextEncoder().encode(JSON.stringify(manifest, null, 2));
-    await writeFileAtomic(destPath, zipSync(fileMap));
+    entry.start();
+  });
+  unzip2.register(UnzipInflate);
+  async function flush() {
+    if (failure) throw failure;
+    for (const item of output.splice(0)) {
+      let current = handles.get(item.name);
+      if (!current) {
+        const target = containedPath(stage, item.name);
+        await promises.mkdir(path$1.dirname(target), { recursive: true });
+        current = { file: await promises.open(target, "wx"), hash: createHash("sha256") };
+        handles.set(item.name, current);
+      }
+      current.hash.update(item.bytes);
+      await current.file.writeFile(item.bytes);
+      if (item.final) {
+        await current.file.sync();
+        await current.file.close();
+        hashes.set(item.name, current.hash.digest("hex"));
+        handles.delete(item.name);
+      }
+    }
+  }
+  try {
+    for await (const bytes of readFileBlocks(source, 16 * 1024)) {
+      unzip2.push(bytes, false);
+      await flush();
+    }
+    unzip2.push(new Uint8Array(), true);
+    await flush();
+    if (handles.size) throw new Error("备份包内容未完整解压");
+    return hashes;
+  } catch (error2) {
+    throw new Error(`备份包解压失败：${error2.message}`, { cause: error2 });
+  } finally {
+    for (const current of handles.values()) await current.file.close();
+  }
+}
+async function exportBackup(repo, destPath) {
+  destPath = path$1.resolve(destPath);
+  const relative2 = path$1.relative(repo.root, destPath);
+  if (!relative2 || !relative2.startsWith(".." + path$1.sep) && relative2 !== ".." && !path$1.isAbsolute(relative2)) throw new Error("备份文件必须保存在仓库之外");
+  await promises.mkdir(path$1.dirname(destPath), { recursive: true });
+  const parent2 = await promises.realpath(path$1.dirname(destPath)), actualRoot = await promises.realpath(repo.root), actual = path$1.relative(actualRoot, parent2);
+  if (!actual || !path$1.isAbsolute(actual) && actual !== ".." && !actual.startsWith(".." + path$1.sep)) throw new Error("备份文件不能通过链接写入仓库");
+  return withRepoWrite(repo, async () => {
+    const manifest = { version: 1, createdAt: (/* @__PURE__ */ new Date()).toISOString(), repoName: path$1.basename(repo.root), files: [] };
+    await writeFileAtomic(destPath, streamBackupFiles(repo.root, manifest));
     return { fileCount: manifest.files.length };
   });
 }
-async function collectFiles(root, dir2, out, manifest) {
-  let entries;
-  entries = await promises.readdir(dir2, { withFileTypes: true });
-  for (const e of entries) {
-    const abs = path$1.join(dir2, e.name);
-    const rel = path$1.relative(root, abs).split(path$1.sep).join("/");
-    if (e.isDirectory()) {
-      if (EXCLUDE_DIRS.has(e.name)) continue;
-      await collectFiles(root, abs, out, manifest);
-    } else if (e.isFile() && !e.name.includes(".tmp-") && e.name !== ".write.lock") {
-      const data = new Uint8Array(await promises.readFile(abs));
-      const hash = await sha256(data);
-      out[rel] = data;
-      manifest.files.push({ path: rel, sha256: hash });
-    }
-  }
-}
 async function importBackup(srcPath, destRoot) {
-  const raw = new Uint8Array(await promises.readFile(srcPath));
-  let all;
+  destRoot = path$1.resolve(destRoot);
+  let existed = false;
   try {
-    all = unzipSync(raw);
-  } catch (e) {
-    throw new Error(`备份包解压失败：${e.message}`);
-  }
-  const manifestBytes = all["_manifest.json"];
-  if (!manifestBytes) throw new Error("备份包缺少 _manifest.json");
-  const manifest = JSON.parse(new TextDecoder().decode(manifestBytes));
-  if (manifest.version !== 1 || !Array.isArray(manifest.files)) throw new Error("备份清单格式无效");
-  const listed = /* @__PURE__ */ new Set();
-  for (const entry of manifest.files) {
-    if (typeof entry.path !== "string" || !entry.path || entry.path.includes("\\") || entry.path.split("/").some((p) => !p || p === "." || p === ".." || /[<>:"|?*\x00-\x1f]/.test(p))) throw new Error("备份包含无效路径");
-    containedPath(destRoot, entry.path);
-    const key2 = entry.path.toLowerCase();
-    if (listed.has(key2)) throw new Error("备份包含重复路径");
-    listed.add(key2);
-    const data = all[entry.path];
-    if (!data) throw new Error(`备份包缺少文件：${entry.path}`);
-    const actual = await sha256(data);
-    if (actual !== entry.sha256) {
-      throw new Error(`备份包文件校验失败：${entry.path}（期望 ${entry.sha256}，实际 ${actual}）`);
-    }
-  }
-  if (Object.keys(all).some((p) => p !== "_manifest.json" && !manifest.files.some((e) => e.path === p))) throw new Error("备份含有未校验的文件");
-  if (!all["repo.yaml"]) throw new Error("备份缺少仓库配置");
-  try {
+    const stat2 = await promises.lstat(destRoot);
+    if (!stat2.isDirectory() || stat2.isSymbolicLink()) throw new Error("恢复位置必须为空的普通目录");
     if ((await promises.readdir(destRoot)).length) throw new Error("恢复位置必须为空目录，避免覆盖现有文件");
+    existed = true;
   } catch (error2) {
     if (error2.code !== "ENOENT") throw error2;
   }
-  await promises.mkdir(destRoot, { recursive: true });
-  for (const [relPath, data] of Object.entries(all)) {
-    if (relPath === "_manifest.json") continue;
-    const target = path$1.join(destRoot, ...relPath.split("/"));
-    await promises.mkdir(path$1.dirname(target), { recursive: true });
-    await promises.writeFile(target, data);
+  const parent2 = path$1.dirname(destRoot);
+  await promises.mkdir(parent2, { recursive: true });
+  const stage = await promises.mkdtemp(path$1.join(parent2, ".wordgit-restore-"));
+  let removedEmptyTarget = false, published = false;
+  try {
+    const hashes = await extractBackupArchive(srcPath, stage);
+    if (!hashes.has("_manifest.json")) throw new Error("备份包缺少 _manifest.json");
+    const manifest = JSON.parse(await promises.readFile(path$1.join(stage, "_manifest.json"), "utf8"));
+    if (manifest.version !== 1 || !Array.isArray(manifest.files)) throw new Error("备份清单格式无效");
+    const listed = /* @__PURE__ */ new Set();
+    for (const entry of manifest.files) {
+      validateBackupPath(entry.path);
+      const key2 = entry.path.toLowerCase();
+      if (listed.has(key2) || key2 === "_manifest.json") throw new Error("备份包含重复或保留路径");
+      listed.add(key2);
+      const actual = hashes.get(entry.path);
+      if (!actual) throw new Error(`备份包缺少文件：${entry.path}`);
+      if (actual !== entry.sha256) throw new Error(`备份包文件校验失败：${entry.path}`);
+    }
+    if ([...hashes.keys()].some((name) => name !== "_manifest.json" && !listed.has(name.toLowerCase()))) throw new Error("备份含有未校验的文件");
+    if (!hashes.has("repo.yaml")) throw new Error("备份缺少仓库配置");
+    await promises.rm(path$1.join(stage, "_manifest.json"));
+    await promises.mkdir(path$1.join(stage, "journal"), { recursive: true });
+    const restored = await Repo.open(stage), result = await scrub(restored);
+    if (result.corrupted.length) throw new Error("备份中的历史引用或文件快照不完整，未发布恢复结果");
+    if (existed) {
+      await promises.rmdir(destRoot);
+      removedEmptyTarget = true;
+    }
+    await promises.rename(stage, destRoot);
+    published = true;
+    return Repo.open(destRoot);
+  } catch (error2) {
+    if (removedEmptyTarget && !published) await promises.mkdir(destRoot).catch((failure) => {
+      if (failure.code !== "EEXIST") throw failure;
+    });
+    throw error2;
+  } finally {
+    if (path$1.dirname(stage) !== parent2 || !path$1.basename(stage).startsWith(".wordgit-restore-")) throw new Error("恢复暂存路径无效");
+    await promises.rm(stage, { recursive: true, force: true });
   }
-  await promises.mkdir(path$1.join(destRoot, "journal"), { recursive: true });
-  return Repo.open(destRoot);
 }
 class Diff {
   diff(oldStr, newStr, options = {}) {
@@ -2157,11 +2839,1955 @@ const characterDiff = new CharacterDiff();
 function diffChars(oldStr, newStr, options) {
   return characterDiff.diff(oldStr, newStr, options);
 }
+var commonjsGlobal = typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : {};
+function getDefaultExportFromCjs(x2) {
+  return x2 && x2.__esModule && Object.prototype.hasOwnProperty.call(x2, "default") ? x2["default"] : x2;
+}
+function getAugmentedNamespace(n) {
+  if (Object.prototype.hasOwnProperty.call(n, "__esModule")) return n;
+  var f = n.default;
+  if (typeof f == "function") {
+    var a = function a2() {
+      var isInstance = false;
+      try {
+        isInstance = this instanceof a2;
+      } catch {
+      }
+      if (isInstance) {
+        return Reflect.construct(f, arguments, this.constructor);
+      }
+      return f.apply(this, arguments);
+    };
+    a.prototype = f.prototype;
+  } else a = {};
+  Object.defineProperty(a, "__esModule", { value: true });
+  Object.keys(n).forEach(function(k) {
+    var d = Object.getOwnPropertyDescriptor(n, k);
+    Object.defineProperty(a, k, d.get ? d : {
+      enumerable: true,
+      get: function() {
+        return n[k];
+      }
+    });
+  });
+  return a;
+}
+var saxes$1 = {};
+var ed5 = {};
+var hasRequiredEd5;
+function requireEd5() {
+  if (hasRequiredEd5) return ed5;
+  hasRequiredEd5 = 1;
+  (function(exports) {
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.CHAR = "	\n\r -퟿-�𐀀-􏿿";
+    exports.S = " 	\r\n";
+    exports.NAME_START_CHAR = ":A-Z_a-zÀ-ÖØ-öø-˿Ͱ-ͽͿ-῿‌‍⁰-↏Ⰰ-⿯、-퟿豈-﷏ﷰ-�𐀀-󯿿";
+    exports.NAME_CHAR = "-" + exports.NAME_START_CHAR + ".0-9·̀-ͯ‿-⁀";
+    exports.CHAR_RE = new RegExp("^[" + exports.CHAR + "]$", "u");
+    exports.S_RE = new RegExp("^[" + exports.S + "]+$", "u");
+    exports.NAME_START_CHAR_RE = new RegExp("^[" + exports.NAME_START_CHAR + "]$", "u");
+    exports.NAME_CHAR_RE = new RegExp("^[" + exports.NAME_CHAR + "]$", "u");
+    exports.NAME_RE = new RegExp("^[" + exports.NAME_START_CHAR + "][" + exports.NAME_CHAR + "]*$", "u");
+    exports.NMTOKEN_RE = new RegExp("^[" + exports.NAME_CHAR + "]+$", "u");
+    var TAB = 9;
+    var NL = 10;
+    var CR = 13;
+    var SPACE = 32;
+    exports.S_LIST = [SPACE, NL, CR, TAB];
+    function isChar(c) {
+      return c >= SPACE && c <= 55295 || c === NL || c === CR || c === TAB || c >= 57344 && c <= 65533 || c >= 65536 && c <= 1114111;
+    }
+    exports.isChar = isChar;
+    function isS(c) {
+      return c === SPACE || c === NL || c === CR || c === TAB;
+    }
+    exports.isS = isS;
+    function isNameStartChar(c) {
+      return c >= 65 && c <= 90 || c >= 97 && c <= 122 || c === 58 || c === 95 || c === 8204 || c === 8205 || c >= 192 && c <= 214 || c >= 216 && c <= 246 || c >= 248 && c <= 767 || c >= 880 && c <= 893 || c >= 895 && c <= 8191 || c >= 8304 && c <= 8591 || c >= 11264 && c <= 12271 || c >= 12289 && c <= 55295 || c >= 63744 && c <= 64975 || c >= 65008 && c <= 65533 || c >= 65536 && c <= 983039;
+    }
+    exports.isNameStartChar = isNameStartChar;
+    function isNameChar(c) {
+      return isNameStartChar(c) || c >= 48 && c <= 57 || c === 45 || c === 46 || c === 183 || c >= 768 && c <= 879 || c >= 8255 && c <= 8256;
+    }
+    exports.isNameChar = isNameChar;
+  })(ed5);
+  return ed5;
+}
+var ed2 = {};
+var hasRequiredEd2;
+function requireEd2() {
+  if (hasRequiredEd2) return ed2;
+  hasRequiredEd2 = 1;
+  (function(exports) {
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.CHAR = "-퟿-�𐀀-􏿿";
+    exports.RESTRICTED_CHAR = "-\b\v\f---";
+    exports.S = " 	\r\n";
+    exports.NAME_START_CHAR = ":A-Z_a-zÀ-ÖØ-öø-˿Ͱ-ͽͿ-῿‌‍⁰-↏Ⰰ-⿯、-퟿豈-﷏ﷰ-�𐀀-󯿿";
+    exports.NAME_CHAR = "-" + exports.NAME_START_CHAR + ".0-9·̀-ͯ‿-⁀";
+    exports.CHAR_RE = new RegExp("^[" + exports.CHAR + "]$", "u");
+    exports.RESTRICTED_CHAR_RE = new RegExp("^[" + exports.RESTRICTED_CHAR + "]$", "u");
+    exports.S_RE = new RegExp("^[" + exports.S + "]+$", "u");
+    exports.NAME_START_CHAR_RE = new RegExp("^[" + exports.NAME_START_CHAR + "]$", "u");
+    exports.NAME_CHAR_RE = new RegExp("^[" + exports.NAME_CHAR + "]$", "u");
+    exports.NAME_RE = new RegExp("^[" + exports.NAME_START_CHAR + "][" + exports.NAME_CHAR + "]*$", "u");
+    exports.NMTOKEN_RE = new RegExp("^[" + exports.NAME_CHAR + "]+$", "u");
+    var TAB = 9;
+    var NL = 10;
+    var CR = 13;
+    var SPACE = 32;
+    exports.S_LIST = [SPACE, NL, CR, TAB];
+    function isChar(c) {
+      return c >= 1 && c <= 55295 || c >= 57344 && c <= 65533 || c >= 65536 && c <= 1114111;
+    }
+    exports.isChar = isChar;
+    function isRestrictedChar(c) {
+      return c >= 1 && c <= 8 || c === 11 || c === 12 || c >= 14 && c <= 31 || c >= 127 && c <= 132 || c >= 134 && c <= 159;
+    }
+    exports.isRestrictedChar = isRestrictedChar;
+    function isCharAndNotRestricted(c) {
+      return c === 9 || c === 10 || c === 13 || c > 31 && c < 127 || c === 133 || c > 159 && c <= 55295 || c >= 57344 && c <= 65533 || c >= 65536 && c <= 1114111;
+    }
+    exports.isCharAndNotRestricted = isCharAndNotRestricted;
+    function isS(c) {
+      return c === SPACE || c === NL || c === CR || c === TAB;
+    }
+    exports.isS = isS;
+    function isNameStartChar(c) {
+      return c >= 65 && c <= 90 || c >= 97 && c <= 122 || c === 58 || c === 95 || c === 8204 || c === 8205 || c >= 192 && c <= 214 || c >= 216 && c <= 246 || c >= 248 && c <= 767 || c >= 880 && c <= 893 || c >= 895 && c <= 8191 || c >= 8304 && c <= 8591 || c >= 11264 && c <= 12271 || c >= 12289 && c <= 55295 || c >= 63744 && c <= 64975 || c >= 65008 && c <= 65533 || c >= 65536 && c <= 983039;
+    }
+    exports.isNameStartChar = isNameStartChar;
+    function isNameChar(c) {
+      return isNameStartChar(c) || c >= 48 && c <= 57 || c === 45 || c === 46 || c === 183 || c >= 768 && c <= 879 || c >= 8255 && c <= 8256;
+    }
+    exports.isNameChar = isNameChar;
+  })(ed2);
+  return ed2;
+}
+var ed3 = {};
+var hasRequiredEd3;
+function requireEd3() {
+  if (hasRequiredEd3) return ed3;
+  hasRequiredEd3 = 1;
+  (function(exports) {
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.NC_NAME_START_CHAR = "A-Z_a-zÀ-ÖØ-öø-˿Ͱ-ͽͿ-῿‌-‍⁰-↏Ⰰ-⿯、-퟿豈-﷏ﷰ-�𐀀-󯿿";
+    exports.NC_NAME_CHAR = "-" + exports.NC_NAME_START_CHAR + ".0-9·̀-ͯ‿-⁀";
+    exports.NC_NAME_START_CHAR_RE = new RegExp("^[" + exports.NC_NAME_START_CHAR + "]$", "u");
+    exports.NC_NAME_CHAR_RE = new RegExp("^[" + exports.NC_NAME_CHAR + "]$", "u");
+    exports.NC_NAME_RE = new RegExp("^[" + exports.NC_NAME_START_CHAR + "][" + exports.NC_NAME_CHAR + "]*$", "u");
+    function isNCNameStartChar(c) {
+      return c >= 65 && c <= 90 || c === 95 || c >= 97 && c <= 122 || c >= 192 && c <= 214 || c >= 216 && c <= 246 || c >= 248 && c <= 767 || c >= 880 && c <= 893 || c >= 895 && c <= 8191 || c >= 8204 && c <= 8205 || c >= 8304 && c <= 8591 || c >= 11264 && c <= 12271 || c >= 12289 && c <= 55295 || c >= 63744 && c <= 64975 || c >= 65008 && c <= 65533 || c >= 65536 && c <= 983039;
+    }
+    exports.isNCNameStartChar = isNCNameStartChar;
+    function isNCNameChar(c) {
+      return isNCNameStartChar(c) || (c === 45 || c === 46 || c >= 48 && c <= 57 || c === 183 || c >= 768 && c <= 879 || c >= 8255 && c <= 8256);
+    }
+    exports.isNCNameChar = isNCNameChar;
+  })(ed3);
+  return ed3;
+}
+var hasRequiredSaxes$1;
+function requireSaxes$1() {
+  if (hasRequiredSaxes$1) return saxes$1;
+  hasRequiredSaxes$1 = 1;
+  Object.defineProperty(saxes$1, "__esModule", { value: true });
+  saxes$1.SaxesParser = saxes$1.EVENTS = void 0;
+  const ed52 = requireEd5();
+  const ed22 = requireEd2();
+  const NSed3 = requireEd3();
+  var isS = ed52.isS;
+  var isChar10 = ed52.isChar;
+  var isNameStartChar = ed52.isNameStartChar;
+  var isNameChar = ed52.isNameChar;
+  var S_LIST = ed52.S_LIST;
+  var NAME_RE = ed52.NAME_RE;
+  var isChar11 = ed22.isChar;
+  var isNCNameStartChar = NSed3.isNCNameStartChar;
+  var isNCNameChar = NSed3.isNCNameChar;
+  var NC_NAME_RE = NSed3.NC_NAME_RE;
+  const XML_NAMESPACE = "http://www.w3.org/XML/1998/namespace";
+  const XMLNS_NAMESPACE = "http://www.w3.org/2000/xmlns/";
+  const rootNS = {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+    __proto__: null,
+    xml: XML_NAMESPACE,
+    xmlns: XMLNS_NAMESPACE
+  };
+  const XML_ENTITIES = {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+    __proto__: null,
+    amp: "&",
+    gt: ">",
+    lt: "<",
+    quot: '"',
+    apos: "'"
+  };
+  const EOC = -1;
+  const NL_LIKE = -2;
+  const S_BEGIN = 0;
+  const S_BEGIN_WHITESPACE = 1;
+  const S_DOCTYPE = 2;
+  const S_DOCTYPE_QUOTE = 3;
+  const S_DTD = 4;
+  const S_DTD_QUOTED = 5;
+  const S_DTD_OPEN_WAKA = 6;
+  const S_DTD_OPEN_WAKA_BANG = 7;
+  const S_DTD_COMMENT = 8;
+  const S_DTD_COMMENT_ENDING = 9;
+  const S_DTD_COMMENT_ENDED = 10;
+  const S_DTD_PI = 11;
+  const S_DTD_PI_ENDING = 12;
+  const S_TEXT = 13;
+  const S_ENTITY = 14;
+  const S_OPEN_WAKA = 15;
+  const S_OPEN_WAKA_BANG = 16;
+  const S_COMMENT = 17;
+  const S_COMMENT_ENDING = 18;
+  const S_COMMENT_ENDED = 19;
+  const S_CDATA = 20;
+  const S_CDATA_ENDING = 21;
+  const S_CDATA_ENDING_2 = 22;
+  const S_PI_FIRST_CHAR = 23;
+  const S_PI_REST = 24;
+  const S_PI_BODY = 25;
+  const S_PI_ENDING = 26;
+  const S_XML_DECL_NAME_START = 27;
+  const S_XML_DECL_NAME = 28;
+  const S_XML_DECL_EQ = 29;
+  const S_XML_DECL_VALUE_START = 30;
+  const S_XML_DECL_VALUE = 31;
+  const S_XML_DECL_SEPARATOR = 32;
+  const S_XML_DECL_ENDING = 33;
+  const S_OPEN_TAG = 34;
+  const S_OPEN_TAG_SLASH = 35;
+  const S_ATTRIB = 36;
+  const S_ATTRIB_NAME = 37;
+  const S_ATTRIB_NAME_SAW_WHITE = 38;
+  const S_ATTRIB_VALUE = 39;
+  const S_ATTRIB_VALUE_QUOTED = 40;
+  const S_ATTRIB_VALUE_CLOSED = 41;
+  const S_ATTRIB_VALUE_UNQUOTED = 42;
+  const S_CLOSE_TAG = 43;
+  const S_CLOSE_TAG_SAW_WHITE = 44;
+  const TAB = 9;
+  const NL = 10;
+  const CR = 13;
+  const SPACE = 32;
+  const BANG = 33;
+  const DQUOTE = 34;
+  const AMP = 38;
+  const SQUOTE = 39;
+  const MINUS = 45;
+  const FORWARD_SLASH = 47;
+  const SEMICOLON = 59;
+  const LESS = 60;
+  const EQUAL = 61;
+  const GREATER = 62;
+  const QUESTION = 63;
+  const OPEN_BRACKET = 91;
+  const CLOSE_BRACKET = 93;
+  const NEL = 133;
+  const LS = 8232;
+  const isQuote = (c) => c === DQUOTE || c === SQUOTE;
+  const QUOTES = [DQUOTE, SQUOTE];
+  const DOCTYPE_TERMINATOR = [...QUOTES, OPEN_BRACKET, GREATER];
+  const DTD_TERMINATOR = [...QUOTES, LESS, CLOSE_BRACKET];
+  const XML_DECL_NAME_TERMINATOR = [EQUAL, QUESTION, ...S_LIST];
+  const ATTRIB_VALUE_UNQUOTED_TERMINATOR = [...S_LIST, GREATER, AMP, LESS];
+  function nsPairCheck(parser2, prefix, uri) {
+    switch (prefix) {
+      case "xml":
+        if (uri !== XML_NAMESPACE) {
+          parser2.fail(`xml prefix must be bound to ${XML_NAMESPACE}.`);
+        }
+        break;
+      case "xmlns":
+        if (uri !== XMLNS_NAMESPACE) {
+          parser2.fail(`xmlns prefix must be bound to ${XMLNS_NAMESPACE}.`);
+        }
+        break;
+    }
+    switch (uri) {
+      case XMLNS_NAMESPACE:
+        parser2.fail(prefix === "" ? `the default namespace may not be set to ${uri}.` : `may not assign a prefix (even "xmlns") to the URI ${XMLNS_NAMESPACE}.`);
+        break;
+      case XML_NAMESPACE:
+        switch (prefix) {
+          case "xml":
+            break;
+          case "":
+            parser2.fail(`the default namespace may not be set to ${uri}.`);
+            break;
+          default:
+            parser2.fail("may not assign the xml namespace to another prefix.");
+        }
+        break;
+    }
+  }
+  function nsMappingCheck(parser2, mapping) {
+    for (const local of Object.keys(mapping)) {
+      nsPairCheck(parser2, local, mapping[local]);
+    }
+  }
+  const isNCName = (name) => NC_NAME_RE.test(name);
+  const isName = (name) => NAME_RE.test(name);
+  const FORBIDDEN_START = 0;
+  const FORBIDDEN_BRACKET = 1;
+  const FORBIDDEN_BRACKET_BRACKET = 2;
+  saxes$1.EVENTS = [
+    "xmldecl",
+    "text",
+    "processinginstruction",
+    "doctype",
+    "comment",
+    "opentagstart",
+    "attribute",
+    "opentag",
+    "closetag",
+    "cdata",
+    "error",
+    "end",
+    "ready"
+  ];
+  const EVENT_NAME_TO_HANDLER_NAME = {
+    xmldecl: "xmldeclHandler",
+    text: "textHandler",
+    processinginstruction: "piHandler",
+    doctype: "doctypeHandler",
+    comment: "commentHandler",
+    opentagstart: "openTagStartHandler",
+    attribute: "attributeHandler",
+    opentag: "openTagHandler",
+    closetag: "closeTagHandler",
+    cdata: "cdataHandler",
+    error: "errorHandler",
+    end: "endHandler",
+    ready: "readyHandler"
+  };
+  class SaxesParser {
+    /**
+     * @param opt The parser options.
+     */
+    constructor(opt) {
+      this.opt = opt !== null && opt !== void 0 ? opt : {};
+      this.fragmentOpt = !!this.opt.fragment;
+      const xmlnsOpt = this.xmlnsOpt = !!this.opt.xmlns;
+      this.trackPosition = this.opt.position !== false;
+      this.fileName = this.opt.fileName;
+      if (xmlnsOpt) {
+        this.nameStartCheck = isNCNameStartChar;
+        this.nameCheck = isNCNameChar;
+        this.isName = isNCName;
+        this.processAttribs = this.processAttribsNS;
+        this.pushAttrib = this.pushAttribNS;
+        this.ns = Object.assign({ __proto__: null }, rootNS);
+        const additional = this.opt.additionalNamespaces;
+        if (additional != null) {
+          nsMappingCheck(this, additional);
+          Object.assign(this.ns, additional);
+        }
+      } else {
+        this.nameStartCheck = isNameStartChar;
+        this.nameCheck = isNameChar;
+        this.isName = isName;
+        this.processAttribs = this.processAttribsPlain;
+        this.pushAttrib = this.pushAttribPlain;
+      }
+      this.stateTable = [
+        /* eslint-disable @typescript-eslint/unbound-method */
+        this.sBegin,
+        this.sBeginWhitespace,
+        this.sDoctype,
+        this.sDoctypeQuote,
+        this.sDTD,
+        this.sDTDQuoted,
+        this.sDTDOpenWaka,
+        this.sDTDOpenWakaBang,
+        this.sDTDComment,
+        this.sDTDCommentEnding,
+        this.sDTDCommentEnded,
+        this.sDTDPI,
+        this.sDTDPIEnding,
+        this.sText,
+        this.sEntity,
+        this.sOpenWaka,
+        this.sOpenWakaBang,
+        this.sComment,
+        this.sCommentEnding,
+        this.sCommentEnded,
+        this.sCData,
+        this.sCDataEnding,
+        this.sCDataEnding2,
+        this.sPIFirstChar,
+        this.sPIRest,
+        this.sPIBody,
+        this.sPIEnding,
+        this.sXMLDeclNameStart,
+        this.sXMLDeclName,
+        this.sXMLDeclEq,
+        this.sXMLDeclValueStart,
+        this.sXMLDeclValue,
+        this.sXMLDeclSeparator,
+        this.sXMLDeclEnding,
+        this.sOpenTag,
+        this.sOpenTagSlash,
+        this.sAttrib,
+        this.sAttribName,
+        this.sAttribNameSawWhite,
+        this.sAttribValue,
+        this.sAttribValueQuoted,
+        this.sAttribValueClosed,
+        this.sAttribValueUnquoted,
+        this.sCloseTag,
+        this.sCloseTagSawWhite
+        /* eslint-enable @typescript-eslint/unbound-method */
+      ];
+      this._init();
+    }
+    /**
+     * Indicates whether or not the parser is closed. If ``true``, wait for
+     * the ``ready`` event to write again.
+     */
+    get closed() {
+      return this._closed;
+    }
+    _init() {
+      var _a2;
+      this.openWakaBang = "";
+      this.text = "";
+      this.name = "";
+      this.piTarget = "";
+      this.entity = "";
+      this.q = null;
+      this.tags = [];
+      this.tag = null;
+      this.topNS = null;
+      this.chunk = "";
+      this.chunkPosition = 0;
+      this.i = 0;
+      this.prevI = 0;
+      this.carriedFromPrevious = void 0;
+      this.forbiddenState = FORBIDDEN_START;
+      this.attribList = [];
+      const { fragmentOpt } = this;
+      this.state = fragmentOpt ? S_TEXT : S_BEGIN;
+      this.reportedTextBeforeRoot = this.reportedTextAfterRoot = this.closedRoot = this.sawRoot = fragmentOpt;
+      this.xmlDeclPossible = !fragmentOpt;
+      this.xmlDeclExpects = ["version"];
+      this.entityReturnState = void 0;
+      let { defaultXMLVersion } = this.opt;
+      if (defaultXMLVersion === void 0) {
+        if (this.opt.forceXMLVersion === true) {
+          throw new Error("forceXMLVersion set but defaultXMLVersion is not set");
+        }
+        defaultXMLVersion = "1.0";
+      }
+      this.setXMLVersion(defaultXMLVersion);
+      this.positionAtNewLine = 0;
+      this.doctype = false;
+      this._closed = false;
+      this.xmlDecl = {
+        version: void 0,
+        encoding: void 0,
+        standalone: void 0
+      };
+      this.line = 1;
+      this.column = 0;
+      this.ENTITIES = Object.create(XML_ENTITIES);
+      (_a2 = this.readyHandler) === null || _a2 === void 0 ? void 0 : _a2.call(this);
+    }
+    /**
+     * The stream position the parser is currently looking at. This field is
+     * zero-based.
+     *
+     * This field is not based on counting Unicode characters but is to be
+     * interpreted as a plain index into a JavaScript string.
+     */
+    get position() {
+      return this.chunkPosition + this.i;
+    }
+    /**
+     * The column number of the next character to be read by the parser.  *
+     * This field is zero-based. (The first column in a line is 0.)
+     *
+     * This field reports the index at which the next character would be in the
+     * line if the line were represented as a JavaScript string.  Note that this
+     * *can* be different to a count based on the number of *Unicode characters*
+     * due to how JavaScript handles astral plane characters.
+     *
+     * See [[column]] for a number that corresponds to a count of Unicode
+     * characters.
+     */
+    get columnIndex() {
+      return this.position - this.positionAtNewLine;
+    }
+    /**
+     * Set an event listener on an event. The parser supports one handler per
+     * event type. If you try to set an event handler over an existing handler,
+     * the old handler is silently overwritten.
+     *
+     * @param name The event to listen to.
+     *
+     * @param handler The handler to set.
+     */
+    on(name, handler) {
+      this[EVENT_NAME_TO_HANDLER_NAME[name]] = handler;
+    }
+    /**
+     * Unset an event handler.
+     *
+     * @parma name The event to stop listening to.
+     */
+    off(name) {
+      this[EVENT_NAME_TO_HANDLER_NAME[name]] = void 0;
+    }
+    /**
+     * Make an error object. The error object will have a message that contains
+     * the ``fileName`` option passed at the creation of the parser. If position
+     * tracking was turned on, it will also have line and column number
+     * information.
+     *
+     * @param message The message describing the error to report.
+     *
+     * @returns An error object with a properly formatted message.
+     */
+    makeError(message) {
+      var _a2;
+      let msg = (_a2 = this.fileName) !== null && _a2 !== void 0 ? _a2 : "";
+      if (this.trackPosition) {
+        if (msg.length > 0) {
+          msg += ":";
+        }
+        msg += `${this.line}:${this.column}`;
+      }
+      if (msg.length > 0) {
+        msg += ": ";
+      }
+      return new Error(msg + message);
+    }
+    /**
+     * Report a parsing error. This method is made public so that client code may
+     * check for issues that are outside the scope of this project and can report
+     * errors.
+     *
+     * @param message The error to report.
+     *
+     * @returns this
+     */
+    fail(message) {
+      const err2 = this.makeError(message);
+      const handler = this.errorHandler;
+      if (handler === void 0) {
+        throw err2;
+      } else {
+        handler(err2);
+      }
+      return this;
+    }
+    /**
+     * Write a XML data to the parser.
+     *
+     * @param chunk The XML data to write.
+     *
+     * @returns this
+     */
+    // We do need object for the type here. Yes, it often causes problems
+    // but not in this case.
+    write(chunk) {
+      if (this.closed) {
+        return this.fail("cannot write after close; assign an onready handler.");
+      }
+      let end = false;
+      if (chunk === null) {
+        end = true;
+        chunk = "";
+      } else if (typeof chunk === "object") {
+        chunk = chunk.toString();
+      }
+      if (this.carriedFromPrevious !== void 0) {
+        chunk = `${this.carriedFromPrevious}${chunk}`;
+        this.carriedFromPrevious = void 0;
+      }
+      let limit = chunk.length;
+      const lastCode = chunk.charCodeAt(limit - 1);
+      if (!end && // A trailing CR or surrogate must be carried over to the next
+      // chunk.
+      (lastCode === CR || lastCode >= 55296 && lastCode <= 56319)) {
+        this.carriedFromPrevious = chunk[limit - 1];
+        limit--;
+        chunk = chunk.slice(0, limit);
+      }
+      const { stateTable } = this;
+      this.chunk = chunk;
+      this.i = 0;
+      while (this.i < limit) {
+        stateTable[this.state].call(this);
+      }
+      this.chunkPosition += limit;
+      return end ? this.end() : this;
+    }
+    /**
+     * Close the current stream. Perform final well-formedness checks and reset
+     * the parser tstate.
+     *
+     * @returns this
+     */
+    close() {
+      return this.write(null);
+    }
+    /**
+     * Get a single code point out of the current chunk. This updates the current
+     * position if we do position tracking.
+     *
+     * This is the algorithm to use for XML 1.0.
+     *
+     * @returns The character read.
+     */
+    getCode10() {
+      const { chunk, i: i2 } = this;
+      this.prevI = i2;
+      this.i = i2 + 1;
+      if (i2 >= chunk.length) {
+        return EOC;
+      }
+      const code = chunk.charCodeAt(i2);
+      this.column++;
+      if (code < 55296) {
+        if (code >= SPACE || code === TAB) {
+          return code;
+        }
+        switch (code) {
+          case NL:
+            this.line++;
+            this.column = 0;
+            this.positionAtNewLine = this.position;
+            return NL;
+          case CR:
+            if (chunk.charCodeAt(i2 + 1) === NL) {
+              this.i = i2 + 2;
+            }
+            this.line++;
+            this.column = 0;
+            this.positionAtNewLine = this.position;
+            return NL_LIKE;
+          default:
+            this.fail("disallowed character.");
+            return code;
+        }
+      }
+      if (code > 56319) {
+        if (!(code >= 57344 && code <= 65533)) {
+          this.fail("disallowed character.");
+        }
+        return code;
+      }
+      const final = 65536 + (code - 55296) * 1024 + (chunk.charCodeAt(i2 + 1) - 56320);
+      this.i = i2 + 2;
+      if (final > 1114111) {
+        this.fail("disallowed character.");
+      }
+      return final;
+    }
+    /**
+     * Get a single code point out of the current chunk. This updates the current
+     * position if we do position tracking.
+     *
+     * This is the algorithm to use for XML 1.1.
+     *
+     * @returns {number} The character read.
+     */
+    getCode11() {
+      const { chunk, i: i2 } = this;
+      this.prevI = i2;
+      this.i = i2 + 1;
+      if (i2 >= chunk.length) {
+        return EOC;
+      }
+      const code = chunk.charCodeAt(i2);
+      this.column++;
+      if (code < 55296) {
+        if (code > 31 && code < 127 || code > 159 && code !== LS || code === TAB) {
+          return code;
+        }
+        switch (code) {
+          case NL:
+            this.line++;
+            this.column = 0;
+            this.positionAtNewLine = this.position;
+            return NL;
+          case CR: {
+            const next = chunk.charCodeAt(i2 + 1);
+            if (next === NL || next === NEL) {
+              this.i = i2 + 2;
+            }
+          }
+          /* yes, fall through */
+          case NEL:
+          // 0x85
+          case LS:
+            this.line++;
+            this.column = 0;
+            this.positionAtNewLine = this.position;
+            return NL_LIKE;
+          default:
+            this.fail("disallowed character.");
+            return code;
+        }
+      }
+      if (code > 56319) {
+        if (!(code >= 57344 && code <= 65533)) {
+          this.fail("disallowed character.");
+        }
+        return code;
+      }
+      const final = 65536 + (code - 55296) * 1024 + (chunk.charCodeAt(i2 + 1) - 56320);
+      this.i = i2 + 2;
+      if (final > 1114111) {
+        this.fail("disallowed character.");
+      }
+      return final;
+    }
+    /**
+     * Like ``getCode`` but with the return value normalized so that ``NL`` is
+     * returned for ``NL_LIKE``.
+     */
+    getCodeNorm() {
+      const c = this.getCode();
+      return c === NL_LIKE ? NL : c;
+    }
+    unget() {
+      this.i = this.prevI;
+      this.column--;
+    }
+    /**
+     * Capture characters into a buffer until encountering one of a set of
+     * characters.
+     *
+     * @param chars An array of codepoints. Encountering a character in the array
+     * ends the capture. (``chars`` may safely contain ``NL``.)
+     *
+     * @return The character code that made the capture end, or ``EOC`` if we hit
+     * the end of the chunk. The return value cannot be NL_LIKE: NL is returned
+     * instead.
+     */
+    captureTo(chars) {
+      let { i: start2 } = this;
+      const { chunk } = this;
+      while (true) {
+        const c = this.getCode();
+        const isNLLike = c === NL_LIKE;
+        const final = isNLLike ? NL : c;
+        if (final === EOC || chars.includes(final)) {
+          this.text += chunk.slice(start2, this.prevI);
+          return final;
+        }
+        if (isNLLike) {
+          this.text += `${chunk.slice(start2, this.prevI)}
+`;
+          start2 = this.i;
+        }
+      }
+    }
+    /**
+     * Capture characters into a buffer until encountering a character.
+     *
+     * @param char The codepoint that ends the capture. **NOTE ``char`` MAY NOT
+     * CONTAIN ``NL``.** Passing ``NL`` will result in buggy behavior.
+     *
+     * @return ``true`` if we ran into the character. Otherwise, we ran into the
+     * end of the current chunk.
+     */
+    captureToChar(char) {
+      let { i: start2 } = this;
+      const { chunk } = this;
+      while (true) {
+        let c = this.getCode();
+        switch (c) {
+          case NL_LIKE:
+            this.text += `${chunk.slice(start2, this.prevI)}
+`;
+            start2 = this.i;
+            c = NL;
+            break;
+          case EOC:
+            this.text += chunk.slice(start2);
+            return false;
+        }
+        if (c === char) {
+          this.text += chunk.slice(start2, this.prevI);
+          return true;
+        }
+      }
+    }
+    /**
+     * Capture characters that satisfy ``isNameChar`` into the ``name`` field of
+     * this parser.
+     *
+     * @return The character code that made the test fail, or ``EOC`` if we hit
+     * the end of the chunk. The return value cannot be NL_LIKE: NL is returned
+     * instead.
+     */
+    captureNameChars() {
+      const { chunk, i: start2 } = this;
+      while (true) {
+        const c = this.getCode();
+        if (c === EOC) {
+          this.name += chunk.slice(start2);
+          return EOC;
+        }
+        if (!isNameChar(c)) {
+          this.name += chunk.slice(start2, this.prevI);
+          return c === NL_LIKE ? NL : c;
+        }
+      }
+    }
+    /**
+     * Skip white spaces.
+     *
+     * @return The character that ended the skip, or ``EOC`` if we hit
+     * the end of the chunk. The return value cannot be NL_LIKE: NL is returned
+     * instead.
+     */
+    skipSpaces() {
+      while (true) {
+        const c = this.getCodeNorm();
+        if (c === EOC || !isS(c)) {
+          return c;
+        }
+      }
+    }
+    setXMLVersion(version2) {
+      this.currentXMLVersion = version2;
+      if (version2 === "1.0") {
+        this.isChar = isChar10;
+        this.getCode = this.getCode10;
+      } else {
+        this.isChar = isChar11;
+        this.getCode = this.getCode11;
+      }
+    }
+    // STATE ENGINE METHODS
+    // This needs to be a state separate from S_BEGIN_WHITESPACE because we want
+    // to be sure never to come back to this state later.
+    sBegin() {
+      if (this.chunk.charCodeAt(0) === 65279) {
+        this.i++;
+        this.column++;
+      }
+      this.state = S_BEGIN_WHITESPACE;
+    }
+    sBeginWhitespace() {
+      const iBefore = this.i;
+      const c = this.skipSpaces();
+      if (this.prevI !== iBefore) {
+        this.xmlDeclPossible = false;
+      }
+      switch (c) {
+        case LESS:
+          this.state = S_OPEN_WAKA;
+          if (this.text.length !== 0) {
+            throw new Error("no-empty text at start");
+          }
+          break;
+        case EOC:
+          break;
+        default:
+          this.unget();
+          this.state = S_TEXT;
+          this.xmlDeclPossible = false;
+      }
+    }
+    sDoctype() {
+      var _a2;
+      const c = this.captureTo(DOCTYPE_TERMINATOR);
+      switch (c) {
+        case GREATER: {
+          (_a2 = this.doctypeHandler) === null || _a2 === void 0 ? void 0 : _a2.call(this, this.text);
+          this.text = "";
+          this.state = S_TEXT;
+          this.doctype = true;
+          break;
+        }
+        case EOC:
+          break;
+        default:
+          this.text += String.fromCodePoint(c);
+          if (c === OPEN_BRACKET) {
+            this.state = S_DTD;
+          } else if (isQuote(c)) {
+            this.state = S_DOCTYPE_QUOTE;
+            this.q = c;
+          }
+      }
+    }
+    sDoctypeQuote() {
+      const q = this.q;
+      if (this.captureToChar(q)) {
+        this.text += String.fromCodePoint(q);
+        this.q = null;
+        this.state = S_DOCTYPE;
+      }
+    }
+    sDTD() {
+      const c = this.captureTo(DTD_TERMINATOR);
+      if (c === EOC) {
+        return;
+      }
+      this.text += String.fromCodePoint(c);
+      if (c === CLOSE_BRACKET) {
+        this.state = S_DOCTYPE;
+      } else if (c === LESS) {
+        this.state = S_DTD_OPEN_WAKA;
+      } else if (isQuote(c)) {
+        this.state = S_DTD_QUOTED;
+        this.q = c;
+      }
+    }
+    sDTDQuoted() {
+      const q = this.q;
+      if (this.captureToChar(q)) {
+        this.text += String.fromCodePoint(q);
+        this.state = S_DTD;
+        this.q = null;
+      }
+    }
+    sDTDOpenWaka() {
+      const c = this.getCodeNorm();
+      this.text += String.fromCodePoint(c);
+      switch (c) {
+        case BANG:
+          this.state = S_DTD_OPEN_WAKA_BANG;
+          this.openWakaBang = "";
+          break;
+        case QUESTION:
+          this.state = S_DTD_PI;
+          break;
+        default:
+          this.state = S_DTD;
+      }
+    }
+    sDTDOpenWakaBang() {
+      const char = String.fromCodePoint(this.getCodeNorm());
+      const owb = this.openWakaBang += char;
+      this.text += char;
+      if (owb !== "-") {
+        this.state = owb === "--" ? S_DTD_COMMENT : S_DTD;
+        this.openWakaBang = "";
+      }
+    }
+    sDTDComment() {
+      if (this.captureToChar(MINUS)) {
+        this.text += "-";
+        this.state = S_DTD_COMMENT_ENDING;
+      }
+    }
+    sDTDCommentEnding() {
+      const c = this.getCodeNorm();
+      this.text += String.fromCodePoint(c);
+      this.state = c === MINUS ? S_DTD_COMMENT_ENDED : S_DTD_COMMENT;
+    }
+    sDTDCommentEnded() {
+      const c = this.getCodeNorm();
+      this.text += String.fromCodePoint(c);
+      if (c === GREATER) {
+        this.state = S_DTD;
+      } else {
+        this.fail("malformed comment.");
+        this.state = S_DTD_COMMENT;
+      }
+    }
+    sDTDPI() {
+      if (this.captureToChar(QUESTION)) {
+        this.text += "?";
+        this.state = S_DTD_PI_ENDING;
+      }
+    }
+    sDTDPIEnding() {
+      const c = this.getCodeNorm();
+      this.text += String.fromCodePoint(c);
+      if (c === GREATER) {
+        this.state = S_DTD;
+      }
+    }
+    sText() {
+      if (this.tags.length !== 0) {
+        this.handleTextInRoot();
+      } else {
+        this.handleTextOutsideRoot();
+      }
+    }
+    sEntity() {
+      let { i: start2 } = this;
+      const { chunk } = this;
+      loop:
+        while (true) {
+          switch (this.getCode()) {
+            case NL_LIKE:
+              this.entity += `${chunk.slice(start2, this.prevI)}
+`;
+              start2 = this.i;
+              break;
+            case SEMICOLON: {
+              const { entityReturnState } = this;
+              const entity = this.entity + chunk.slice(start2, this.prevI);
+              this.state = entityReturnState;
+              let parsed;
+              if (entity === "") {
+                this.fail("empty entity name.");
+                parsed = "&;";
+              } else {
+                parsed = this.parseEntity(entity);
+                this.entity = "";
+              }
+              if (entityReturnState !== S_TEXT || this.textHandler !== void 0) {
+                this.text += parsed;
+              }
+              break loop;
+            }
+            case EOC:
+              this.entity += chunk.slice(start2);
+              break loop;
+          }
+        }
+    }
+    sOpenWaka() {
+      const c = this.getCode();
+      if (isNameStartChar(c)) {
+        this.state = S_OPEN_TAG;
+        this.unget();
+        this.xmlDeclPossible = false;
+      } else {
+        switch (c) {
+          case FORWARD_SLASH:
+            this.state = S_CLOSE_TAG;
+            this.xmlDeclPossible = false;
+            break;
+          case BANG:
+            this.state = S_OPEN_WAKA_BANG;
+            this.openWakaBang = "";
+            this.xmlDeclPossible = false;
+            break;
+          case QUESTION:
+            this.state = S_PI_FIRST_CHAR;
+            break;
+          default:
+            this.fail("disallowed character in tag name");
+            this.state = S_TEXT;
+            this.xmlDeclPossible = false;
+        }
+      }
+    }
+    sOpenWakaBang() {
+      this.openWakaBang += String.fromCodePoint(this.getCodeNorm());
+      switch (this.openWakaBang) {
+        case "[CDATA[":
+          if (!this.sawRoot && !this.reportedTextBeforeRoot) {
+            this.fail("text data outside of root node.");
+            this.reportedTextBeforeRoot = true;
+          }
+          if (this.closedRoot && !this.reportedTextAfterRoot) {
+            this.fail("text data outside of root node.");
+            this.reportedTextAfterRoot = true;
+          }
+          this.state = S_CDATA;
+          this.openWakaBang = "";
+          break;
+        case "--":
+          this.state = S_COMMENT;
+          this.openWakaBang = "";
+          break;
+        case "DOCTYPE":
+          this.state = S_DOCTYPE;
+          if (this.doctype || this.sawRoot) {
+            this.fail("inappropriately located doctype declaration.");
+          }
+          this.openWakaBang = "";
+          break;
+        default:
+          if (this.openWakaBang.length >= 7) {
+            this.fail("incorrect syntax.");
+          }
+      }
+    }
+    sComment() {
+      if (this.captureToChar(MINUS)) {
+        this.state = S_COMMENT_ENDING;
+      }
+    }
+    sCommentEnding() {
+      var _a2;
+      const c = this.getCodeNorm();
+      if (c === MINUS) {
+        this.state = S_COMMENT_ENDED;
+        (_a2 = this.commentHandler) === null || _a2 === void 0 ? void 0 : _a2.call(this, this.text);
+        this.text = "";
+      } else {
+        this.text += `-${String.fromCodePoint(c)}`;
+        this.state = S_COMMENT;
+      }
+    }
+    sCommentEnded() {
+      const c = this.getCodeNorm();
+      if (c !== GREATER) {
+        this.fail("malformed comment.");
+        this.text += `--${String.fromCodePoint(c)}`;
+        this.state = S_COMMENT;
+      } else {
+        this.state = S_TEXT;
+      }
+    }
+    sCData() {
+      if (this.captureToChar(CLOSE_BRACKET)) {
+        this.state = S_CDATA_ENDING;
+      }
+    }
+    sCDataEnding() {
+      const c = this.getCodeNorm();
+      if (c === CLOSE_BRACKET) {
+        this.state = S_CDATA_ENDING_2;
+      } else {
+        this.text += `]${String.fromCodePoint(c)}`;
+        this.state = S_CDATA;
+      }
+    }
+    sCDataEnding2() {
+      var _a2;
+      const c = this.getCodeNorm();
+      switch (c) {
+        case GREATER: {
+          (_a2 = this.cdataHandler) === null || _a2 === void 0 ? void 0 : _a2.call(this, this.text);
+          this.text = "";
+          this.state = S_TEXT;
+          break;
+        }
+        case CLOSE_BRACKET:
+          this.text += "]";
+          break;
+        default:
+          this.text += `]]${String.fromCodePoint(c)}`;
+          this.state = S_CDATA;
+      }
+    }
+    // We need this separate state to check the first character fo the pi target
+    // with this.nameStartCheck which allows less characters than this.nameCheck.
+    sPIFirstChar() {
+      const c = this.getCodeNorm();
+      if (this.nameStartCheck(c)) {
+        this.piTarget += String.fromCodePoint(c);
+        this.state = S_PI_REST;
+      } else if (c === QUESTION || isS(c)) {
+        this.fail("processing instruction without a target.");
+        this.state = c === QUESTION ? S_PI_ENDING : S_PI_BODY;
+      } else {
+        this.fail("disallowed character in processing instruction name.");
+        this.piTarget += String.fromCodePoint(c);
+        this.state = S_PI_REST;
+      }
+    }
+    sPIRest() {
+      const { chunk, i: start2 } = this;
+      while (true) {
+        const c = this.getCodeNorm();
+        if (c === EOC) {
+          this.piTarget += chunk.slice(start2);
+          return;
+        }
+        if (!this.nameCheck(c)) {
+          this.piTarget += chunk.slice(start2, this.prevI);
+          const isQuestion = c === QUESTION;
+          if (isQuestion || isS(c)) {
+            if (this.piTarget === "xml") {
+              if (!this.xmlDeclPossible) {
+                this.fail("an XML declaration must be at the start of the document.");
+              }
+              this.state = isQuestion ? S_XML_DECL_ENDING : S_XML_DECL_NAME_START;
+            } else {
+              this.state = isQuestion ? S_PI_ENDING : S_PI_BODY;
+            }
+          } else {
+            this.fail("disallowed character in processing instruction name.");
+            this.piTarget += String.fromCodePoint(c);
+          }
+          break;
+        }
+      }
+    }
+    sPIBody() {
+      if (this.text.length === 0) {
+        const c = this.getCodeNorm();
+        if (c === QUESTION) {
+          this.state = S_PI_ENDING;
+        } else if (!isS(c)) {
+          this.text = String.fromCodePoint(c);
+        }
+      } else if (this.captureToChar(QUESTION)) {
+        this.state = S_PI_ENDING;
+      }
+    }
+    sPIEnding() {
+      var _a2;
+      const c = this.getCodeNorm();
+      if (c === GREATER) {
+        const { piTarget } = this;
+        if (piTarget.toLowerCase() === "xml") {
+          this.fail("the XML declaration must appear at the start of the document.");
+        }
+        (_a2 = this.piHandler) === null || _a2 === void 0 ? void 0 : _a2.call(this, {
+          target: piTarget,
+          body: this.text
+        });
+        this.piTarget = this.text = "";
+        this.state = S_TEXT;
+      } else if (c === QUESTION) {
+        this.text += "?";
+      } else {
+        this.text += `?${String.fromCodePoint(c)}`;
+        this.state = S_PI_BODY;
+      }
+      this.xmlDeclPossible = false;
+    }
+    sXMLDeclNameStart() {
+      const c = this.skipSpaces();
+      if (c === QUESTION) {
+        this.state = S_XML_DECL_ENDING;
+        return;
+      }
+      if (c !== EOC) {
+        this.state = S_XML_DECL_NAME;
+        this.name = String.fromCodePoint(c);
+      }
+    }
+    sXMLDeclName() {
+      const c = this.captureTo(XML_DECL_NAME_TERMINATOR);
+      if (c === QUESTION) {
+        this.state = S_XML_DECL_ENDING;
+        this.name += this.text;
+        this.text = "";
+        this.fail("XML declaration is incomplete.");
+        return;
+      }
+      if (!(isS(c) || c === EQUAL)) {
+        return;
+      }
+      this.name += this.text;
+      this.text = "";
+      if (!this.xmlDeclExpects.includes(this.name)) {
+        switch (this.name.length) {
+          case 0:
+            this.fail("did not expect any more name/value pairs.");
+            break;
+          case 1:
+            this.fail(`expected the name ${this.xmlDeclExpects[0]}.`);
+            break;
+          default:
+            this.fail(`expected one of ${this.xmlDeclExpects.join(", ")}`);
+        }
+      }
+      this.state = c === EQUAL ? S_XML_DECL_VALUE_START : S_XML_DECL_EQ;
+    }
+    sXMLDeclEq() {
+      const c = this.getCodeNorm();
+      if (c === QUESTION) {
+        this.state = S_XML_DECL_ENDING;
+        this.fail("XML declaration is incomplete.");
+        return;
+      }
+      if (isS(c)) {
+        return;
+      }
+      if (c !== EQUAL) {
+        this.fail("value required.");
+      }
+      this.state = S_XML_DECL_VALUE_START;
+    }
+    sXMLDeclValueStart() {
+      const c = this.getCodeNorm();
+      if (c === QUESTION) {
+        this.state = S_XML_DECL_ENDING;
+        this.fail("XML declaration is incomplete.");
+        return;
+      }
+      if (isS(c)) {
+        return;
+      }
+      if (!isQuote(c)) {
+        this.fail("value must be quoted.");
+        this.q = SPACE;
+      } else {
+        this.q = c;
+      }
+      this.state = S_XML_DECL_VALUE;
+    }
+    sXMLDeclValue() {
+      const c = this.captureTo([this.q, QUESTION]);
+      if (c === QUESTION) {
+        this.state = S_XML_DECL_ENDING;
+        this.text = "";
+        this.fail("XML declaration is incomplete.");
+        return;
+      }
+      if (c === EOC) {
+        return;
+      }
+      const value = this.text;
+      this.text = "";
+      switch (this.name) {
+        case "version": {
+          this.xmlDeclExpects = ["encoding", "standalone"];
+          const version2 = value;
+          this.xmlDecl.version = version2;
+          if (!/^1\.[0-9]+$/.test(version2)) {
+            this.fail("version number must match /^1\\.[0-9]+$/.");
+          } else if (!this.opt.forceXMLVersion) {
+            this.setXMLVersion(version2);
+          }
+          break;
+        }
+        case "encoding":
+          if (!/^[A-Za-z][A-Za-z0-9._-]*$/.test(value)) {
+            this.fail("encoding value must match 	/^[A-Za-z0-9][A-Za-z0-9._-]*$/.");
+          }
+          this.xmlDeclExpects = ["standalone"];
+          this.xmlDecl.encoding = value;
+          break;
+        case "standalone":
+          if (value !== "yes" && value !== "no") {
+            this.fail('standalone value must match "yes" or "no".');
+          }
+          this.xmlDeclExpects = [];
+          this.xmlDecl.standalone = value;
+          break;
+      }
+      this.name = "";
+      this.state = S_XML_DECL_SEPARATOR;
+    }
+    sXMLDeclSeparator() {
+      const c = this.getCodeNorm();
+      if (c === QUESTION) {
+        this.state = S_XML_DECL_ENDING;
+        return;
+      }
+      if (!isS(c)) {
+        this.fail("whitespace required.");
+        this.unget();
+      }
+      this.state = S_XML_DECL_NAME_START;
+    }
+    sXMLDeclEnding() {
+      var _a2;
+      const c = this.getCodeNorm();
+      if (c === GREATER) {
+        if (this.piTarget !== "xml") {
+          this.fail("processing instructions are not allowed before root.");
+        } else if (this.name !== "version" && this.xmlDeclExpects.includes("version")) {
+          this.fail("XML declaration must contain a version.");
+        }
+        (_a2 = this.xmldeclHandler) === null || _a2 === void 0 ? void 0 : _a2.call(this, this.xmlDecl);
+        this.name = "";
+        this.piTarget = this.text = "";
+        this.state = S_TEXT;
+      } else {
+        this.fail("The character ? is disallowed anywhere in XML declarations.");
+      }
+      this.xmlDeclPossible = false;
+    }
+    sOpenTag() {
+      var _a2;
+      const c = this.captureNameChars();
+      if (c === EOC) {
+        return;
+      }
+      const tag = this.tag = {
+        name: this.name,
+        attributes: /* @__PURE__ */ Object.create(null)
+      };
+      this.name = "";
+      if (this.xmlnsOpt) {
+        this.topNS = tag.ns = /* @__PURE__ */ Object.create(null);
+      }
+      (_a2 = this.openTagStartHandler) === null || _a2 === void 0 ? void 0 : _a2.call(this, tag);
+      this.sawRoot = true;
+      if (!this.fragmentOpt && this.closedRoot) {
+        this.fail("documents may contain only one root.");
+      }
+      switch (c) {
+        case GREATER:
+          this.openTag();
+          break;
+        case FORWARD_SLASH:
+          this.state = S_OPEN_TAG_SLASH;
+          break;
+        default:
+          if (!isS(c)) {
+            this.fail("disallowed character in tag name.");
+          }
+          this.state = S_ATTRIB;
+      }
+    }
+    sOpenTagSlash() {
+      if (this.getCode() === GREATER) {
+        this.openSelfClosingTag();
+      } else {
+        this.fail("forward-slash in opening tag not followed by >.");
+        this.state = S_ATTRIB;
+      }
+    }
+    sAttrib() {
+      const c = this.skipSpaces();
+      if (c === EOC) {
+        return;
+      }
+      if (isNameStartChar(c)) {
+        this.unget();
+        this.state = S_ATTRIB_NAME;
+      } else if (c === GREATER) {
+        this.openTag();
+      } else if (c === FORWARD_SLASH) {
+        this.state = S_OPEN_TAG_SLASH;
+      } else {
+        this.fail("disallowed character in attribute name.");
+      }
+    }
+    sAttribName() {
+      const c = this.captureNameChars();
+      if (c === EQUAL) {
+        this.state = S_ATTRIB_VALUE;
+      } else if (isS(c)) {
+        this.state = S_ATTRIB_NAME_SAW_WHITE;
+      } else if (c === GREATER) {
+        this.fail("attribute without value.");
+        this.pushAttrib(this.name, this.name);
+        this.name = this.text = "";
+        this.openTag();
+      } else if (c !== EOC) {
+        this.fail("disallowed character in attribute name.");
+      }
+    }
+    sAttribNameSawWhite() {
+      const c = this.skipSpaces();
+      switch (c) {
+        case EOC:
+          return;
+        case EQUAL:
+          this.state = S_ATTRIB_VALUE;
+          break;
+        default:
+          this.fail("attribute without value.");
+          this.text = "";
+          this.name = "";
+          if (c === GREATER) {
+            this.openTag();
+          } else if (isNameStartChar(c)) {
+            this.unget();
+            this.state = S_ATTRIB_NAME;
+          } else {
+            this.fail("disallowed character in attribute name.");
+            this.state = S_ATTRIB;
+          }
+      }
+    }
+    sAttribValue() {
+      const c = this.getCodeNorm();
+      if (isQuote(c)) {
+        this.q = c;
+        this.state = S_ATTRIB_VALUE_QUOTED;
+      } else if (!isS(c)) {
+        this.fail("unquoted attribute value.");
+        this.state = S_ATTRIB_VALUE_UNQUOTED;
+        this.unget();
+      }
+    }
+    sAttribValueQuoted() {
+      const { q, chunk } = this;
+      let { i: start2 } = this;
+      while (true) {
+        switch (this.getCode()) {
+          case q:
+            this.pushAttrib(this.name, this.text + chunk.slice(start2, this.prevI));
+            this.name = this.text = "";
+            this.q = null;
+            this.state = S_ATTRIB_VALUE_CLOSED;
+            return;
+          case AMP:
+            this.text += chunk.slice(start2, this.prevI);
+            this.state = S_ENTITY;
+            this.entityReturnState = S_ATTRIB_VALUE_QUOTED;
+            return;
+          case NL:
+          case NL_LIKE:
+          case TAB:
+            this.text += `${chunk.slice(start2, this.prevI)} `;
+            start2 = this.i;
+            break;
+          case LESS:
+            this.text += chunk.slice(start2, this.prevI);
+            this.fail("disallowed character.");
+            return;
+          case EOC:
+            this.text += chunk.slice(start2);
+            return;
+        }
+      }
+    }
+    sAttribValueClosed() {
+      const c = this.getCodeNorm();
+      if (isS(c)) {
+        this.state = S_ATTRIB;
+      } else if (c === GREATER) {
+        this.openTag();
+      } else if (c === FORWARD_SLASH) {
+        this.state = S_OPEN_TAG_SLASH;
+      } else if (isNameStartChar(c)) {
+        this.fail("no whitespace between attributes.");
+        this.unget();
+        this.state = S_ATTRIB_NAME;
+      } else {
+        this.fail("disallowed character in attribute name.");
+      }
+    }
+    sAttribValueUnquoted() {
+      const c = this.captureTo(ATTRIB_VALUE_UNQUOTED_TERMINATOR);
+      switch (c) {
+        case AMP:
+          this.state = S_ENTITY;
+          this.entityReturnState = S_ATTRIB_VALUE_UNQUOTED;
+          break;
+        case LESS:
+          this.fail("disallowed character.");
+          break;
+        case EOC:
+          break;
+        default:
+          if (this.text.includes("]]>")) {
+            this.fail('the string "]]>" is disallowed in char data.');
+          }
+          this.pushAttrib(this.name, this.text);
+          this.name = this.text = "";
+          if (c === GREATER) {
+            this.openTag();
+          } else {
+            this.state = S_ATTRIB;
+          }
+      }
+    }
+    sCloseTag() {
+      const c = this.captureNameChars();
+      if (c === GREATER) {
+        this.closeTag();
+      } else if (isS(c)) {
+        this.state = S_CLOSE_TAG_SAW_WHITE;
+      } else if (c !== EOC) {
+        this.fail("disallowed character in closing tag.");
+      }
+    }
+    sCloseTagSawWhite() {
+      switch (this.skipSpaces()) {
+        case GREATER:
+          this.closeTag();
+          break;
+        case EOC:
+          break;
+        default:
+          this.fail("disallowed character in closing tag.");
+      }
+    }
+    // END OF STATE ENGINE METHODS
+    handleTextInRoot() {
+      let { i: start2, forbiddenState } = this;
+      const { chunk, textHandler: handler } = this;
+      scanLoop:
+        while (true) {
+          switch (this.getCode()) {
+            case LESS: {
+              this.state = S_OPEN_WAKA;
+              if (handler !== void 0) {
+                const { text: text2 } = this;
+                const slice = chunk.slice(start2, this.prevI);
+                if (text2.length !== 0) {
+                  handler(text2 + slice);
+                  this.text = "";
+                } else if (slice.length !== 0) {
+                  handler(slice);
+                }
+              }
+              forbiddenState = FORBIDDEN_START;
+              break scanLoop;
+            }
+            case AMP:
+              this.state = S_ENTITY;
+              this.entityReturnState = S_TEXT;
+              if (handler !== void 0) {
+                this.text += chunk.slice(start2, this.prevI);
+              }
+              forbiddenState = FORBIDDEN_START;
+              break scanLoop;
+            case CLOSE_BRACKET:
+              switch (forbiddenState) {
+                case FORBIDDEN_START:
+                  forbiddenState = FORBIDDEN_BRACKET;
+                  break;
+                case FORBIDDEN_BRACKET:
+                  forbiddenState = FORBIDDEN_BRACKET_BRACKET;
+                  break;
+                case FORBIDDEN_BRACKET_BRACKET:
+                  break;
+                default:
+                  throw new Error("impossible state");
+              }
+              break;
+            case GREATER:
+              if (forbiddenState === FORBIDDEN_BRACKET_BRACKET) {
+                this.fail('the string "]]>" is disallowed in char data.');
+              }
+              forbiddenState = FORBIDDEN_START;
+              break;
+            case NL_LIKE:
+              if (handler !== void 0) {
+                this.text += `${chunk.slice(start2, this.prevI)}
+`;
+              }
+              start2 = this.i;
+              forbiddenState = FORBIDDEN_START;
+              break;
+            case EOC:
+              if (handler !== void 0) {
+                this.text += chunk.slice(start2);
+              }
+              break scanLoop;
+            default:
+              forbiddenState = FORBIDDEN_START;
+          }
+        }
+      this.forbiddenState = forbiddenState;
+    }
+    handleTextOutsideRoot() {
+      let { i: start2 } = this;
+      const { chunk, textHandler: handler } = this;
+      let nonSpace = false;
+      outRootLoop:
+        while (true) {
+          const code = this.getCode();
+          switch (code) {
+            case LESS: {
+              this.state = S_OPEN_WAKA;
+              if (handler !== void 0) {
+                const { text: text2 } = this;
+                const slice = chunk.slice(start2, this.prevI);
+                if (text2.length !== 0) {
+                  handler(text2 + slice);
+                  this.text = "";
+                } else if (slice.length !== 0) {
+                  handler(slice);
+                }
+              }
+              break outRootLoop;
+            }
+            case AMP:
+              this.state = S_ENTITY;
+              this.entityReturnState = S_TEXT;
+              if (handler !== void 0) {
+                this.text += chunk.slice(start2, this.prevI);
+              }
+              nonSpace = true;
+              break outRootLoop;
+            case NL_LIKE:
+              if (handler !== void 0) {
+                this.text += `${chunk.slice(start2, this.prevI)}
+`;
+              }
+              start2 = this.i;
+              break;
+            case EOC:
+              if (handler !== void 0) {
+                this.text += chunk.slice(start2);
+              }
+              break outRootLoop;
+            default:
+              if (!isS(code)) {
+                nonSpace = true;
+              }
+          }
+        }
+      if (!nonSpace) {
+        return;
+      }
+      if (!this.sawRoot && !this.reportedTextBeforeRoot) {
+        this.fail("text data outside of root node.");
+        this.reportedTextBeforeRoot = true;
+      }
+      if (this.closedRoot && !this.reportedTextAfterRoot) {
+        this.fail("text data outside of root node.");
+        this.reportedTextAfterRoot = true;
+      }
+    }
+    pushAttribNS(name, value) {
+      var _a2;
+      const { prefix, local } = this.qname(name);
+      const attr = { name, prefix, local, value };
+      this.attribList.push(attr);
+      (_a2 = this.attributeHandler) === null || _a2 === void 0 ? void 0 : _a2.call(this, attr);
+      if (prefix === "xmlns") {
+        const trimmed = value.trim();
+        if (this.currentXMLVersion === "1.0" && trimmed === "") {
+          this.fail("invalid attempt to undefine prefix in XML 1.0");
+        }
+        this.topNS[local] = trimmed;
+        nsPairCheck(this, local, trimmed);
+      } else if (name === "xmlns") {
+        const trimmed = value.trim();
+        this.topNS[""] = trimmed;
+        nsPairCheck(this, "", trimmed);
+      }
+    }
+    pushAttribPlain(name, value) {
+      var _a2;
+      const attr = { name, value };
+      this.attribList.push(attr);
+      (_a2 = this.attributeHandler) === null || _a2 === void 0 ? void 0 : _a2.call(this, attr);
+    }
+    /**
+     * End parsing. This performs final well-formedness checks and resets the
+     * parser to a clean state.
+     *
+     * @returns this
+     */
+    end() {
+      var _a2, _b2;
+      if (!this.sawRoot) {
+        this.fail("document must contain a root element.");
+      }
+      const { tags } = this;
+      while (tags.length > 0) {
+        const tag = tags.pop();
+        this.fail(`unclosed tag: ${tag.name}`);
+      }
+      if (this.state !== S_BEGIN && this.state !== S_TEXT) {
+        this.fail("unexpected end.");
+      }
+      const { text: text2 } = this;
+      if (text2.length !== 0) {
+        (_a2 = this.textHandler) === null || _a2 === void 0 ? void 0 : _a2.call(this, text2);
+        this.text = "";
+      }
+      this._closed = true;
+      (_b2 = this.endHandler) === null || _b2 === void 0 ? void 0 : _b2.call(this);
+      this._init();
+      return this;
+    }
+    /**
+     * Resolve a namespace prefix.
+     *
+     * @param prefix The prefix to resolve.
+     *
+     * @returns The namespace URI or ``undefined`` if the prefix is not defined.
+     */
+    resolve(prefix) {
+      var _a2, _b2;
+      let uri = this.topNS[prefix];
+      if (uri !== void 0) {
+        return uri;
+      }
+      const { tags } = this;
+      for (let index2 = tags.length - 1; index2 >= 0; index2--) {
+        uri = tags[index2].ns[prefix];
+        if (uri !== void 0) {
+          return uri;
+        }
+      }
+      uri = this.ns[prefix];
+      if (uri !== void 0) {
+        return uri;
+      }
+      return (_b2 = (_a2 = this.opt).resolvePrefix) === null || _b2 === void 0 ? void 0 : _b2.call(_a2, prefix);
+    }
+    /**
+     * Parse a qname into its prefix and local name parts.
+     *
+     * @param name The name to parse
+     *
+     * @returns
+     */
+    qname(name) {
+      const colon = name.indexOf(":");
+      if (colon === -1) {
+        return { prefix: "", local: name };
+      }
+      const local = name.slice(colon + 1);
+      const prefix = name.slice(0, colon);
+      if (prefix === "" || local === "" || local.includes(":")) {
+        this.fail(`malformed name: ${name}.`);
+      }
+      return { prefix, local };
+    }
+    processAttribsNS() {
+      var _a2;
+      const { attribList } = this;
+      const tag = this.tag;
+      {
+        const { prefix, local } = this.qname(tag.name);
+        tag.prefix = prefix;
+        tag.local = local;
+        const uri = tag.uri = (_a2 = this.resolve(prefix)) !== null && _a2 !== void 0 ? _a2 : "";
+        if (prefix !== "") {
+          if (prefix === "xmlns") {
+            this.fail('tags may not have "xmlns" as prefix.');
+          }
+          if (uri === "") {
+            this.fail(`unbound namespace prefix: ${JSON.stringify(prefix)}.`);
+            tag.uri = prefix;
+          }
+        }
+      }
+      if (attribList.length === 0) {
+        return;
+      }
+      const { attributes } = tag;
+      const seen = /* @__PURE__ */ new Set();
+      for (const attr of attribList) {
+        const { name, prefix, local } = attr;
+        let uri;
+        let eqname;
+        if (prefix === "") {
+          uri = name === "xmlns" ? XMLNS_NAMESPACE : "";
+          eqname = name;
+        } else {
+          uri = this.resolve(prefix);
+          if (uri === void 0) {
+            this.fail(`unbound namespace prefix: ${JSON.stringify(prefix)}.`);
+            uri = prefix;
+          }
+          eqname = `{${uri}}${local}`;
+        }
+        if (seen.has(eqname)) {
+          this.fail(`duplicate attribute: ${eqname}.`);
+        }
+        seen.add(eqname);
+        attr.uri = uri;
+        attributes[name] = attr;
+      }
+      this.attribList = [];
+    }
+    processAttribsPlain() {
+      const { attribList } = this;
+      const attributes = this.tag.attributes;
+      for (const { name, value } of attribList) {
+        if (attributes[name] !== void 0) {
+          this.fail(`duplicate attribute: ${name}.`);
+        }
+        attributes[name] = value;
+      }
+      this.attribList = [];
+    }
+    /**
+     * Handle a complete open tag. This parser code calls this once it has seen
+     * the whole tag. This method checks for well-formeness and then emits
+     * ``onopentag``.
+     */
+    openTag() {
+      var _a2;
+      this.processAttribs();
+      const { tags } = this;
+      const tag = this.tag;
+      tag.isSelfClosing = false;
+      (_a2 = this.openTagHandler) === null || _a2 === void 0 ? void 0 : _a2.call(this, tag);
+      tags.push(tag);
+      this.state = S_TEXT;
+      this.name = "";
+    }
+    /**
+     * Handle a complete self-closing tag. This parser code calls this once it has
+     * seen the whole tag. This method checks for well-formeness and then emits
+     * ``onopentag`` and ``onclosetag``.
+     */
+    openSelfClosingTag() {
+      var _a2, _b2, _c;
+      this.processAttribs();
+      const { tags } = this;
+      const tag = this.tag;
+      tag.isSelfClosing = true;
+      (_a2 = this.openTagHandler) === null || _a2 === void 0 ? void 0 : _a2.call(this, tag);
+      (_b2 = this.closeTagHandler) === null || _b2 === void 0 ? void 0 : _b2.call(this, tag);
+      const top = this.tag = (_c = tags[tags.length - 1]) !== null && _c !== void 0 ? _c : null;
+      if (top === null) {
+        this.closedRoot = true;
+      }
+      this.state = S_TEXT;
+      this.name = "";
+    }
+    /**
+     * Handle a complete close tag. This parser code calls this once it has seen
+     * the whole tag. This method checks for well-formeness and then emits
+     * ``onclosetag``.
+     */
+    closeTag() {
+      const { tags, name } = this;
+      this.state = S_TEXT;
+      this.name = "";
+      if (name === "") {
+        this.fail("weird empty close tag.");
+        this.text += "</>";
+        return;
+      }
+      const handler = this.closeTagHandler;
+      let l = tags.length;
+      while (l-- > 0) {
+        const tag = this.tag = tags.pop();
+        this.topNS = tag.ns;
+        handler === null || handler === void 0 ? void 0 : handler(tag);
+        if (tag.name === name) {
+          break;
+        }
+        this.fail("unexpected close tag.");
+      }
+      if (l === 0) {
+        this.closedRoot = true;
+      } else if (l < 0) {
+        this.fail(`unmatched closing tag: ${name}.`);
+        this.text += `</${name}>`;
+      }
+    }
+    /**
+     * Resolves an entity. Makes any necessary well-formedness checks.
+     *
+     * @param entity The entity to resolve.
+     *
+     * @returns The parsed entity.
+     */
+    parseEntity(entity) {
+      if (entity[0] !== "#") {
+        const defined = this.ENTITIES[entity];
+        if (defined !== void 0) {
+          return defined;
+        }
+        this.fail(this.isName(entity) ? "undefined entity." : "disallowed character in entity name.");
+        return `&${entity};`;
+      }
+      let num = NaN;
+      if (entity[1] === "x" && /^#x[0-9a-f]+$/i.test(entity)) {
+        num = parseInt(entity.slice(2), 16);
+      } else if (/^#[0-9]+$/.test(entity)) {
+        num = parseInt(entity.slice(1), 10);
+      }
+      if (!this.isChar(num)) {
+        this.fail("malformed character entity.");
+        return `&${entity};`;
+      }
+      return String.fromCodePoint(num);
+    }
+  }
+  saxes$1.SaxesParser = SaxesParser;
+  return saxes$1;
+}
+var saxesExports = requireSaxes$1();
 function diffTextBounded(textA, textB) {
   return diffChars(textA, textB, { timeout: 120, maxEditLength: 2e4 });
 }
 function diffText(textA, textB) {
-  const changes = diffChars(textA, textB);
+  if (textA.length + textB.length > 16e4) throw new Error("文本过长，无法进行交互对比，请导出使用专业比较工具");
+  const changes = diffTextBounded(textA, textB);
+  if (!changes) throw new Error("差异过多或比较超时，请导出使用专业比较工具");
   const results = [];
   for (const change of changes) {
     if (!change.value) continue;
@@ -2180,13 +4806,31 @@ async function extractDocxText(buf) {
   try {
     parts = unzipSync(buf);
   } catch {
-    return "";
+    throw new Error("Word 文件损坏，无法读取正文");
   }
-  const docXml = parts["word/document.xml"];
-  if (!docXml) return "";
-  const xmlText = new TextDecoder().decode(docXml);
-  const plainText = xmlText.replace(/<[^>]+>/g, "");
-  return plainText.replace(/\s+/g, " ").trim();
+  const xml = parts["word/document.xml"];
+  if (!xml) throw new Error("Word 文件缺少正文，无法比较");
+  const output = [], parser2 = new saxesExports.SaxesParser({ xmlns: true });
+  let capture2 = false;
+  const wordTag = (tag, name) => tag.local === name && tag.uri.includes("wordprocessingml");
+  parser2.on("opentag", (tag) => {
+    if (wordTag(tag, "t")) capture2 = true;
+    if (wordTag(tag, "tab")) output.push("	");
+    if (wordTag(tag, "br") || wordTag(tag, "cr")) output.push("\n");
+  });
+  parser2.on("text", (text2) => {
+    if (capture2) output.push(text2);
+  });
+  parser2.on("closetag", (tag) => {
+    if (wordTag(tag, "t")) capture2 = false;
+    if (wordTag(tag, "p")) output.push("\n");
+  });
+  try {
+    parser2.write(new TextDecoder().decode(xml)).close();
+  } catch {
+    throw new Error("Word 正文 XML 无法解析，请导出使用关联程序查看");
+  }
+  return output.join("").trim();
 }
 function defaultVersionPositions(versions) {
   const byId = new Map(versions.map((v) => [v.id, v]));
@@ -2515,11 +5159,33 @@ async function exportVersion(repo, docName2, id2, destination) {
   const target = path$1.resolve(destination);
   const repoRoot = path$1.resolve(repo.root);
   if (target === repoRoot || target.startsWith(repoRoot + path$1.sep)) throw new Error("请导出到仓库外，避免覆盖工作区或历史数据");
-  if (await promises.stat(target).then(() => true, () => false)) throw new Error("目标已存在，请选择新的文件名或空目录");
-  const files = [];
-  for (const [rel, manifestId] of Object.entries(tree.entries)) files.push({ target: containedPath(target, rel), bytes: await materializeFile(ctx, await getManifest(ctx, manifestId)) });
-  if (!files.length) await promises.mkdir(target, { recursive: true });
-  for (const file2 of files) await writeFileAtomic(file2.target, file2.bytes);
+  if (await promises.lstat(target).then(() => true, (error2) => {
+    if (error2.code === "ENOENT") return false;
+    throw error2;
+  })) throw new Error("目标已存在，请选择新的文件名或空目录");
+  const parent2 = path$1.dirname(target);
+  await promises.mkdir(parent2, { recursive: true });
+  const actualParent = await promises.realpath(parent2), actualRepo = await promises.realpath(repoRoot);
+  const relative2 = path$1.relative(actualRepo, actualParent);
+  if (!relative2 || !path$1.isAbsolute(relative2) && relative2 !== ".." && !relative2.startsWith(".." + path$1.sep)) throw new Error("请导出到仓库外，不能通过链接写入仓库");
+  const stage = await promises.mkdtemp(path$1.join(parent2, ".wordgit-export-"));
+  try {
+    const next = path$1.join(stage, "next"), file2 = Object.hasOwn(tree.entries, "");
+    if (!file2) await promises.mkdir(next);
+    for (const [rel, manifestId] of Object.entries(tree.entries)) await writeFileAtomic(containedPath(next, rel), materializeFileStream(ctx, await getManifest(ctx, manifestId)));
+    if (file2) {
+      try {
+        await promises.link(next, target);
+      } catch (error2) {
+        if (!["ENOTSUP", "EOPNOTSUPP", "EPERM"].includes(error2.code ?? "")) throw error2;
+        const { constants: constants2 } = await import("node:fs");
+        await promises.copyFile(next, target, constants2.COPYFILE_EXCL);
+      }
+    } else await promises.rename(next, target);
+  } finally {
+    if (path$1.dirname(stage) !== parent2 || !path$1.basename(stage).startsWith(".wordgit-export-")) throw new Error("导出暂存路径无效");
+    await promises.rm(stage, { recursive: true, force: true });
+  }
 }
 async function moveBranchHead(repo, docName2, branch, versionId2) {
   return withRepoWrite(repo, async () => {
@@ -7199,7 +9865,7 @@ async function editVersionRelations(repo, docName2, id2, request2) {
     const byId = new Map(detail.versions.map((v) => [v.id, v]));
     const parents = new Map(detail.versions.map((v) => [v.id, [...v.parents]]));
     const affected = /* @__PURE__ */ new Set();
-    const labels = new Map(detail.versions.map((v) => [v.id, { ...v.parentLabels }]));
+    const labels2 = new Map(detail.versions.map((v) => [v.id, { ...v.parentLabels }]));
     const notes = new Map(detail.versions.map((v) => [v.id, { ...v.parentNotes }]));
     const styles = new Map(detail.versions.map((v) => [v.id, { ...v.parentStyles }]));
     const replace = (versionId2, previous) => {
@@ -7223,16 +9889,16 @@ async function editVersionRelations(repo, docName2, id2, request2) {
       if (request2.label !== void 0 && (typeof request2.label !== "string" || request2.label.length > 1e4)) throw new Error("连线名称无效");
       if (request2.note !== void 0 && (typeof request2.note !== "string" || request2.note.length > 1e4)) throw new Error("连线备注无效");
       const note2 = request2.note?.trim() ?? notes.get(target.id)[id2] ?? "";
-      const label2 = request2.label?.trim() ?? labels.get(target.id)[id2] ?? "";
+      const label2 = request2.label?.trim() ?? labels2.get(target.id)[id2] ?? "";
       const style = request2.style ? { ...styles.get(target.id)[id2], ...EdgeStyleSchema.parse(request2.style) } : styles.get(target.id)[id2];
       if (request2.action === "reverseConnection") {
         replace(target.id, target.parents.filter((parent2) => parent2 !== id2));
         replace(id2, [.../* @__PURE__ */ new Set([...parents.get(id2) ?? [], target.id])]);
-        labels.get(id2)[target.id] = label2;
+        labels2.get(id2)[target.id] = label2;
         notes.get(id2)[target.id] = note2;
         if (style) styles.get(id2)[target.id] = style;
       } else {
-        labels.get(target.id)[id2] = label2;
+        labels2.get(target.id)[id2] = label2;
         notes.get(target.id)[id2] = note2;
         if (style) styles.get(target.id)[id2] = style;
         affected.add(target.id);
@@ -7263,7 +9929,7 @@ async function editVersionRelations(repo, docName2, id2, request2) {
     for (const node2 of affected) {
       const v = meta.versions[node2] ??= {};
       v.parents = parents.get(node2);
-      v.parentLabels = Object.fromEntries(Object.entries(labels.get(node2)).filter(([parent2]) => v.parents.includes(parent2)));
+      v.parentLabels = Object.fromEntries(Object.entries(labels2.get(node2)).filter(([parent2]) => v.parents.includes(parent2)));
       v.parentNotes = Object.fromEntries(Object.entries(notes.get(node2)).filter(([parent2]) => v.parents.includes(parent2)));
       v.parentStyles = Object.fromEntries(Object.entries(styles.get(node2)).filter(([parent2]) => v.parents.includes(parent2)));
       v.branchMembership ??= byId.get(node2).branches;
@@ -9504,39 +12170,6 @@ function registerDocHandlers() {
     return withUndoableAction(getRepo(), "导入文档", () => importDocHandler(req), req.name ?? path$1.basename(req.sourcePath));
   });
   ipcMain.handle(CH.DOC_EDIT, (_e, arg) => editDoc(arg));
-}
-var commonjsGlobal = typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : {};
-function getDefaultExportFromCjs(x2) {
-  return x2 && x2.__esModule && Object.prototype.hasOwnProperty.call(x2, "default") ? x2["default"] : x2;
-}
-function getAugmentedNamespace(n) {
-  if (Object.prototype.hasOwnProperty.call(n, "__esModule")) return n;
-  var f = n.default;
-  if (typeof f == "function") {
-    var a = function a2() {
-      var isInstance = false;
-      try {
-        isInstance = this instanceof a2;
-      } catch {
-      }
-      if (isInstance) {
-        return Reflect.construct(f, arguments, this.constructor);
-      }
-      return f.apply(this, arguments);
-    };
-    a.prototype = f.prototype;
-  } else a = {};
-  Object.defineProperty(a, "__esModule", { value: true });
-  Object.keys(n).forEach(function(k) {
-    var d = Object.getOwnPropertyDescriptor(n, k);
-    Object.defineProperty(a, k, d.get ? d : {
-      enumerable: true,
-      get: function() {
-        return n[k];
-      }
-    });
-  });
-  return a;
 }
 var underDash;
 var hasRequiredUnderDash;
@@ -19579,8 +22212,8 @@ function requireDeflate() {
   var Z_DEFAULT_COMPRESSION = -1;
   var Z_DEFAULT_STRATEGY = 0;
   var Z_DEFLATED = 8;
-  function Deflate(options) {
-    if (!(this instanceof Deflate)) return new Deflate(options);
+  function Deflate2(options) {
+    if (!(this instanceof Deflate2)) return new Deflate2(options);
     this.options = utils2.assign({
       level: Z_DEFAULT_COMPRESSION,
       method: Z_DEFLATED,
@@ -19632,7 +22265,7 @@ function requireDeflate() {
       this._dict_set = true;
     }
   }
-  Deflate.prototype.push = function(data, mode) {
+  Deflate2.prototype.push = function(data, mode) {
     var strm = this.strm;
     var chunkSize = this.options.chunkSize;
     var status2, _mode;
@@ -19682,10 +22315,10 @@ function requireDeflate() {
     }
     return true;
   };
-  Deflate.prototype.onData = function(chunk) {
+  Deflate2.prototype.onData = function(chunk) {
     this.chunks.push(chunk);
   };
-  Deflate.prototype.onEnd = function(status2) {
+  Deflate2.prototype.onEnd = function(status2) {
     if (status2 === Z_OK) {
       if (this.options.to === "string") {
         this.result = this.chunks.join("");
@@ -19698,7 +22331,7 @@ function requireDeflate() {
     this.msg = this.strm.msg;
   };
   function deflate2(input, options) {
-    var deflator = new Deflate(options);
+    var deflator = new Deflate2(options);
     deflator.push(input, true);
     if (deflator.err) {
       throw deflator.msg || msg[deflator.err];
@@ -19715,7 +22348,7 @@ function requireDeflate() {
     options.gzip = true;
     return deflate2(input, options);
   }
-  deflate$1.Deflate = Deflate;
+  deflate$1.Deflate = Deflate2;
   deflate$1.deflate = deflate2;
   deflate$1.deflateRaw = deflateRaw;
   deflate$1.gzip = gzip;
@@ -21581,8 +24214,8 @@ function requireInflate() {
   var ZStream = requireZstream();
   var GZheader = requireGzheader();
   var toString = Object.prototype.toString;
-  function Inflate(options) {
-    if (!(this instanceof Inflate)) return new Inflate(options);
+  function Inflate2(options) {
+    if (!(this instanceof Inflate2)) return new Inflate2(options);
     this.options = utils2.assign({
       chunkSize: 16384,
       windowBits: 0,
@@ -21632,7 +24265,7 @@ function requireInflate() {
       }
     }
   }
-  Inflate.prototype.push = function(data, mode) {
+  Inflate2.prototype.push = function(data, mode) {
     var strm = this.strm;
     var chunkSize = this.options.chunkSize;
     var dictionary = this.options.dictionary;
@@ -21708,10 +24341,10 @@ function requireInflate() {
     }
     return true;
   };
-  Inflate.prototype.onData = function(chunk) {
+  Inflate2.prototype.onData = function(chunk) {
     this.chunks.push(chunk);
   };
-  Inflate.prototype.onEnd = function(status2) {
+  Inflate2.prototype.onEnd = function(status2) {
     if (status2 === c.Z_OK) {
       if (this.options.to === "string") {
         this.result = this.chunks.join("");
@@ -21724,7 +24357,7 @@ function requireInflate() {
     this.msg = this.strm.msg;
   };
   function inflate2(input, options) {
-    var inflator = new Inflate(options);
+    var inflator = new Inflate2(options);
     inflator.push(input, true);
     if (inflator.err) {
       throw inflator.msg || msg[inflator.err];
@@ -21736,7 +24369,7 @@ function requireInflate() {
     options.raw = true;
     return inflate2(input, options);
   }
-  inflate$1.Inflate = Inflate;
+  inflate$1.Inflate = Inflate2;
   inflate$1.inflate = inflate2;
   inflate$1.inflateRaw = inflateRaw;
   inflate$1.ungzip = inflate2;
@@ -26720,127 +29353,12 @@ function requireBrowserBufferDecode() {
   browserBufferDecode.bufferToString = bufferToString;
   return browserBufferDecode;
 }
-var saxes$1 = {};
-var ed5 = {};
-var hasRequiredEd5;
-function requireEd5() {
-  if (hasRequiredEd5) return ed5;
-  hasRequiredEd5 = 1;
-  (function(exports) {
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.CHAR = "	\n\r -퟿-�𐀀-􏿿";
-    exports.S = " 	\r\n";
-    exports.NAME_START_CHAR = ":A-Z_a-zÀ-ÖØ-öø-˿Ͱ-ͽͿ-῿‌‍⁰-↏Ⰰ-⿯、-퟿豈-﷏ﷰ-�𐀀-󯿿";
-    exports.NAME_CHAR = "-" + exports.NAME_START_CHAR + ".0-9·̀-ͯ‿-⁀";
-    exports.CHAR_RE = new RegExp("^[" + exports.CHAR + "]$", "u");
-    exports.S_RE = new RegExp("^[" + exports.S + "]+$", "u");
-    exports.NAME_START_CHAR_RE = new RegExp("^[" + exports.NAME_START_CHAR + "]$", "u");
-    exports.NAME_CHAR_RE = new RegExp("^[" + exports.NAME_CHAR + "]$", "u");
-    exports.NAME_RE = new RegExp("^[" + exports.NAME_START_CHAR + "][" + exports.NAME_CHAR + "]*$", "u");
-    exports.NMTOKEN_RE = new RegExp("^[" + exports.NAME_CHAR + "]+$", "u");
-    var TAB = 9;
-    var NL = 10;
-    var CR = 13;
-    var SPACE = 32;
-    exports.S_LIST = [SPACE, NL, CR, TAB];
-    function isChar(c) {
-      return c >= SPACE && c <= 55295 || c === NL || c === CR || c === TAB || c >= 57344 && c <= 65533 || c >= 65536 && c <= 1114111;
-    }
-    exports.isChar = isChar;
-    function isS(c) {
-      return c === SPACE || c === NL || c === CR || c === TAB;
-    }
-    exports.isS = isS;
-    function isNameStartChar(c) {
-      return c >= 65 && c <= 90 || c >= 97 && c <= 122 || c === 58 || c === 95 || c === 8204 || c === 8205 || c >= 192 && c <= 214 || c >= 216 && c <= 246 || c >= 248 && c <= 767 || c >= 880 && c <= 893 || c >= 895 && c <= 8191 || c >= 8304 && c <= 8591 || c >= 11264 && c <= 12271 || c >= 12289 && c <= 55295 || c >= 63744 && c <= 64975 || c >= 65008 && c <= 65533 || c >= 65536 && c <= 983039;
-    }
-    exports.isNameStartChar = isNameStartChar;
-    function isNameChar(c) {
-      return isNameStartChar(c) || c >= 48 && c <= 57 || c === 45 || c === 46 || c === 183 || c >= 768 && c <= 879 || c >= 8255 && c <= 8256;
-    }
-    exports.isNameChar = isNameChar;
-  })(ed5);
-  return ed5;
-}
-var ed2 = {};
-var hasRequiredEd2;
-function requireEd2() {
-  if (hasRequiredEd2) return ed2;
-  hasRequiredEd2 = 1;
-  (function(exports) {
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.CHAR = "-퟿-�𐀀-􏿿";
-    exports.RESTRICTED_CHAR = "-\b\v\f---";
-    exports.S = " 	\r\n";
-    exports.NAME_START_CHAR = ":A-Z_a-zÀ-ÖØ-öø-˿Ͱ-ͽͿ-῿‌‍⁰-↏Ⰰ-⿯、-퟿豈-﷏ﷰ-�𐀀-󯿿";
-    exports.NAME_CHAR = "-" + exports.NAME_START_CHAR + ".0-9·̀-ͯ‿-⁀";
-    exports.CHAR_RE = new RegExp("^[" + exports.CHAR + "]$", "u");
-    exports.RESTRICTED_CHAR_RE = new RegExp("^[" + exports.RESTRICTED_CHAR + "]$", "u");
-    exports.S_RE = new RegExp("^[" + exports.S + "]+$", "u");
-    exports.NAME_START_CHAR_RE = new RegExp("^[" + exports.NAME_START_CHAR + "]$", "u");
-    exports.NAME_CHAR_RE = new RegExp("^[" + exports.NAME_CHAR + "]$", "u");
-    exports.NAME_RE = new RegExp("^[" + exports.NAME_START_CHAR + "][" + exports.NAME_CHAR + "]*$", "u");
-    exports.NMTOKEN_RE = new RegExp("^[" + exports.NAME_CHAR + "]+$", "u");
-    var TAB = 9;
-    var NL = 10;
-    var CR = 13;
-    var SPACE = 32;
-    exports.S_LIST = [SPACE, NL, CR, TAB];
-    function isChar(c) {
-      return c >= 1 && c <= 55295 || c >= 57344 && c <= 65533 || c >= 65536 && c <= 1114111;
-    }
-    exports.isChar = isChar;
-    function isRestrictedChar(c) {
-      return c >= 1 && c <= 8 || c === 11 || c === 12 || c >= 14 && c <= 31 || c >= 127 && c <= 132 || c >= 134 && c <= 159;
-    }
-    exports.isRestrictedChar = isRestrictedChar;
-    function isCharAndNotRestricted(c) {
-      return c === 9 || c === 10 || c === 13 || c > 31 && c < 127 || c === 133 || c > 159 && c <= 55295 || c >= 57344 && c <= 65533 || c >= 65536 && c <= 1114111;
-    }
-    exports.isCharAndNotRestricted = isCharAndNotRestricted;
-    function isS(c) {
-      return c === SPACE || c === NL || c === CR || c === TAB;
-    }
-    exports.isS = isS;
-    function isNameStartChar(c) {
-      return c >= 65 && c <= 90 || c >= 97 && c <= 122 || c === 58 || c === 95 || c === 8204 || c === 8205 || c >= 192 && c <= 214 || c >= 216 && c <= 246 || c >= 248 && c <= 767 || c >= 880 && c <= 893 || c >= 895 && c <= 8191 || c >= 8304 && c <= 8591 || c >= 11264 && c <= 12271 || c >= 12289 && c <= 55295 || c >= 63744 && c <= 64975 || c >= 65008 && c <= 65533 || c >= 65536 && c <= 983039;
-    }
-    exports.isNameStartChar = isNameStartChar;
-    function isNameChar(c) {
-      return isNameStartChar(c) || c >= 48 && c <= 57 || c === 45 || c === 46 || c === 183 || c >= 768 && c <= 879 || c >= 8255 && c <= 8256;
-    }
-    exports.isNameChar = isNameChar;
-  })(ed2);
-  return ed2;
-}
-var ed3 = {};
-var hasRequiredEd3;
-function requireEd3() {
-  if (hasRequiredEd3) return ed3;
-  hasRequiredEd3 = 1;
-  (function(exports) {
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.NC_NAME_START_CHAR = "A-Z_a-zÀ-ÖØ-öø-˿Ͱ-ͽͿ-῿‌-‍⁰-↏Ⰰ-⿯、-퟿豈-﷏ﷰ-�𐀀-󯿿";
-    exports.NC_NAME_CHAR = "-" + exports.NC_NAME_START_CHAR + ".0-9·̀-ͯ‿-⁀";
-    exports.NC_NAME_START_CHAR_RE = new RegExp("^[" + exports.NC_NAME_START_CHAR + "]$", "u");
-    exports.NC_NAME_CHAR_RE = new RegExp("^[" + exports.NC_NAME_CHAR + "]$", "u");
-    exports.NC_NAME_RE = new RegExp("^[" + exports.NC_NAME_START_CHAR + "][" + exports.NC_NAME_CHAR + "]*$", "u");
-    function isNCNameStartChar(c) {
-      return c >= 65 && c <= 90 || c === 95 || c >= 97 && c <= 122 || c >= 192 && c <= 214 || c >= 216 && c <= 246 || c >= 248 && c <= 767 || c >= 880 && c <= 893 || c >= 895 && c <= 8191 || c >= 8204 && c <= 8205 || c >= 8304 && c <= 8591 || c >= 11264 && c <= 12271 || c >= 12289 && c <= 55295 || c >= 63744 && c <= 64975 || c >= 65008 && c <= 65533 || c >= 65536 && c <= 983039;
-    }
-    exports.isNCNameStartChar = isNCNameStartChar;
-    function isNCNameChar(c) {
-      return isNCNameStartChar(c) || (c === 45 || c === 46 || c >= 48 && c <= 57 || c === 183 || c >= 768 && c <= 879 || c >= 8255 && c <= 8256);
-    }
-    exports.isNCNameChar = isNCNameChar;
-  })(ed3);
-  return ed3;
-}
-var hasRequiredSaxes$1;
-function requireSaxes$1() {
-  if (hasRequiredSaxes$1) return saxes$1;
-  hasRequiredSaxes$1 = 1;
-  Object.defineProperty(saxes$1, "__esModule", { value: true });
+var saxes = {};
+var hasRequiredSaxes;
+function requireSaxes() {
+  if (hasRequiredSaxes) return saxes;
+  hasRequiredSaxes = 1;
+  Object.defineProperty(saxes, "__esModule", { value: true });
   const ed52 = requireEd5();
   const ed22 = requireEd2();
   const NSed3 = requireEd3();
@@ -26983,7 +29501,7 @@ function requireSaxes$1() {
   const FORBIDDEN_START = 0;
   const FORBIDDEN_BRACKET = 1;
   const FORBIDDEN_BRACKET_BRACKET = 2;
-  saxes$1.EVENTS = [
+  saxes.EVENTS = [
     "xmldecl",
     "text",
     "processinginstruction",
@@ -28621,15 +31139,15 @@ function requireSaxes$1() {
       return String.fromCodePoint(num);
     }
   }
-  saxes$1.SaxesParser = SaxesParser;
-  return saxes$1;
+  saxes.SaxesParser = SaxesParser;
+  return saxes;
 }
 var parseSax;
 var hasRequiredParseSax;
 function requireParseSax() {
   if (hasRequiredParseSax) return parseSax;
   hasRequiredParseSax = 1;
-  const { SaxesParser } = requireSaxes$1();
+  const { SaxesParser } = requireSaxes();
   const { PassThrough } = requireReadable();
   const { bufferToString } = requireBrowserBufferDecode();
   parseSax = async function* (iterable) {
@@ -53026,9 +55544,9 @@ function requireZip() {
   hasRequiredZip = 1;
   var engine = requireZipStream();
   var util2 = requireArchiverUtils$1();
-  var Zip = function(options) {
-    if (!(this instanceof Zip)) {
-      return new Zip(options);
+  var Zip2 = function(options) {
+    if (!(this instanceof Zip2)) {
+      return new Zip2(options);
     }
     options = this.options = util2.defaults(options, {
       comment: "",
@@ -53042,22 +55560,22 @@ function requireZip() {
     };
     this.engine = new engine(options);
   };
-  Zip.prototype.append = function(source, data, callback) {
+  Zip2.prototype.append = function(source, data, callback) {
     this.engine.entry(source, data, callback);
   };
-  Zip.prototype.finalize = function() {
+  Zip2.prototype.finalize = function() {
     this.engine.finalize();
   };
-  Zip.prototype.on = function() {
+  Zip2.prototype.on = function() {
     return this.engine.on.apply(this.engine, arguments);
   };
-  Zip.prototype.pipe = function() {
+  Zip2.prototype.pipe = function() {
     return this.engine.pipe.apply(this.engine, arguments);
   };
-  Zip.prototype.unpipe = function() {
+  Zip2.prototype.unpipe = function() {
     return this.engine.unpipe.apply(this.engine, arguments);
   };
-  zip = Zip;
+  zip = Zip2;
   return zip;
 }
 var tarStream = {};
@@ -66787,20 +69305,17 @@ function requireExcel() {
 }
 var excelExports = requireExcel();
 const ExcelJS = /* @__PURE__ */ getDefaultExportFromCjs(excelExports);
-async function createCommitHandler(args) {
-  const { docName: docName2, message, author, branch } = CommitCreateReq.parse(args);
-  const repo = getRepo();
-  return commitDoc(repo, docName2, { message, author, branch });
+async function versionFileSize(repo, docName2, versionId2) {
+  const version2 = (await documentDetail(repo, docName2)).versions.find((version22) => version22.id === versionId2);
+  if (!version2) throw new Error("该版本不存在");
+  const context2 = StorageContext.forRepo(repo), tree = await readTree(context2, (await readCommit(context2, version2.contentId)).tree);
+  return tree.entries[""] ? (await getManifest(context2, tree.entries[""])).size : null;
 }
-async function listCommitsHandler(args) {
-  const { docName: docName2, branch } = CommitListReq.parse(args);
-  const repo = getRepo();
-  return listCommits(repo, docName2, branch);
-}
-async function checkoutCommitHandler(args) {
-  const { docName: docName2, commitId, branch } = CommitCheckoutReq.parse(args);
-  const repo = getRepo();
-  return checkoutDoc(repo, docName2, { commitId, branch });
+async function readVersionWithin(repo, docName2, versionId2, limit = 20 * 1024 * 1024) {
+  const size = await versionFileSize(repo, docName2, versionId2);
+  if (size === null) throw new Error("目录型文档请导出后查看");
+  if (size > limit) throw new Error(`文件超过内置读取大小（${limit / 1048576} MiB），请导出后使用关联程序查看`);
+  return versionBytes(repo, docName2, versionId2);
 }
 async function extractText(buf, ext) {
   if (ext === ".docx") return extractDocxText(buf);
@@ -66826,18 +69341,35 @@ async function extractText(buf, ext) {
   if ([".txt", ".md", ".csv", ".json", ".xml", ".html"].includes(ext)) return new TextDecoder().decode(buf);
   throw new Error("该格式暂不支持文本对比，请导出两份历史副本用系统应用查看");
 }
-async function diffTextHandler(args) {
+async function compareVersions(repo, args) {
   const { docName: docName2, commitIdA, commitIdB } = CommitDiffTextReq.parse(args);
-  const repo = getRepo();
   const [bufA, bufB] = await Promise.all([
-    versionBytes(repo, docName2, commitIdA),
-    versionBytes(repo, docName2, commitIdB)
+    readVersionWithin(repo, docName2, commitIdA),
+    readVersionWithin(repo, docName2, commitIdB)
   ]);
   const [textA, textB] = await Promise.all([
     extractText(bufA, path$1.extname(docName2).toLowerCase()),
     extractText(bufB, path$1.extname(docName2).toLowerCase())
   ]);
   return diffText(textA, textB);
+}
+async function createCommitHandler(args) {
+  const { docName: docName2, message, author, branch } = CommitCreateReq.parse(args);
+  const repo = getRepo();
+  return commitDoc(repo, docName2, { message, author, branch });
+}
+async function listCommitsHandler(args) {
+  const { docName: docName2, branch } = CommitListReq.parse(args);
+  const repo = getRepo();
+  return listCommits(repo, docName2, branch);
+}
+async function checkoutCommitHandler(args) {
+  const { docName: docName2, commitId, branch } = CommitCheckoutReq.parse(args);
+  const repo = getRepo();
+  return checkoutDoc(repo, docName2, { commitId, branch });
+}
+async function diffTextHandler(args) {
+  return compareVersions(getRepo(), args);
 }
 function registerCommitHandlers() {
   ipcMain.handle(CH.COMMIT_CREATE, (_e, arg) => {
@@ -66987,9 +69519,10 @@ async function getPreviewBytes(args) {
   const ext = path$1.extname(docName2).toLowerCase().replace(".", "");
   let raw;
   if (commitId) {
-    raw = await versionBytes(repo, docName2, commitId);
+    raw = await readVersionWithin(repo, docName2, commitId);
   } else {
     const wsPath = path$1.join(repo.root, "workspace", validateDocName(docName2));
+    if ((await promises.stat(wsPath)).size > 20 * 1024 * 1024) throw new Error("文件超过内置预览大小（20 MiB），请导出后使用关联程序查看");
     raw = new Uint8Array(await promises.readFile(wsPath));
   }
   const data = raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength);
@@ -67016,19 +69549,8 @@ async function blankDocument(filePath, format) {
     "word/document.xml": enc.encode('<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p/><w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr></w:body></w:document>')
   }, { mtime: new Date(1980, 0, 1) }));
 }
-async function libraryListHandler() {
-  return libraryDocuments(getRepo());
-}
-async function libraryDetailHandler(args) {
-  return documentDetail(getRepo(), LibraryDetailReq.parse(args).docName);
-}
-async function openFile(filePath) {
-  const error2 = await shell.openPath(filePath);
-  if (error2) throw new Error("无法打开系统编辑器：" + error2);
-}
-async function libraryMutationHandler(args) {
+async function executeMutation(repo, args, openFile) {
   const request2 = LibraryMutationSchema.parse(args);
-  const repo = getRepo();
   switch (request2.type) {
     case "refreshWorkspace":
       return refreshWorkspaceDocuments(repo);
@@ -67073,14 +69595,14 @@ async function libraryMutationHandler(args) {
       const versionId2 = request2.versionId ?? detail.branchHeads[branch];
       const workspacePath = !request2.versionId && detail.draft?.branch === branch ? path$1.join(repo.root, detail.draft.path) : (await startDraft(repo, request2.docName, versionId2, branch, request2.mode, request2.title)).workspacePath;
       await promises.access(workspacePath);
-      await openFile(workspacePath);
+      await openFile?.(workspacePath);
       return { workspacePath };
     }
     case "openCopy": {
       const temporary = await promises.mkdtemp(path$1.join(os.tmpdir(), "wordgit-preview-"));
       const copy = path$1.join(temporary, validateDocName(request2.docName));
       await exportVersion(repo, request2.docName, request2.versionId, copy);
-      await openFile(copy);
+      await openFile?.(copy);
       return { workspacePath: copy };
     }
     case "moveBranch":
@@ -67103,1817 +69625,37 @@ async function libraryMutationHandler(args) {
   }
   return {};
 }
+const labels = { document: "编辑文档信息", version: "编辑版本信息或位置", layout: "整理卡片布局", relations: "编辑版本连线", category: "编辑版本分类", arrange: "移动分类卡片", importVersion: "导入版本", save: "保存版本", undoReplacement: "还原版本内容", moveBranch: "移动分支起点", createDocument: "新建文档", edit: "准备独立编辑稿", refreshWorkspace: "刷新工作目录" };
+async function mutateLibrary(repo, args, openFile) {
+  const request2 = LibraryMutationSchema.parse(args);
+  if (request2.type === "purgeVersion") {
+    const result = await executeMutation(repo, request2, openFile);
+    clearEditHistory(repo);
+    return result;
+  }
+  let workspaceName;
+  if (request2.type === "createDocument") workspaceName = request2.name.trim().toLowerCase().endsWith("." + request2.format) ? request2.name.trim() : request2.name.trim() + "." + request2.format;
+  else if ("docName" in request2 && ["importVersion", "save", "undoReplacement", "moveBranch", "edit"].includes(request2.type)) workspaceName = request2.docName;
+  const label2 = labels[request2.type];
+  return label2 ? withUndoableAction(repo, label2, () => executeMutation(repo, request2, openFile), workspaceName) : executeMutation(repo, request2, openFile);
+}
+async function libraryListHandler() {
+  return libraryDocuments(getRepo());
+}
+async function libraryDetailHandler(args) {
+  return documentDetail(getRepo(), LibraryDetailReq.parse(args).docName);
+}
+async function libraryMutationHandler(args) {
+  return mutateLibrary(getRepo(), args, async (file2) => {
+    const error2 = await shell.openPath(file2);
+    if (error2) throw new Error("无法打开系统编辑器：" + error2);
+  });
+}
 function registerLibraryHandlers() {
   ipcMain.handle(CH.LIBRARY_LIST, () => libraryListHandler());
   ipcMain.handle(CH.LIBRARY_DETAIL, (_event, args) => libraryDetailHandler(args));
-  const labels = { document: "编辑文档信息", version: "编辑版本信息或位置", layout: "整理布局", relations: "编辑版本连线", category: "编辑版本分类", arrange: "移动分类卡片", importVersion: "导入版本", save: "保存版本", undoReplacement: "还原版本内容", moveBranch: "移动分支起点", createDocument: "新建文档", edit: "准备独立编辑稿" };
-  ipcMain.handle(CH.LIBRARY_MUTATE, (_event, args) => {
-    const request2 = LibraryMutationSchema.parse(args), repo = getRepo();
-    if (request2.type === "purgeVersion") {
-      clearEditHistory(repo);
-      return libraryMutationHandler(request2);
-    }
-    let workspaceName;
-    if (request2.type === "createDocument") workspaceName = request2.name.trim().toLowerCase().endsWith("." + request2.format) ? request2.name.trim() : request2.name.trim() + "." + request2.format;
-    else if ("docName" in request2 && ["importVersion", "save", "undoReplacement", "moveBranch"].includes(request2.type)) workspaceName = request2.docName;
-    const label2 = labels[request2.type];
-    return label2 ? withUndoableAction(repo, label2, () => libraryMutationHandler(request2), workspaceName) : libraryMutationHandler(request2);
-  });
+  ipcMain.handle(CH.LIBRARY_MUTATE, (_event, args) => libraryMutationHandler(args));
 }
-var saxes = {};
-var hasRequiredSaxes;
-function requireSaxes() {
-  if (hasRequiredSaxes) return saxes;
-  hasRequiredSaxes = 1;
-  Object.defineProperty(saxes, "__esModule", { value: true });
-  saxes.SaxesParser = saxes.EVENTS = void 0;
-  const ed52 = requireEd5();
-  const ed22 = requireEd2();
-  const NSed3 = requireEd3();
-  var isS = ed52.isS;
-  var isChar10 = ed52.isChar;
-  var isNameStartChar = ed52.isNameStartChar;
-  var isNameChar = ed52.isNameChar;
-  var S_LIST = ed52.S_LIST;
-  var NAME_RE = ed52.NAME_RE;
-  var isChar11 = ed22.isChar;
-  var isNCNameStartChar = NSed3.isNCNameStartChar;
-  var isNCNameChar = NSed3.isNCNameChar;
-  var NC_NAME_RE = NSed3.NC_NAME_RE;
-  const XML_NAMESPACE = "http://www.w3.org/XML/1998/namespace";
-  const XMLNS_NAMESPACE = "http://www.w3.org/2000/xmlns/";
-  const rootNS = {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-    __proto__: null,
-    xml: XML_NAMESPACE,
-    xmlns: XMLNS_NAMESPACE
-  };
-  const XML_ENTITIES = {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-    __proto__: null,
-    amp: "&",
-    gt: ">",
-    lt: "<",
-    quot: '"',
-    apos: "'"
-  };
-  const EOC = -1;
-  const NL_LIKE = -2;
-  const S_BEGIN = 0;
-  const S_BEGIN_WHITESPACE = 1;
-  const S_DOCTYPE = 2;
-  const S_DOCTYPE_QUOTE = 3;
-  const S_DTD = 4;
-  const S_DTD_QUOTED = 5;
-  const S_DTD_OPEN_WAKA = 6;
-  const S_DTD_OPEN_WAKA_BANG = 7;
-  const S_DTD_COMMENT = 8;
-  const S_DTD_COMMENT_ENDING = 9;
-  const S_DTD_COMMENT_ENDED = 10;
-  const S_DTD_PI = 11;
-  const S_DTD_PI_ENDING = 12;
-  const S_TEXT = 13;
-  const S_ENTITY = 14;
-  const S_OPEN_WAKA = 15;
-  const S_OPEN_WAKA_BANG = 16;
-  const S_COMMENT = 17;
-  const S_COMMENT_ENDING = 18;
-  const S_COMMENT_ENDED = 19;
-  const S_CDATA = 20;
-  const S_CDATA_ENDING = 21;
-  const S_CDATA_ENDING_2 = 22;
-  const S_PI_FIRST_CHAR = 23;
-  const S_PI_REST = 24;
-  const S_PI_BODY = 25;
-  const S_PI_ENDING = 26;
-  const S_XML_DECL_NAME_START = 27;
-  const S_XML_DECL_NAME = 28;
-  const S_XML_DECL_EQ = 29;
-  const S_XML_DECL_VALUE_START = 30;
-  const S_XML_DECL_VALUE = 31;
-  const S_XML_DECL_SEPARATOR = 32;
-  const S_XML_DECL_ENDING = 33;
-  const S_OPEN_TAG = 34;
-  const S_OPEN_TAG_SLASH = 35;
-  const S_ATTRIB = 36;
-  const S_ATTRIB_NAME = 37;
-  const S_ATTRIB_NAME_SAW_WHITE = 38;
-  const S_ATTRIB_VALUE = 39;
-  const S_ATTRIB_VALUE_QUOTED = 40;
-  const S_ATTRIB_VALUE_CLOSED = 41;
-  const S_ATTRIB_VALUE_UNQUOTED = 42;
-  const S_CLOSE_TAG = 43;
-  const S_CLOSE_TAG_SAW_WHITE = 44;
-  const TAB = 9;
-  const NL = 10;
-  const CR = 13;
-  const SPACE = 32;
-  const BANG = 33;
-  const DQUOTE = 34;
-  const AMP = 38;
-  const SQUOTE = 39;
-  const MINUS = 45;
-  const FORWARD_SLASH = 47;
-  const SEMICOLON = 59;
-  const LESS = 60;
-  const EQUAL = 61;
-  const GREATER = 62;
-  const QUESTION = 63;
-  const OPEN_BRACKET = 91;
-  const CLOSE_BRACKET = 93;
-  const NEL = 133;
-  const LS = 8232;
-  const isQuote = (c) => c === DQUOTE || c === SQUOTE;
-  const QUOTES = [DQUOTE, SQUOTE];
-  const DOCTYPE_TERMINATOR = [...QUOTES, OPEN_BRACKET, GREATER];
-  const DTD_TERMINATOR = [...QUOTES, LESS, CLOSE_BRACKET];
-  const XML_DECL_NAME_TERMINATOR = [EQUAL, QUESTION, ...S_LIST];
-  const ATTRIB_VALUE_UNQUOTED_TERMINATOR = [...S_LIST, GREATER, AMP, LESS];
-  function nsPairCheck(parser2, prefix, uri) {
-    switch (prefix) {
-      case "xml":
-        if (uri !== XML_NAMESPACE) {
-          parser2.fail(`xml prefix must be bound to ${XML_NAMESPACE}.`);
-        }
-        break;
-      case "xmlns":
-        if (uri !== XMLNS_NAMESPACE) {
-          parser2.fail(`xmlns prefix must be bound to ${XMLNS_NAMESPACE}.`);
-        }
-        break;
-    }
-    switch (uri) {
-      case XMLNS_NAMESPACE:
-        parser2.fail(prefix === "" ? `the default namespace may not be set to ${uri}.` : `may not assign a prefix (even "xmlns") to the URI ${XMLNS_NAMESPACE}.`);
-        break;
-      case XML_NAMESPACE:
-        switch (prefix) {
-          case "xml":
-            break;
-          case "":
-            parser2.fail(`the default namespace may not be set to ${uri}.`);
-            break;
-          default:
-            parser2.fail("may not assign the xml namespace to another prefix.");
-        }
-        break;
-    }
-  }
-  function nsMappingCheck(parser2, mapping) {
-    for (const local of Object.keys(mapping)) {
-      nsPairCheck(parser2, local, mapping[local]);
-    }
-  }
-  const isNCName = (name) => NC_NAME_RE.test(name);
-  const isName = (name) => NAME_RE.test(name);
-  const FORBIDDEN_START = 0;
-  const FORBIDDEN_BRACKET = 1;
-  const FORBIDDEN_BRACKET_BRACKET = 2;
-  saxes.EVENTS = [
-    "xmldecl",
-    "text",
-    "processinginstruction",
-    "doctype",
-    "comment",
-    "opentagstart",
-    "attribute",
-    "opentag",
-    "closetag",
-    "cdata",
-    "error",
-    "end",
-    "ready"
-  ];
-  const EVENT_NAME_TO_HANDLER_NAME = {
-    xmldecl: "xmldeclHandler",
-    text: "textHandler",
-    processinginstruction: "piHandler",
-    doctype: "doctypeHandler",
-    comment: "commentHandler",
-    opentagstart: "openTagStartHandler",
-    attribute: "attributeHandler",
-    opentag: "openTagHandler",
-    closetag: "closeTagHandler",
-    cdata: "cdataHandler",
-    error: "errorHandler",
-    end: "endHandler",
-    ready: "readyHandler"
-  };
-  class SaxesParser {
-    /**
-     * @param opt The parser options.
-     */
-    constructor(opt) {
-      this.opt = opt !== null && opt !== void 0 ? opt : {};
-      this.fragmentOpt = !!this.opt.fragment;
-      const xmlnsOpt = this.xmlnsOpt = !!this.opt.xmlns;
-      this.trackPosition = this.opt.position !== false;
-      this.fileName = this.opt.fileName;
-      if (xmlnsOpt) {
-        this.nameStartCheck = isNCNameStartChar;
-        this.nameCheck = isNCNameChar;
-        this.isName = isNCName;
-        this.processAttribs = this.processAttribsNS;
-        this.pushAttrib = this.pushAttribNS;
-        this.ns = Object.assign({ __proto__: null }, rootNS);
-        const additional = this.opt.additionalNamespaces;
-        if (additional != null) {
-          nsMappingCheck(this, additional);
-          Object.assign(this.ns, additional);
-        }
-      } else {
-        this.nameStartCheck = isNameStartChar;
-        this.nameCheck = isNameChar;
-        this.isName = isName;
-        this.processAttribs = this.processAttribsPlain;
-        this.pushAttrib = this.pushAttribPlain;
-      }
-      this.stateTable = [
-        /* eslint-disable @typescript-eslint/unbound-method */
-        this.sBegin,
-        this.sBeginWhitespace,
-        this.sDoctype,
-        this.sDoctypeQuote,
-        this.sDTD,
-        this.sDTDQuoted,
-        this.sDTDOpenWaka,
-        this.sDTDOpenWakaBang,
-        this.sDTDComment,
-        this.sDTDCommentEnding,
-        this.sDTDCommentEnded,
-        this.sDTDPI,
-        this.sDTDPIEnding,
-        this.sText,
-        this.sEntity,
-        this.sOpenWaka,
-        this.sOpenWakaBang,
-        this.sComment,
-        this.sCommentEnding,
-        this.sCommentEnded,
-        this.sCData,
-        this.sCDataEnding,
-        this.sCDataEnding2,
-        this.sPIFirstChar,
-        this.sPIRest,
-        this.sPIBody,
-        this.sPIEnding,
-        this.sXMLDeclNameStart,
-        this.sXMLDeclName,
-        this.sXMLDeclEq,
-        this.sXMLDeclValueStart,
-        this.sXMLDeclValue,
-        this.sXMLDeclSeparator,
-        this.sXMLDeclEnding,
-        this.sOpenTag,
-        this.sOpenTagSlash,
-        this.sAttrib,
-        this.sAttribName,
-        this.sAttribNameSawWhite,
-        this.sAttribValue,
-        this.sAttribValueQuoted,
-        this.sAttribValueClosed,
-        this.sAttribValueUnquoted,
-        this.sCloseTag,
-        this.sCloseTagSawWhite
-        /* eslint-enable @typescript-eslint/unbound-method */
-      ];
-      this._init();
-    }
-    /**
-     * Indicates whether or not the parser is closed. If ``true``, wait for
-     * the ``ready`` event to write again.
-     */
-    get closed() {
-      return this._closed;
-    }
-    _init() {
-      var _a2;
-      this.openWakaBang = "";
-      this.text = "";
-      this.name = "";
-      this.piTarget = "";
-      this.entity = "";
-      this.q = null;
-      this.tags = [];
-      this.tag = null;
-      this.topNS = null;
-      this.chunk = "";
-      this.chunkPosition = 0;
-      this.i = 0;
-      this.prevI = 0;
-      this.carriedFromPrevious = void 0;
-      this.forbiddenState = FORBIDDEN_START;
-      this.attribList = [];
-      const { fragmentOpt } = this;
-      this.state = fragmentOpt ? S_TEXT : S_BEGIN;
-      this.reportedTextBeforeRoot = this.reportedTextAfterRoot = this.closedRoot = this.sawRoot = fragmentOpt;
-      this.xmlDeclPossible = !fragmentOpt;
-      this.xmlDeclExpects = ["version"];
-      this.entityReturnState = void 0;
-      let { defaultXMLVersion } = this.opt;
-      if (defaultXMLVersion === void 0) {
-        if (this.opt.forceXMLVersion === true) {
-          throw new Error("forceXMLVersion set but defaultXMLVersion is not set");
-        }
-        defaultXMLVersion = "1.0";
-      }
-      this.setXMLVersion(defaultXMLVersion);
-      this.positionAtNewLine = 0;
-      this.doctype = false;
-      this._closed = false;
-      this.xmlDecl = {
-        version: void 0,
-        encoding: void 0,
-        standalone: void 0
-      };
-      this.line = 1;
-      this.column = 0;
-      this.ENTITIES = Object.create(XML_ENTITIES);
-      (_a2 = this.readyHandler) === null || _a2 === void 0 ? void 0 : _a2.call(this);
-    }
-    /**
-     * The stream position the parser is currently looking at. This field is
-     * zero-based.
-     *
-     * This field is not based on counting Unicode characters but is to be
-     * interpreted as a plain index into a JavaScript string.
-     */
-    get position() {
-      return this.chunkPosition + this.i;
-    }
-    /**
-     * The column number of the next character to be read by the parser.  *
-     * This field is zero-based. (The first column in a line is 0.)
-     *
-     * This field reports the index at which the next character would be in the
-     * line if the line were represented as a JavaScript string.  Note that this
-     * *can* be different to a count based on the number of *Unicode characters*
-     * due to how JavaScript handles astral plane characters.
-     *
-     * See [[column]] for a number that corresponds to a count of Unicode
-     * characters.
-     */
-    get columnIndex() {
-      return this.position - this.positionAtNewLine;
-    }
-    /**
-     * Set an event listener on an event. The parser supports one handler per
-     * event type. If you try to set an event handler over an existing handler,
-     * the old handler is silently overwritten.
-     *
-     * @param name The event to listen to.
-     *
-     * @param handler The handler to set.
-     */
-    on(name, handler) {
-      this[EVENT_NAME_TO_HANDLER_NAME[name]] = handler;
-    }
-    /**
-     * Unset an event handler.
-     *
-     * @parma name The event to stop listening to.
-     */
-    off(name) {
-      this[EVENT_NAME_TO_HANDLER_NAME[name]] = void 0;
-    }
-    /**
-     * Make an error object. The error object will have a message that contains
-     * the ``fileName`` option passed at the creation of the parser. If position
-     * tracking was turned on, it will also have line and column number
-     * information.
-     *
-     * @param message The message describing the error to report.
-     *
-     * @returns An error object with a properly formatted message.
-     */
-    makeError(message) {
-      var _a2;
-      let msg = (_a2 = this.fileName) !== null && _a2 !== void 0 ? _a2 : "";
-      if (this.trackPosition) {
-        if (msg.length > 0) {
-          msg += ":";
-        }
-        msg += `${this.line}:${this.column}`;
-      }
-      if (msg.length > 0) {
-        msg += ": ";
-      }
-      return new Error(msg + message);
-    }
-    /**
-     * Report a parsing error. This method is made public so that client code may
-     * check for issues that are outside the scope of this project and can report
-     * errors.
-     *
-     * @param message The error to report.
-     *
-     * @returns this
-     */
-    fail(message) {
-      const err2 = this.makeError(message);
-      const handler = this.errorHandler;
-      if (handler === void 0) {
-        throw err2;
-      } else {
-        handler(err2);
-      }
-      return this;
-    }
-    /**
-     * Write a XML data to the parser.
-     *
-     * @param chunk The XML data to write.
-     *
-     * @returns this
-     */
-    // We do need object for the type here. Yes, it often causes problems
-    // but not in this case.
-    write(chunk) {
-      if (this.closed) {
-        return this.fail("cannot write after close; assign an onready handler.");
-      }
-      let end = false;
-      if (chunk === null) {
-        end = true;
-        chunk = "";
-      } else if (typeof chunk === "object") {
-        chunk = chunk.toString();
-      }
-      if (this.carriedFromPrevious !== void 0) {
-        chunk = `${this.carriedFromPrevious}${chunk}`;
-        this.carriedFromPrevious = void 0;
-      }
-      let limit = chunk.length;
-      const lastCode = chunk.charCodeAt(limit - 1);
-      if (!end && // A trailing CR or surrogate must be carried over to the next
-      // chunk.
-      (lastCode === CR || lastCode >= 55296 && lastCode <= 56319)) {
-        this.carriedFromPrevious = chunk[limit - 1];
-        limit--;
-        chunk = chunk.slice(0, limit);
-      }
-      const { stateTable } = this;
-      this.chunk = chunk;
-      this.i = 0;
-      while (this.i < limit) {
-        stateTable[this.state].call(this);
-      }
-      this.chunkPosition += limit;
-      return end ? this.end() : this;
-    }
-    /**
-     * Close the current stream. Perform final well-formedness checks and reset
-     * the parser tstate.
-     *
-     * @returns this
-     */
-    close() {
-      return this.write(null);
-    }
-    /**
-     * Get a single code point out of the current chunk. This updates the current
-     * position if we do position tracking.
-     *
-     * This is the algorithm to use for XML 1.0.
-     *
-     * @returns The character read.
-     */
-    getCode10() {
-      const { chunk, i: i2 } = this;
-      this.prevI = i2;
-      this.i = i2 + 1;
-      if (i2 >= chunk.length) {
-        return EOC;
-      }
-      const code = chunk.charCodeAt(i2);
-      this.column++;
-      if (code < 55296) {
-        if (code >= SPACE || code === TAB) {
-          return code;
-        }
-        switch (code) {
-          case NL:
-            this.line++;
-            this.column = 0;
-            this.positionAtNewLine = this.position;
-            return NL;
-          case CR:
-            if (chunk.charCodeAt(i2 + 1) === NL) {
-              this.i = i2 + 2;
-            }
-            this.line++;
-            this.column = 0;
-            this.positionAtNewLine = this.position;
-            return NL_LIKE;
-          default:
-            this.fail("disallowed character.");
-            return code;
-        }
-      }
-      if (code > 56319) {
-        if (!(code >= 57344 && code <= 65533)) {
-          this.fail("disallowed character.");
-        }
-        return code;
-      }
-      const final = 65536 + (code - 55296) * 1024 + (chunk.charCodeAt(i2 + 1) - 56320);
-      this.i = i2 + 2;
-      if (final > 1114111) {
-        this.fail("disallowed character.");
-      }
-      return final;
-    }
-    /**
-     * Get a single code point out of the current chunk. This updates the current
-     * position if we do position tracking.
-     *
-     * This is the algorithm to use for XML 1.1.
-     *
-     * @returns {number} The character read.
-     */
-    getCode11() {
-      const { chunk, i: i2 } = this;
-      this.prevI = i2;
-      this.i = i2 + 1;
-      if (i2 >= chunk.length) {
-        return EOC;
-      }
-      const code = chunk.charCodeAt(i2);
-      this.column++;
-      if (code < 55296) {
-        if (code > 31 && code < 127 || code > 159 && code !== LS || code === TAB) {
-          return code;
-        }
-        switch (code) {
-          case NL:
-            this.line++;
-            this.column = 0;
-            this.positionAtNewLine = this.position;
-            return NL;
-          case CR: {
-            const next = chunk.charCodeAt(i2 + 1);
-            if (next === NL || next === NEL) {
-              this.i = i2 + 2;
-            }
-          }
-          /* yes, fall through */
-          case NEL:
-          // 0x85
-          case LS:
-            this.line++;
-            this.column = 0;
-            this.positionAtNewLine = this.position;
-            return NL_LIKE;
-          default:
-            this.fail("disallowed character.");
-            return code;
-        }
-      }
-      if (code > 56319) {
-        if (!(code >= 57344 && code <= 65533)) {
-          this.fail("disallowed character.");
-        }
-        return code;
-      }
-      const final = 65536 + (code - 55296) * 1024 + (chunk.charCodeAt(i2 + 1) - 56320);
-      this.i = i2 + 2;
-      if (final > 1114111) {
-        this.fail("disallowed character.");
-      }
-      return final;
-    }
-    /**
-     * Like ``getCode`` but with the return value normalized so that ``NL`` is
-     * returned for ``NL_LIKE``.
-     */
-    getCodeNorm() {
-      const c = this.getCode();
-      return c === NL_LIKE ? NL : c;
-    }
-    unget() {
-      this.i = this.prevI;
-      this.column--;
-    }
-    /**
-     * Capture characters into a buffer until encountering one of a set of
-     * characters.
-     *
-     * @param chars An array of codepoints. Encountering a character in the array
-     * ends the capture. (``chars`` may safely contain ``NL``.)
-     *
-     * @return The character code that made the capture end, or ``EOC`` if we hit
-     * the end of the chunk. The return value cannot be NL_LIKE: NL is returned
-     * instead.
-     */
-    captureTo(chars) {
-      let { i: start2 } = this;
-      const { chunk } = this;
-      while (true) {
-        const c = this.getCode();
-        const isNLLike = c === NL_LIKE;
-        const final = isNLLike ? NL : c;
-        if (final === EOC || chars.includes(final)) {
-          this.text += chunk.slice(start2, this.prevI);
-          return final;
-        }
-        if (isNLLike) {
-          this.text += `${chunk.slice(start2, this.prevI)}
-`;
-          start2 = this.i;
-        }
-      }
-    }
-    /**
-     * Capture characters into a buffer until encountering a character.
-     *
-     * @param char The codepoint that ends the capture. **NOTE ``char`` MAY NOT
-     * CONTAIN ``NL``.** Passing ``NL`` will result in buggy behavior.
-     *
-     * @return ``true`` if we ran into the character. Otherwise, we ran into the
-     * end of the current chunk.
-     */
-    captureToChar(char) {
-      let { i: start2 } = this;
-      const { chunk } = this;
-      while (true) {
-        let c = this.getCode();
-        switch (c) {
-          case NL_LIKE:
-            this.text += `${chunk.slice(start2, this.prevI)}
-`;
-            start2 = this.i;
-            c = NL;
-            break;
-          case EOC:
-            this.text += chunk.slice(start2);
-            return false;
-        }
-        if (c === char) {
-          this.text += chunk.slice(start2, this.prevI);
-          return true;
-        }
-      }
-    }
-    /**
-     * Capture characters that satisfy ``isNameChar`` into the ``name`` field of
-     * this parser.
-     *
-     * @return The character code that made the test fail, or ``EOC`` if we hit
-     * the end of the chunk. The return value cannot be NL_LIKE: NL is returned
-     * instead.
-     */
-    captureNameChars() {
-      const { chunk, i: start2 } = this;
-      while (true) {
-        const c = this.getCode();
-        if (c === EOC) {
-          this.name += chunk.slice(start2);
-          return EOC;
-        }
-        if (!isNameChar(c)) {
-          this.name += chunk.slice(start2, this.prevI);
-          return c === NL_LIKE ? NL : c;
-        }
-      }
-    }
-    /**
-     * Skip white spaces.
-     *
-     * @return The character that ended the skip, or ``EOC`` if we hit
-     * the end of the chunk. The return value cannot be NL_LIKE: NL is returned
-     * instead.
-     */
-    skipSpaces() {
-      while (true) {
-        const c = this.getCodeNorm();
-        if (c === EOC || !isS(c)) {
-          return c;
-        }
-      }
-    }
-    setXMLVersion(version2) {
-      this.currentXMLVersion = version2;
-      if (version2 === "1.0") {
-        this.isChar = isChar10;
-        this.getCode = this.getCode10;
-      } else {
-        this.isChar = isChar11;
-        this.getCode = this.getCode11;
-      }
-    }
-    // STATE ENGINE METHODS
-    // This needs to be a state separate from S_BEGIN_WHITESPACE because we want
-    // to be sure never to come back to this state later.
-    sBegin() {
-      if (this.chunk.charCodeAt(0) === 65279) {
-        this.i++;
-        this.column++;
-      }
-      this.state = S_BEGIN_WHITESPACE;
-    }
-    sBeginWhitespace() {
-      const iBefore = this.i;
-      const c = this.skipSpaces();
-      if (this.prevI !== iBefore) {
-        this.xmlDeclPossible = false;
-      }
-      switch (c) {
-        case LESS:
-          this.state = S_OPEN_WAKA;
-          if (this.text.length !== 0) {
-            throw new Error("no-empty text at start");
-          }
-          break;
-        case EOC:
-          break;
-        default:
-          this.unget();
-          this.state = S_TEXT;
-          this.xmlDeclPossible = false;
-      }
-    }
-    sDoctype() {
-      var _a2;
-      const c = this.captureTo(DOCTYPE_TERMINATOR);
-      switch (c) {
-        case GREATER: {
-          (_a2 = this.doctypeHandler) === null || _a2 === void 0 ? void 0 : _a2.call(this, this.text);
-          this.text = "";
-          this.state = S_TEXT;
-          this.doctype = true;
-          break;
-        }
-        case EOC:
-          break;
-        default:
-          this.text += String.fromCodePoint(c);
-          if (c === OPEN_BRACKET) {
-            this.state = S_DTD;
-          } else if (isQuote(c)) {
-            this.state = S_DOCTYPE_QUOTE;
-            this.q = c;
-          }
-      }
-    }
-    sDoctypeQuote() {
-      const q = this.q;
-      if (this.captureToChar(q)) {
-        this.text += String.fromCodePoint(q);
-        this.q = null;
-        this.state = S_DOCTYPE;
-      }
-    }
-    sDTD() {
-      const c = this.captureTo(DTD_TERMINATOR);
-      if (c === EOC) {
-        return;
-      }
-      this.text += String.fromCodePoint(c);
-      if (c === CLOSE_BRACKET) {
-        this.state = S_DOCTYPE;
-      } else if (c === LESS) {
-        this.state = S_DTD_OPEN_WAKA;
-      } else if (isQuote(c)) {
-        this.state = S_DTD_QUOTED;
-        this.q = c;
-      }
-    }
-    sDTDQuoted() {
-      const q = this.q;
-      if (this.captureToChar(q)) {
-        this.text += String.fromCodePoint(q);
-        this.state = S_DTD;
-        this.q = null;
-      }
-    }
-    sDTDOpenWaka() {
-      const c = this.getCodeNorm();
-      this.text += String.fromCodePoint(c);
-      switch (c) {
-        case BANG:
-          this.state = S_DTD_OPEN_WAKA_BANG;
-          this.openWakaBang = "";
-          break;
-        case QUESTION:
-          this.state = S_DTD_PI;
-          break;
-        default:
-          this.state = S_DTD;
-      }
-    }
-    sDTDOpenWakaBang() {
-      const char = String.fromCodePoint(this.getCodeNorm());
-      const owb = this.openWakaBang += char;
-      this.text += char;
-      if (owb !== "-") {
-        this.state = owb === "--" ? S_DTD_COMMENT : S_DTD;
-        this.openWakaBang = "";
-      }
-    }
-    sDTDComment() {
-      if (this.captureToChar(MINUS)) {
-        this.text += "-";
-        this.state = S_DTD_COMMENT_ENDING;
-      }
-    }
-    sDTDCommentEnding() {
-      const c = this.getCodeNorm();
-      this.text += String.fromCodePoint(c);
-      this.state = c === MINUS ? S_DTD_COMMENT_ENDED : S_DTD_COMMENT;
-    }
-    sDTDCommentEnded() {
-      const c = this.getCodeNorm();
-      this.text += String.fromCodePoint(c);
-      if (c === GREATER) {
-        this.state = S_DTD;
-      } else {
-        this.fail("malformed comment.");
-        this.state = S_DTD_COMMENT;
-      }
-    }
-    sDTDPI() {
-      if (this.captureToChar(QUESTION)) {
-        this.text += "?";
-        this.state = S_DTD_PI_ENDING;
-      }
-    }
-    sDTDPIEnding() {
-      const c = this.getCodeNorm();
-      this.text += String.fromCodePoint(c);
-      if (c === GREATER) {
-        this.state = S_DTD;
-      }
-    }
-    sText() {
-      if (this.tags.length !== 0) {
-        this.handleTextInRoot();
-      } else {
-        this.handleTextOutsideRoot();
-      }
-    }
-    sEntity() {
-      let { i: start2 } = this;
-      const { chunk } = this;
-      loop:
-        while (true) {
-          switch (this.getCode()) {
-            case NL_LIKE:
-              this.entity += `${chunk.slice(start2, this.prevI)}
-`;
-              start2 = this.i;
-              break;
-            case SEMICOLON: {
-              const { entityReturnState } = this;
-              const entity = this.entity + chunk.slice(start2, this.prevI);
-              this.state = entityReturnState;
-              let parsed;
-              if (entity === "") {
-                this.fail("empty entity name.");
-                parsed = "&;";
-              } else {
-                parsed = this.parseEntity(entity);
-                this.entity = "";
-              }
-              if (entityReturnState !== S_TEXT || this.textHandler !== void 0) {
-                this.text += parsed;
-              }
-              break loop;
-            }
-            case EOC:
-              this.entity += chunk.slice(start2);
-              break loop;
-          }
-        }
-    }
-    sOpenWaka() {
-      const c = this.getCode();
-      if (isNameStartChar(c)) {
-        this.state = S_OPEN_TAG;
-        this.unget();
-        this.xmlDeclPossible = false;
-      } else {
-        switch (c) {
-          case FORWARD_SLASH:
-            this.state = S_CLOSE_TAG;
-            this.xmlDeclPossible = false;
-            break;
-          case BANG:
-            this.state = S_OPEN_WAKA_BANG;
-            this.openWakaBang = "";
-            this.xmlDeclPossible = false;
-            break;
-          case QUESTION:
-            this.state = S_PI_FIRST_CHAR;
-            break;
-          default:
-            this.fail("disallowed character in tag name");
-            this.state = S_TEXT;
-            this.xmlDeclPossible = false;
-        }
-      }
-    }
-    sOpenWakaBang() {
-      this.openWakaBang += String.fromCodePoint(this.getCodeNorm());
-      switch (this.openWakaBang) {
-        case "[CDATA[":
-          if (!this.sawRoot && !this.reportedTextBeforeRoot) {
-            this.fail("text data outside of root node.");
-            this.reportedTextBeforeRoot = true;
-          }
-          if (this.closedRoot && !this.reportedTextAfterRoot) {
-            this.fail("text data outside of root node.");
-            this.reportedTextAfterRoot = true;
-          }
-          this.state = S_CDATA;
-          this.openWakaBang = "";
-          break;
-        case "--":
-          this.state = S_COMMENT;
-          this.openWakaBang = "";
-          break;
-        case "DOCTYPE":
-          this.state = S_DOCTYPE;
-          if (this.doctype || this.sawRoot) {
-            this.fail("inappropriately located doctype declaration.");
-          }
-          this.openWakaBang = "";
-          break;
-        default:
-          if (this.openWakaBang.length >= 7) {
-            this.fail("incorrect syntax.");
-          }
-      }
-    }
-    sComment() {
-      if (this.captureToChar(MINUS)) {
-        this.state = S_COMMENT_ENDING;
-      }
-    }
-    sCommentEnding() {
-      var _a2;
-      const c = this.getCodeNorm();
-      if (c === MINUS) {
-        this.state = S_COMMENT_ENDED;
-        (_a2 = this.commentHandler) === null || _a2 === void 0 ? void 0 : _a2.call(this, this.text);
-        this.text = "";
-      } else {
-        this.text += `-${String.fromCodePoint(c)}`;
-        this.state = S_COMMENT;
-      }
-    }
-    sCommentEnded() {
-      const c = this.getCodeNorm();
-      if (c !== GREATER) {
-        this.fail("malformed comment.");
-        this.text += `--${String.fromCodePoint(c)}`;
-        this.state = S_COMMENT;
-      } else {
-        this.state = S_TEXT;
-      }
-    }
-    sCData() {
-      if (this.captureToChar(CLOSE_BRACKET)) {
-        this.state = S_CDATA_ENDING;
-      }
-    }
-    sCDataEnding() {
-      const c = this.getCodeNorm();
-      if (c === CLOSE_BRACKET) {
-        this.state = S_CDATA_ENDING_2;
-      } else {
-        this.text += `]${String.fromCodePoint(c)}`;
-        this.state = S_CDATA;
-      }
-    }
-    sCDataEnding2() {
-      var _a2;
-      const c = this.getCodeNorm();
-      switch (c) {
-        case GREATER: {
-          (_a2 = this.cdataHandler) === null || _a2 === void 0 ? void 0 : _a2.call(this, this.text);
-          this.text = "";
-          this.state = S_TEXT;
-          break;
-        }
-        case CLOSE_BRACKET:
-          this.text += "]";
-          break;
-        default:
-          this.text += `]]${String.fromCodePoint(c)}`;
-          this.state = S_CDATA;
-      }
-    }
-    // We need this separate state to check the first character fo the pi target
-    // with this.nameStartCheck which allows less characters than this.nameCheck.
-    sPIFirstChar() {
-      const c = this.getCodeNorm();
-      if (this.nameStartCheck(c)) {
-        this.piTarget += String.fromCodePoint(c);
-        this.state = S_PI_REST;
-      } else if (c === QUESTION || isS(c)) {
-        this.fail("processing instruction without a target.");
-        this.state = c === QUESTION ? S_PI_ENDING : S_PI_BODY;
-      } else {
-        this.fail("disallowed character in processing instruction name.");
-        this.piTarget += String.fromCodePoint(c);
-        this.state = S_PI_REST;
-      }
-    }
-    sPIRest() {
-      const { chunk, i: start2 } = this;
-      while (true) {
-        const c = this.getCodeNorm();
-        if (c === EOC) {
-          this.piTarget += chunk.slice(start2);
-          return;
-        }
-        if (!this.nameCheck(c)) {
-          this.piTarget += chunk.slice(start2, this.prevI);
-          const isQuestion = c === QUESTION;
-          if (isQuestion || isS(c)) {
-            if (this.piTarget === "xml") {
-              if (!this.xmlDeclPossible) {
-                this.fail("an XML declaration must be at the start of the document.");
-              }
-              this.state = isQuestion ? S_XML_DECL_ENDING : S_XML_DECL_NAME_START;
-            } else {
-              this.state = isQuestion ? S_PI_ENDING : S_PI_BODY;
-            }
-          } else {
-            this.fail("disallowed character in processing instruction name.");
-            this.piTarget += String.fromCodePoint(c);
-          }
-          break;
-        }
-      }
-    }
-    sPIBody() {
-      if (this.text.length === 0) {
-        const c = this.getCodeNorm();
-        if (c === QUESTION) {
-          this.state = S_PI_ENDING;
-        } else if (!isS(c)) {
-          this.text = String.fromCodePoint(c);
-        }
-      } else if (this.captureToChar(QUESTION)) {
-        this.state = S_PI_ENDING;
-      }
-    }
-    sPIEnding() {
-      var _a2;
-      const c = this.getCodeNorm();
-      if (c === GREATER) {
-        const { piTarget } = this;
-        if (piTarget.toLowerCase() === "xml") {
-          this.fail("the XML declaration must appear at the start of the document.");
-        }
-        (_a2 = this.piHandler) === null || _a2 === void 0 ? void 0 : _a2.call(this, {
-          target: piTarget,
-          body: this.text
-        });
-        this.piTarget = this.text = "";
-        this.state = S_TEXT;
-      } else if (c === QUESTION) {
-        this.text += "?";
-      } else {
-        this.text += `?${String.fromCodePoint(c)}`;
-        this.state = S_PI_BODY;
-      }
-      this.xmlDeclPossible = false;
-    }
-    sXMLDeclNameStart() {
-      const c = this.skipSpaces();
-      if (c === QUESTION) {
-        this.state = S_XML_DECL_ENDING;
-        return;
-      }
-      if (c !== EOC) {
-        this.state = S_XML_DECL_NAME;
-        this.name = String.fromCodePoint(c);
-      }
-    }
-    sXMLDeclName() {
-      const c = this.captureTo(XML_DECL_NAME_TERMINATOR);
-      if (c === QUESTION) {
-        this.state = S_XML_DECL_ENDING;
-        this.name += this.text;
-        this.text = "";
-        this.fail("XML declaration is incomplete.");
-        return;
-      }
-      if (!(isS(c) || c === EQUAL)) {
-        return;
-      }
-      this.name += this.text;
-      this.text = "";
-      if (!this.xmlDeclExpects.includes(this.name)) {
-        switch (this.name.length) {
-          case 0:
-            this.fail("did not expect any more name/value pairs.");
-            break;
-          case 1:
-            this.fail(`expected the name ${this.xmlDeclExpects[0]}.`);
-            break;
-          default:
-            this.fail(`expected one of ${this.xmlDeclExpects.join(", ")}`);
-        }
-      }
-      this.state = c === EQUAL ? S_XML_DECL_VALUE_START : S_XML_DECL_EQ;
-    }
-    sXMLDeclEq() {
-      const c = this.getCodeNorm();
-      if (c === QUESTION) {
-        this.state = S_XML_DECL_ENDING;
-        this.fail("XML declaration is incomplete.");
-        return;
-      }
-      if (isS(c)) {
-        return;
-      }
-      if (c !== EQUAL) {
-        this.fail("value required.");
-      }
-      this.state = S_XML_DECL_VALUE_START;
-    }
-    sXMLDeclValueStart() {
-      const c = this.getCodeNorm();
-      if (c === QUESTION) {
-        this.state = S_XML_DECL_ENDING;
-        this.fail("XML declaration is incomplete.");
-        return;
-      }
-      if (isS(c)) {
-        return;
-      }
-      if (!isQuote(c)) {
-        this.fail("value must be quoted.");
-        this.q = SPACE;
-      } else {
-        this.q = c;
-      }
-      this.state = S_XML_DECL_VALUE;
-    }
-    sXMLDeclValue() {
-      const c = this.captureTo([this.q, QUESTION]);
-      if (c === QUESTION) {
-        this.state = S_XML_DECL_ENDING;
-        this.text = "";
-        this.fail("XML declaration is incomplete.");
-        return;
-      }
-      if (c === EOC) {
-        return;
-      }
-      const value = this.text;
-      this.text = "";
-      switch (this.name) {
-        case "version": {
-          this.xmlDeclExpects = ["encoding", "standalone"];
-          const version2 = value;
-          this.xmlDecl.version = version2;
-          if (!/^1\.[0-9]+$/.test(version2)) {
-            this.fail("version number must match /^1\\.[0-9]+$/.");
-          } else if (!this.opt.forceXMLVersion) {
-            this.setXMLVersion(version2);
-          }
-          break;
-        }
-        case "encoding":
-          if (!/^[A-Za-z][A-Za-z0-9._-]*$/.test(value)) {
-            this.fail("encoding value must match 	/^[A-Za-z0-9][A-Za-z0-9._-]*$/.");
-          }
-          this.xmlDeclExpects = ["standalone"];
-          this.xmlDecl.encoding = value;
-          break;
-        case "standalone":
-          if (value !== "yes" && value !== "no") {
-            this.fail('standalone value must match "yes" or "no".');
-          }
-          this.xmlDeclExpects = [];
-          this.xmlDecl.standalone = value;
-          break;
-      }
-      this.name = "";
-      this.state = S_XML_DECL_SEPARATOR;
-    }
-    sXMLDeclSeparator() {
-      const c = this.getCodeNorm();
-      if (c === QUESTION) {
-        this.state = S_XML_DECL_ENDING;
-        return;
-      }
-      if (!isS(c)) {
-        this.fail("whitespace required.");
-        this.unget();
-      }
-      this.state = S_XML_DECL_NAME_START;
-    }
-    sXMLDeclEnding() {
-      var _a2;
-      const c = this.getCodeNorm();
-      if (c === GREATER) {
-        if (this.piTarget !== "xml") {
-          this.fail("processing instructions are not allowed before root.");
-        } else if (this.name !== "version" && this.xmlDeclExpects.includes("version")) {
-          this.fail("XML declaration must contain a version.");
-        }
-        (_a2 = this.xmldeclHandler) === null || _a2 === void 0 ? void 0 : _a2.call(this, this.xmlDecl);
-        this.name = "";
-        this.piTarget = this.text = "";
-        this.state = S_TEXT;
-      } else {
-        this.fail("The character ? is disallowed anywhere in XML declarations.");
-      }
-      this.xmlDeclPossible = false;
-    }
-    sOpenTag() {
-      var _a2;
-      const c = this.captureNameChars();
-      if (c === EOC) {
-        return;
-      }
-      const tag = this.tag = {
-        name: this.name,
-        attributes: /* @__PURE__ */ Object.create(null)
-      };
-      this.name = "";
-      if (this.xmlnsOpt) {
-        this.topNS = tag.ns = /* @__PURE__ */ Object.create(null);
-      }
-      (_a2 = this.openTagStartHandler) === null || _a2 === void 0 ? void 0 : _a2.call(this, tag);
-      this.sawRoot = true;
-      if (!this.fragmentOpt && this.closedRoot) {
-        this.fail("documents may contain only one root.");
-      }
-      switch (c) {
-        case GREATER:
-          this.openTag();
-          break;
-        case FORWARD_SLASH:
-          this.state = S_OPEN_TAG_SLASH;
-          break;
-        default:
-          if (!isS(c)) {
-            this.fail("disallowed character in tag name.");
-          }
-          this.state = S_ATTRIB;
-      }
-    }
-    sOpenTagSlash() {
-      if (this.getCode() === GREATER) {
-        this.openSelfClosingTag();
-      } else {
-        this.fail("forward-slash in opening tag not followed by >.");
-        this.state = S_ATTRIB;
-      }
-    }
-    sAttrib() {
-      const c = this.skipSpaces();
-      if (c === EOC) {
-        return;
-      }
-      if (isNameStartChar(c)) {
-        this.unget();
-        this.state = S_ATTRIB_NAME;
-      } else if (c === GREATER) {
-        this.openTag();
-      } else if (c === FORWARD_SLASH) {
-        this.state = S_OPEN_TAG_SLASH;
-      } else {
-        this.fail("disallowed character in attribute name.");
-      }
-    }
-    sAttribName() {
-      const c = this.captureNameChars();
-      if (c === EQUAL) {
-        this.state = S_ATTRIB_VALUE;
-      } else if (isS(c)) {
-        this.state = S_ATTRIB_NAME_SAW_WHITE;
-      } else if (c === GREATER) {
-        this.fail("attribute without value.");
-        this.pushAttrib(this.name, this.name);
-        this.name = this.text = "";
-        this.openTag();
-      } else if (c !== EOC) {
-        this.fail("disallowed character in attribute name.");
-      }
-    }
-    sAttribNameSawWhite() {
-      const c = this.skipSpaces();
-      switch (c) {
-        case EOC:
-          return;
-        case EQUAL:
-          this.state = S_ATTRIB_VALUE;
-          break;
-        default:
-          this.fail("attribute without value.");
-          this.text = "";
-          this.name = "";
-          if (c === GREATER) {
-            this.openTag();
-          } else if (isNameStartChar(c)) {
-            this.unget();
-            this.state = S_ATTRIB_NAME;
-          } else {
-            this.fail("disallowed character in attribute name.");
-            this.state = S_ATTRIB;
-          }
-      }
-    }
-    sAttribValue() {
-      const c = this.getCodeNorm();
-      if (isQuote(c)) {
-        this.q = c;
-        this.state = S_ATTRIB_VALUE_QUOTED;
-      } else if (!isS(c)) {
-        this.fail("unquoted attribute value.");
-        this.state = S_ATTRIB_VALUE_UNQUOTED;
-        this.unget();
-      }
-    }
-    sAttribValueQuoted() {
-      const { q, chunk } = this;
-      let { i: start2 } = this;
-      while (true) {
-        switch (this.getCode()) {
-          case q:
-            this.pushAttrib(this.name, this.text + chunk.slice(start2, this.prevI));
-            this.name = this.text = "";
-            this.q = null;
-            this.state = S_ATTRIB_VALUE_CLOSED;
-            return;
-          case AMP:
-            this.text += chunk.slice(start2, this.prevI);
-            this.state = S_ENTITY;
-            this.entityReturnState = S_ATTRIB_VALUE_QUOTED;
-            return;
-          case NL:
-          case NL_LIKE:
-          case TAB:
-            this.text += `${chunk.slice(start2, this.prevI)} `;
-            start2 = this.i;
-            break;
-          case LESS:
-            this.text += chunk.slice(start2, this.prevI);
-            this.fail("disallowed character.");
-            return;
-          case EOC:
-            this.text += chunk.slice(start2);
-            return;
-        }
-      }
-    }
-    sAttribValueClosed() {
-      const c = this.getCodeNorm();
-      if (isS(c)) {
-        this.state = S_ATTRIB;
-      } else if (c === GREATER) {
-        this.openTag();
-      } else if (c === FORWARD_SLASH) {
-        this.state = S_OPEN_TAG_SLASH;
-      } else if (isNameStartChar(c)) {
-        this.fail("no whitespace between attributes.");
-        this.unget();
-        this.state = S_ATTRIB_NAME;
-      } else {
-        this.fail("disallowed character in attribute name.");
-      }
-    }
-    sAttribValueUnquoted() {
-      const c = this.captureTo(ATTRIB_VALUE_UNQUOTED_TERMINATOR);
-      switch (c) {
-        case AMP:
-          this.state = S_ENTITY;
-          this.entityReturnState = S_ATTRIB_VALUE_UNQUOTED;
-          break;
-        case LESS:
-          this.fail("disallowed character.");
-          break;
-        case EOC:
-          break;
-        default:
-          if (this.text.includes("]]>")) {
-            this.fail('the string "]]>" is disallowed in char data.');
-          }
-          this.pushAttrib(this.name, this.text);
-          this.name = this.text = "";
-          if (c === GREATER) {
-            this.openTag();
-          } else {
-            this.state = S_ATTRIB;
-          }
-      }
-    }
-    sCloseTag() {
-      const c = this.captureNameChars();
-      if (c === GREATER) {
-        this.closeTag();
-      } else if (isS(c)) {
-        this.state = S_CLOSE_TAG_SAW_WHITE;
-      } else if (c !== EOC) {
-        this.fail("disallowed character in closing tag.");
-      }
-    }
-    sCloseTagSawWhite() {
-      switch (this.skipSpaces()) {
-        case GREATER:
-          this.closeTag();
-          break;
-        case EOC:
-          break;
-        default:
-          this.fail("disallowed character in closing tag.");
-      }
-    }
-    // END OF STATE ENGINE METHODS
-    handleTextInRoot() {
-      let { i: start2, forbiddenState } = this;
-      const { chunk, textHandler: handler } = this;
-      scanLoop:
-        while (true) {
-          switch (this.getCode()) {
-            case LESS: {
-              this.state = S_OPEN_WAKA;
-              if (handler !== void 0) {
-                const { text: text2 } = this;
-                const slice = chunk.slice(start2, this.prevI);
-                if (text2.length !== 0) {
-                  handler(text2 + slice);
-                  this.text = "";
-                } else if (slice.length !== 0) {
-                  handler(slice);
-                }
-              }
-              forbiddenState = FORBIDDEN_START;
-              break scanLoop;
-            }
-            case AMP:
-              this.state = S_ENTITY;
-              this.entityReturnState = S_TEXT;
-              if (handler !== void 0) {
-                this.text += chunk.slice(start2, this.prevI);
-              }
-              forbiddenState = FORBIDDEN_START;
-              break scanLoop;
-            case CLOSE_BRACKET:
-              switch (forbiddenState) {
-                case FORBIDDEN_START:
-                  forbiddenState = FORBIDDEN_BRACKET;
-                  break;
-                case FORBIDDEN_BRACKET:
-                  forbiddenState = FORBIDDEN_BRACKET_BRACKET;
-                  break;
-                case FORBIDDEN_BRACKET_BRACKET:
-                  break;
-                default:
-                  throw new Error("impossible state");
-              }
-              break;
-            case GREATER:
-              if (forbiddenState === FORBIDDEN_BRACKET_BRACKET) {
-                this.fail('the string "]]>" is disallowed in char data.');
-              }
-              forbiddenState = FORBIDDEN_START;
-              break;
-            case NL_LIKE:
-              if (handler !== void 0) {
-                this.text += `${chunk.slice(start2, this.prevI)}
-`;
-              }
-              start2 = this.i;
-              forbiddenState = FORBIDDEN_START;
-              break;
-            case EOC:
-              if (handler !== void 0) {
-                this.text += chunk.slice(start2);
-              }
-              break scanLoop;
-            default:
-              forbiddenState = FORBIDDEN_START;
-          }
-        }
-      this.forbiddenState = forbiddenState;
-    }
-    handleTextOutsideRoot() {
-      let { i: start2 } = this;
-      const { chunk, textHandler: handler } = this;
-      let nonSpace = false;
-      outRootLoop:
-        while (true) {
-          const code = this.getCode();
-          switch (code) {
-            case LESS: {
-              this.state = S_OPEN_WAKA;
-              if (handler !== void 0) {
-                const { text: text2 } = this;
-                const slice = chunk.slice(start2, this.prevI);
-                if (text2.length !== 0) {
-                  handler(text2 + slice);
-                  this.text = "";
-                } else if (slice.length !== 0) {
-                  handler(slice);
-                }
-              }
-              break outRootLoop;
-            }
-            case AMP:
-              this.state = S_ENTITY;
-              this.entityReturnState = S_TEXT;
-              if (handler !== void 0) {
-                this.text += chunk.slice(start2, this.prevI);
-              }
-              nonSpace = true;
-              break outRootLoop;
-            case NL_LIKE:
-              if (handler !== void 0) {
-                this.text += `${chunk.slice(start2, this.prevI)}
-`;
-              }
-              start2 = this.i;
-              break;
-            case EOC:
-              if (handler !== void 0) {
-                this.text += chunk.slice(start2);
-              }
-              break outRootLoop;
-            default:
-              if (!isS(code)) {
-                nonSpace = true;
-              }
-          }
-        }
-      if (!nonSpace) {
-        return;
-      }
-      if (!this.sawRoot && !this.reportedTextBeforeRoot) {
-        this.fail("text data outside of root node.");
-        this.reportedTextBeforeRoot = true;
-      }
-      if (this.closedRoot && !this.reportedTextAfterRoot) {
-        this.fail("text data outside of root node.");
-        this.reportedTextAfterRoot = true;
-      }
-    }
-    pushAttribNS(name, value) {
-      var _a2;
-      const { prefix, local } = this.qname(name);
-      const attr = { name, prefix, local, value };
-      this.attribList.push(attr);
-      (_a2 = this.attributeHandler) === null || _a2 === void 0 ? void 0 : _a2.call(this, attr);
-      if (prefix === "xmlns") {
-        const trimmed = value.trim();
-        if (this.currentXMLVersion === "1.0" && trimmed === "") {
-          this.fail("invalid attempt to undefine prefix in XML 1.0");
-        }
-        this.topNS[local] = trimmed;
-        nsPairCheck(this, local, trimmed);
-      } else if (name === "xmlns") {
-        const trimmed = value.trim();
-        this.topNS[""] = trimmed;
-        nsPairCheck(this, "", trimmed);
-      }
-    }
-    pushAttribPlain(name, value) {
-      var _a2;
-      const attr = { name, value };
-      this.attribList.push(attr);
-      (_a2 = this.attributeHandler) === null || _a2 === void 0 ? void 0 : _a2.call(this, attr);
-    }
-    /**
-     * End parsing. This performs final well-formedness checks and resets the
-     * parser to a clean state.
-     *
-     * @returns this
-     */
-    end() {
-      var _a2, _b2;
-      if (!this.sawRoot) {
-        this.fail("document must contain a root element.");
-      }
-      const { tags } = this;
-      while (tags.length > 0) {
-        const tag = tags.pop();
-        this.fail(`unclosed tag: ${tag.name}`);
-      }
-      if (this.state !== S_BEGIN && this.state !== S_TEXT) {
-        this.fail("unexpected end.");
-      }
-      const { text: text2 } = this;
-      if (text2.length !== 0) {
-        (_a2 = this.textHandler) === null || _a2 === void 0 ? void 0 : _a2.call(this, text2);
-        this.text = "";
-      }
-      this._closed = true;
-      (_b2 = this.endHandler) === null || _b2 === void 0 ? void 0 : _b2.call(this);
-      this._init();
-      return this;
-    }
-    /**
-     * Resolve a namespace prefix.
-     *
-     * @param prefix The prefix to resolve.
-     *
-     * @returns The namespace URI or ``undefined`` if the prefix is not defined.
-     */
-    resolve(prefix) {
-      var _a2, _b2;
-      let uri = this.topNS[prefix];
-      if (uri !== void 0) {
-        return uri;
-      }
-      const { tags } = this;
-      for (let index2 = tags.length - 1; index2 >= 0; index2--) {
-        uri = tags[index2].ns[prefix];
-        if (uri !== void 0) {
-          return uri;
-        }
-      }
-      uri = this.ns[prefix];
-      if (uri !== void 0) {
-        return uri;
-      }
-      return (_b2 = (_a2 = this.opt).resolvePrefix) === null || _b2 === void 0 ? void 0 : _b2.call(_a2, prefix);
-    }
-    /**
-     * Parse a qname into its prefix and local name parts.
-     *
-     * @param name The name to parse
-     *
-     * @returns
-     */
-    qname(name) {
-      const colon = name.indexOf(":");
-      if (colon === -1) {
-        return { prefix: "", local: name };
-      }
-      const local = name.slice(colon + 1);
-      const prefix = name.slice(0, colon);
-      if (prefix === "" || local === "" || local.includes(":")) {
-        this.fail(`malformed name: ${name}.`);
-      }
-      return { prefix, local };
-    }
-    processAttribsNS() {
-      var _a2;
-      const { attribList } = this;
-      const tag = this.tag;
-      {
-        const { prefix, local } = this.qname(tag.name);
-        tag.prefix = prefix;
-        tag.local = local;
-        const uri = tag.uri = (_a2 = this.resolve(prefix)) !== null && _a2 !== void 0 ? _a2 : "";
-        if (prefix !== "") {
-          if (prefix === "xmlns") {
-            this.fail('tags may not have "xmlns" as prefix.');
-          }
-          if (uri === "") {
-            this.fail(`unbound namespace prefix: ${JSON.stringify(prefix)}.`);
-            tag.uri = prefix;
-          }
-        }
-      }
-      if (attribList.length === 0) {
-        return;
-      }
-      const { attributes } = tag;
-      const seen = /* @__PURE__ */ new Set();
-      for (const attr of attribList) {
-        const { name, prefix, local } = attr;
-        let uri;
-        let eqname;
-        if (prefix === "") {
-          uri = name === "xmlns" ? XMLNS_NAMESPACE : "";
-          eqname = name;
-        } else {
-          uri = this.resolve(prefix);
-          if (uri === void 0) {
-            this.fail(`unbound namespace prefix: ${JSON.stringify(prefix)}.`);
-            uri = prefix;
-          }
-          eqname = `{${uri}}${local}`;
-        }
-        if (seen.has(eqname)) {
-          this.fail(`duplicate attribute: ${eqname}.`);
-        }
-        seen.add(eqname);
-        attr.uri = uri;
-        attributes[name] = attr;
-      }
-      this.attribList = [];
-    }
-    processAttribsPlain() {
-      const { attribList } = this;
-      const attributes = this.tag.attributes;
-      for (const { name, value } of attribList) {
-        if (attributes[name] !== void 0) {
-          this.fail(`duplicate attribute: ${name}.`);
-        }
-        attributes[name] = value;
-      }
-      this.attribList = [];
-    }
-    /**
-     * Handle a complete open tag. This parser code calls this once it has seen
-     * the whole tag. This method checks for well-formeness and then emits
-     * ``onopentag``.
-     */
-    openTag() {
-      var _a2;
-      this.processAttribs();
-      const { tags } = this;
-      const tag = this.tag;
-      tag.isSelfClosing = false;
-      (_a2 = this.openTagHandler) === null || _a2 === void 0 ? void 0 : _a2.call(this, tag);
-      tags.push(tag);
-      this.state = S_TEXT;
-      this.name = "";
-    }
-    /**
-     * Handle a complete self-closing tag. This parser code calls this once it has
-     * seen the whole tag. This method checks for well-formeness and then emits
-     * ``onopentag`` and ``onclosetag``.
-     */
-    openSelfClosingTag() {
-      var _a2, _b2, _c;
-      this.processAttribs();
-      const { tags } = this;
-      const tag = this.tag;
-      tag.isSelfClosing = true;
-      (_a2 = this.openTagHandler) === null || _a2 === void 0 ? void 0 : _a2.call(this, tag);
-      (_b2 = this.closeTagHandler) === null || _b2 === void 0 ? void 0 : _b2.call(this, tag);
-      const top = this.tag = (_c = tags[tags.length - 1]) !== null && _c !== void 0 ? _c : null;
-      if (top === null) {
-        this.closedRoot = true;
-      }
-      this.state = S_TEXT;
-      this.name = "";
-    }
-    /**
-     * Handle a complete close tag. This parser code calls this once it has seen
-     * the whole tag. This method checks for well-formeness and then emits
-     * ``onclosetag``.
-     */
-    closeTag() {
-      const { tags, name } = this;
-      this.state = S_TEXT;
-      this.name = "";
-      if (name === "") {
-        this.fail("weird empty close tag.");
-        this.text += "</>";
-        return;
-      }
-      const handler = this.closeTagHandler;
-      let l = tags.length;
-      while (l-- > 0) {
-        const tag = this.tag = tags.pop();
-        this.topNS = tag.ns;
-        handler === null || handler === void 0 ? void 0 : handler(tag);
-        if (tag.name === name) {
-          break;
-        }
-        this.fail("unexpected close tag.");
-      }
-      if (l === 0) {
-        this.closedRoot = true;
-      } else if (l < 0) {
-        this.fail(`unmatched closing tag: ${name}.`);
-        this.text += `</${name}>`;
-      }
-    }
-    /**
-     * Resolves an entity. Makes any necessary well-formedness checks.
-     *
-     * @param entity The entity to resolve.
-     *
-     * @returns The parsed entity.
-     */
-    parseEntity(entity) {
-      if (entity[0] !== "#") {
-        const defined = this.ENTITIES[entity];
-        if (defined !== void 0) {
-          return defined;
-        }
-        this.fail(this.isName(entity) ? "undefined entity." : "disallowed character in entity name.");
-        return `&${entity};`;
-      }
-      let num = NaN;
-      if (entity[1] === "x" && /^#x[0-9a-f]+$/i.test(entity)) {
-        num = parseInt(entity.slice(2), 16);
-      } else if (/^#[0-9]+$/.test(entity)) {
-        num = parseInt(entity.slice(1), 10);
-      }
-      if (!this.isChar(num)) {
-        this.fail("malformed character entity.");
-        return `&${entity};`;
-      }
-      return String.fromCodePoint(num);
-    }
-  }
-  saxes.SaxesParser = SaxesParser;
-  return saxes;
-}
-var saxesExports = requireSaxes();
 const characters = (text2) => Array.from(text2.normalize("NFC").replace(/\s/gu, "")).length;
 function wordStructure(xml, styles) {
   const headings = /* @__PURE__ */ new Set();
@@ -69345,9 +70087,9 @@ const definitions = [
   ["slidesMoved", "幻灯片文本换序", "页", "PPT"]
 ].map(([id2, label2, unit, group]) => ({ id: id2, label: label2, unit, group }));
 const request = objectType({ docName: stringType().min(1), branch: stringType().min(1), baselineId: stringType().regex(/^[a-f0-9]{64}$/).optional(), compareBranch: stringType().min(1).optional(), onlyExclusive: booleanType().optional() });
-async function versionStatsHandler(args) {
+async function versionStatistics(repo, args) {
   const { docName: docName2, branch, baselineId, compareBranch, onlyExclusive } = request.parse(args);
-  const repo = getRepo(), detail = await documentDetail(repo, docName2), head = detail.branchHeads[branch];
+  const detail = await documentDetail(repo, docName2), head = detail.branchHeads[branch];
   if (!head) throw new Error("所选统计分支不存在");
   const byId = new Map(detail.versions.map((v) => [v.id, v]));
   const branchLine = (name) => {
@@ -69375,7 +70117,8 @@ async function versionStatsHandler(args) {
     const key2 = [repo.root, docName2, v.contentId].join("\0");
     let a = cache.get(key2);
     if (!a) {
-      a = await analyzeVersion(await versionBytes(repo, docName2, v.id), path$1.extname(docName2).toLowerCase());
+      const size = await versionFileSize(repo, docName2, v.id);
+      a = size === null ? { values: {}, unavailable: "目录型文档不进行正文统计，请导出后查看" } : size > 20 * 1024 * 1024 ? { values: { size }, unavailable: "超过20 MiB，仅统计文件大小和记录信息；正文指标未计算" } : await analyzeVersion(await versionBytes(repo, docName2, v.id), path$1.extname(docName2).toLowerCase());
       if ((a.values.cells ?? 0) < 2e4 && (a.paragraphs?.length ?? 0) < 1e4) {
         if (cache.size >= 256) cache.delete(cache.keys().next().value);
         cache.set(key2, a);
@@ -69413,12 +70156,14 @@ async function versionStatsHandler(args) {
   }
   return { branch, versions: visible, metrics: definitions.filter((m) => versions.some((v) => m.id in v.values)), activity: Array.from(dates, ([date, count]) => ({ date, count })), baselineId: baselineVersion?.id, baseline: baseline && baselineVersion ? { title: baselineVersion.title, values: { ...baseline.values, revisions: baselineVersion.revisionCount }, sections: baseline.sections } : void 0, distribution: { categories: countBy("category"), authors: countBy("author") }, summary: { firstAt: visible[0]?.createdAt, lastAt: visible.at(-1)?.createdAt, spanDays: visible.length ? (Date.parse(visible.at(-1).createdAt) - Date.parse(visible[0].createdAt)) / 864e5 : 0, averageHours: intervals.length ? intervals.reduce((a, b) => a + b, 0) / intervals.length : void 0, medianHours: intervals.length ? intervals.length % 2 ? intervals[middle] : (intervals[middle - 1] + intervals[middle]) / 2 : void 0, duplicateVersions: visible.length - new Set(visible.map((v) => v.contentId)).size, commonVersions: compareBranch ? line.filter((v) => other.has(v.id)).length : void 0, exclusiveVersions: compareBranch ? line.filter((v) => !other.has(v.id)).length : void 0 }, scope: "按单一分支归属统计，独立版本保留，不计回收版本；增删指标对比实际前版本。字数=汉字+英文词；字符数计标点和数字，均不等同Word/WPS字数。逐字差异超过160000字符、改动过大或超时显示“—”。章节按稳定段落标识或同名标题匹配；无段落标识时改写计为删除+新增。Excel优先对齐内容完全相同的唯一行，其余按工作表标识及地址比较；插列和重建表的对齐可能不确定。PPT只比较文本，不计图片和布局。" };
 }
-async function exportStatistics(args) {
+async function exportVersionStatistics(repo, args) {
   const parsed = request.extend({ destination: stringType().min(1), versionIds: arrayType(stringType().regex(/^[a-f0-9]{64}$/)), png: stringType().max(2e7).optional() }).parse(args);
   if (!path$1.isAbsolute(parsed.destination)) throw new Error("导出位置需要是绝对路径");
-  const relative2 = path$1.relative(getRepo().root, path$1.resolve(parsed.destination));
+  const relative2 = path$1.relative(repo.root, path$1.resolve(parsed.destination));
   if (relative2 === "" || !relative2.startsWith(".." + path$1.sep) && relative2 !== ".." && !path$1.isAbsolute(relative2)) throw new Error("请把统计结果导出到文档库之外，避免覆盖历史或工作稿");
-  const data = await versionStatsHandler(parsed), ids = new Set(parsed.versionIds), rows = data.versions.filter((v) => ids.has(v.id));
+  const physicalRelative = path$1.relative(await promises.realpath(repo.root), path$1.join(await promises.realpath(path$1.dirname(parsed.destination)), path$1.basename(parsed.destination)));
+  if (physicalRelative === "" || !physicalRelative.startsWith(".." + path$1.sep) && physicalRelative !== ".." && !path$1.isAbsolute(physicalRelative)) throw new Error("请把统计结果导出到文档库之外，避免通过目录链接覆盖历史或工作稿");
+  const data = await versionStatistics(repo, parsed), ids = new Set(parsed.versionIds), rows = data.versions.filter((v) => ids.has(v.id));
   let bytes;
   if (parsed.png) {
     if (path$1.extname(parsed.destination).toLowerCase() !== ".png" || !parsed.png.startsWith("data:image/png;base64,")) throw new Error("请使用PNG图片路径");
@@ -69437,9 +70182,15 @@ async function exportStatistics(args) {
   }
   await writeFileAtomic(parsed.destination, bytes);
 }
+async function versionStatsHandler(args) {
+  return versionStatistics(getRepo(), args);
+}
+async function exportStatistics(args) {
+  return exportVersionStatistics(getRepo(), args);
+}
 function registerVersionStatsHandlers() {
-  ipcMain.handle("stats.versions", (_e, args) => versionStatsHandler(args));
-  ipcMain.handle("stats.export", (_e, args) => exportStatistics(args));
+  ipcMain.handle("stats.versions", (_event, args) => versionStatsHandler(args));
+  ipcMain.handle("stats.export", (_event, args) => exportStatistics(args));
 }
 function mcpConfiguration(executable, serverPath2, repoRoot) {
   const server = { type: "stdio", command: executable, args: [serverPath2, "--repo", repoRoot], env: { ELECTRON_RUN_AS_NODE: "1" } };
@@ -69650,9 +70401,9 @@ async function projectRequest(args) {
   }
 }
 function registerProjectHandlers() {
-  const labels = { create: "新建项目", import: "导入项目资料", refresh: "刷新项目资料", recordIteration: "记录迭代", updateNode: "编辑资料信息或位置", setCategory: "编辑项目分类", deleteCategory: "删除项目分类", deleteNode: "移除资料", setRelation: "编辑资料连线", deleteRelation: "删除资料连线" };
+  const labels2 = { create: "新建项目", import: "导入项目资料", refresh: "刷新项目资料", recordIteration: "记录迭代", updateNode: "编辑资料信息或位置", setCategory: "编辑项目分类", deleteCategory: "删除项目分类", deleteNode: "移除资料", setRelation: "编辑资料连线", deleteRelation: "删除资料连线" };
   ipcMain.handle("projects.request", (_e, args) => {
-    const req = ProjectRequest.parse(args), label2 = labels[req.action];
+    const req = ProjectRequest.parse(args), label2 = labels2[req.action];
     return label2 ? withUndoableAction(getRepo(), label2, () => projectRequest(req)) : projectRequest(req);
   });
 }
