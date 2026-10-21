@@ -1,8 +1,8 @@
 {
   "archiveKind": "compiled-application-snapshot",
   "originalTypeScriptAvailable": false,
-  "version": "0.5.9",
-  "originalDirectory": "gaomiao-windows-uk3TGN",
+  "version": "0.5.10",
+  "originalDirectory": "gaomiao-windows-5ORSeb",
   "electronVersion": "32.3.3",
   "files": {
     "Hairline-LICENSE.txt": "948d56f0bc8c383c04c453136dcfb78407f97de65ff8bb4fabff2b79ddd17f59",
@@ -18,19 +18,19 @@
     "MCP/server.cjs": "c8056623e996a1487d5365aa48e30c72481f2dc90753ce843a40849469e49271",
     "MCP接入指南.md": "49668bf9dec1c77b6ed474253a88b715c3c28f3b0b98a48159b43db2962b5121",
     "THIRD-PARTY-NOTICES.md": "6fc312c3f7971d2d3dc61e1df0633ea2bbdc6a2aa78f5a172e8b66fa24477599",
-    "resources/app/out/main/index.js": "c8a1e3ba9d3da38039f120544eadc337b0db67e159c5dcc682c807781c0dfcd1",
+    "resources/app/out/main/index.js": "93d77ca06ce158894a2b6c8e3f6d7a62fc40606f97b13eb06dc91c2c9a1d9abd",
     "resources/app/out/mcp/server.cjs": "c8056623e996a1487d5365aa48e30c72481f2dc90753ce843a40849469e49271",
     "resources/app/out/preload/index.cjs": "8b761b009ca2407430295b4d001cf28d11ae87e4b81fee888b799be1d828df70",
     "resources/app/out/renderer/assets/cat-D_fsyJ-0.png": "ca72804eb1178fcc1fe98b23c99bc386e909f5aca12c8aca14df37e4ccfe6b3a",
     "resources/app/out/renderer/assets/gaomiao-D-Hjr120.png": "3d5821b769db49e20ae2301205ddeeeadc227123b9c981c9bcb4ff40118c38ce",
-    "resources/app/out/renderer/assets/index-DDKDiYgT.css": "38b7e029ad1f37ea3b4f46da5a27e73fe56e7d972f3992d3ecb5b4f23d6d61db",
-    "resources/app/out/renderer/assets/index-uDUZFIFc.js": "608437621d9d831a2764aa5080df4366cd56ba1ac2b28ce36fdc0f7191cb84b1",
+    "resources/app/out/renderer/assets/index-Bol5a48n.js": "afc23c3f3a217dc54f028d5e9e4ca084ed627b1a7987be699b25bee492bf2d38",
+    "resources/app/out/renderer/assets/index-DYd4iXuk.css": "a2a2ceae2f14fb4dc02d27f22e5c55b679a48d8c14714d5f0247c71c32c23d0d",
     "resources/app/out/renderer/assets/paper-CsFc-hZ7.png": "f45dff6f97cebeba52dfb8b9ff5c94debd9bc0942814aee6a34856bbc6dc54de",
-    "resources/app/out/renderer/index.html": "51ec2d39f8fa6ce932f3e6acf088685f275f4563af16331767fe89678e132d23",
-    "resources/app/package.json": "b4a8ab9631d8779cc40a9a854dab98d3312a2b717d403add32fc5ca16a69bfb3",
+    "resources/app/out/renderer/index.html": "a97b9c358a6f16a4c35bbdbfe8da5852b4cc20d76c842b9343fd44f8ecb1af66",
+    "resources/app/package.json": "c2630b9a4e93e72109d1d299cd401ac37ba11d4c1c9fc95b02c792330ea0b9eb",
     "resources/app/resources/icon.ico": "9fc2dd00a90413ce71fe6c31e63d41591a287f0c72647562b3dbfb10b5162bc2",
     "resources/app/resources/icon.png": "3d5821b769db49e20ae2301205ddeeeadc227123b9c981c9bcb4ff40118c38ce",
     "resources/app/resources/installer-mode.json": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-    "使用教程.md": "c42a372a565b58e011da71af0d8bb573ce84c0fb2ff8a759596961039ef58d04"
+    "使用教程.md": "931688acabbaa5b0a9286731156cbc09def13d77569922790aa49eec7b2c16f1"
   }
 }

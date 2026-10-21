@@ -6823,8 +6823,7 @@ async function safeFolder(repo, folder) {
   if (inside(root, resolved) || inside(resolved, root)) throw new Error("工作文件夹不能是稿喵文档库或包含文档库的目录");
   return resolved;
 }
-async function prepareProjectDrop(repo, paths2, projectId, parentId, folder) {
-  const files = await inspectDroppedFiles(paths2);
+async function resolveProjectWorkingFolder(repo, projectId, parentId, folder) {
   let workingFolder = folder ?? null;
   if (projectId) {
     const project = await getProject(repo, projectId), parent2 = parentId ? project.nodes.find((n) => n.id === parentId) : null;
@@ -6843,7 +6842,10 @@ async function prepareProjectDrop(repo, paths2, projectId, parentId, folder) {
       }
     }
   }
-  if (workingFolder) workingFolder = await safeFolder(repo, workingFolder);
+  return workingFolder ? safeFolder(repo, workingFolder) : null;
+}
+async function prepareProjectDrop(repo, paths2, projectId, parentId, folder) {
+  const files = await inspectDroppedFiles(paths2), workingFolder = await resolveProjectWorkingFolder(repo, projectId, parentId, folder);
   const names = /* @__PURE__ */ new Set(), planned = [];
   for (const file2 of files) {
     const sourcePath = file2.kind === "link" ? file2.path : await promises.realpath(file2.path);
@@ -7020,6 +7022,60 @@ async function createDroppedProjects(repo, paths2) {
     }
   });
 }
+async function createProjectEntry(repo, request2, bytes) {
+  const name = validateDocName(request2.name.trim());
+  const resolved = await resolveProjectWorkingFolder(repo, request2.projectId, request2.parentId, request2.workingFolder);
+  if (!resolved) throw new Error("请先选择项目工作文件夹");
+  const folder = resolved;
+  const target = path$1.join(folder, name), directory2 = bytes === void 0;
+  const stat2 = () => promises.lstat(target).catch((error2) => {
+    if (error2.code !== "ENOENT") throw error2;
+    return null;
+  });
+  async function validate2(direction) {
+    if (await promises.realpath(folder) !== folder || !(await promises.lstat(folder)).isDirectory()) throw new Error("工作文件夹已改变，请重新选择");
+    const current = await stat2();
+    if (direction === "redo") {
+      if (current) throw new Error("目标名称已被占用，无法重做");
+      return;
+    }
+    if (!current || current.isSymbolicLink() || (directory2 ? !current.isDirectory() || (await promises.readdir(target)).length > 0 : !current.isFile() || !(await promises.readFile(target)).equals(bytes))) throw new Error("新建内容已被外部修改，无法撤回；请先保留你的修改");
+  }
+  async function create() {
+    if (directory2) await promises.mkdir(target);
+    else await promises.writeFile(target, bytes, { flag: "wx" });
+  }
+  const external2 = {
+    validate: validate2,
+    async apply(direction) {
+      await validate2(direction);
+      if (direction === "redo") await create();
+      else if (directory2) await promises.rmdir(target);
+      else await promises.unlink(target);
+    }
+  };
+  return withUndoableAction(repo, directory2 ? "新建项目文件夹" : "新建项目文档", async () => {
+    await validate2("redo");
+    const catalog = path$1.join(repo.root, "projects/catalog.json"), before = await promises.readFile(catalog);
+    await create();
+    try {
+      await refreshProject(repo, request2.projectId);
+      let project = await getProject(repo, request2.projectId);
+      let node2 = project.nodes.find((n) => !n.snapshot && n.parentId === (request2.parentId ?? null) && n.sourcePath === target);
+      if (!node2) {
+        const added = await importProjectItems(repo, { projectId: request2.projectId, parentId: request2.parentId, paths: [target] });
+        project = await getProject(repo, request2.projectId);
+        node2 = project.nodes.find((n) => n.id === added.nodeIds[0]);
+      }
+      if (!request2.parentId) await setProjectWorkingFolder(repo, request2.projectId, folder);
+      return { nodeId: node2.id, sourcePath: target };
+    } catch (error2) {
+      await writeFileAtomic(catalog, before);
+      await external2.apply("undo");
+      throw error2;
+    }
+  }, void 0, external2);
+}
 const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
 function draftPath(repo, relative2) {
   if (!relative2.startsWith("drafts/")) throw new Error("编辑副本必须位于稿喵文档库内");
@@ -7120,6 +7176,19 @@ async function recordDraftSave(repo, file2) {
       }
       return { docName: docName2, branch: draft.branch, workspacePath: draftPath(repo, relative2), versionId: draft.versionId, status: created ? "created" : "updated" };
     }
+  });
+}
+async function refreshWorkspaceDocuments(repo) {
+  return withUndoableAction(repo, "刷新工作目录文档", async () => {
+    for (const draft of await activeDraftFiles(repo)) await recordDraftSave(repo, draft.path);
+    const known = new Set((await docIds(repo)).map((name) => process.platform === "win32" ? name.toLowerCase() : name));
+    let added = 0;
+    for (const entry of await promises.readdir(path$1.join(repo.root, "workspace"), { withFileTypes: true })) {
+      if (!entry.isFile() || entry.name.startsWith("~$") || entry.name.includes(".tmp-") || known.has(process.platform === "win32" ? entry.name.toLowerCase() : entry.name)) continue;
+      await commitDoc(repo, entry.name, { message: "从工作目录加入", author: "user" });
+      added++;
+    }
+    return { added };
   });
 }
 async function editVersionRelations(repo, docName2, id2, request2) {
@@ -7483,6 +7552,7 @@ const versionId = stringType().regex(/^[a-f0-9]{64}$/);
 const position = objectType({ x: numberType().finite(), y: numberType().finite() });
 const LibraryDetailReq = objectType({ docName });
 const LibraryMutationSchema = discriminatedUnionType("type", [
+  objectType({ type: literalType("refreshWorkspace") }),
   objectType({ type: literalType("document"), docName, title: stringType().min(1).optional(), deleted: booleanType().optional() }),
   objectType({ type: literalType("version"), docName, versionId, title: stringType().min(1).optional(), note: stringType().optional(), categoryId: stringType().optional(), order: numberType().finite().optional(), position: position.optional(), deleted: booleanType().optional() }),
   objectType({ type: literalType("layout"), docName }),
@@ -7497,7 +7567,7 @@ const LibraryMutationSchema = discriminatedUnionType("type", [
   objectType({ type: literalType("edit"), docName, versionId: versionId.optional(), branch: stringType().optional(), mode: enumType(["new", "replace"]).optional(), title: stringType().optional() }),
   objectType({ type: literalType("openCopy"), docName, versionId }),
   objectType({ type: literalType("moveBranch"), docName, versionId, branch: stringType().min(1) }),
-  objectType({ type: literalType("createDocument"), name: stringType().min(1), format: enumType(["docx", "xlsx", "txt"]) })
+  objectType({ type: literalType("createDocument"), name: stringType().min(1), format: enumType(["docx", "xlsx", "txt", "md"]) })
 ]);
 const absolute = stringType().min(1);
 const ProjectDropRequestSchema = objectType({
@@ -7518,6 +7588,8 @@ const ProjectRequest = discriminatedUnionType("action", [
   objectType({ action: literalType("create"), name: label }),
   objectType({ action: literalType("import"), projectId: id, paths: arrayType(stringType().min(1)).min(1), parentId: id.nullable().optional(), unpackFolder: booleanType().optional(), previousNodeId: id.optional(), requestId: label.optional(), snapshot: booleanType().optional(), title: label.optional() }),
   objectType({ action: literalType("refresh"), projectId: id }),
+  objectType({ action: literalType("creationTarget"), projectId: id, parentId: id.nullable().optional() }),
+  objectType({ action: literalType("createEntry"), projectId: id, parentId: id.nullable().optional(), workingFolder: label.optional(), name: label, kind: enumType(["file", "folder"]), format: enumType(["txt", "docx", "xlsx", "md"]).default("txt") }),
   objectType({ action: literalType("recordIteration"), projectId: id, nodeId: id, title: label, requestId: label.optional() }),
   objectType({ action: literalType("updateNode"), projectId: id, nodeId: id, title: label.optional(), note: note$1.optional(), categoryId: unionType([id, literalType("")]).nullable().optional(), position: objectType({ x: numberType().finite(), y: numberType().finite() }).optional() }),
   objectType({ action: literalType("setCategory"), projectId: id, category: objectType({ id: id.optional(), name: label }) }),
@@ -66926,18 +66998,8 @@ async function getPreviewBytes(args) {
 function registerPreviewHandlers() {
   ipcMain.handle(CH.PREVIEW_GET_BYTES, (_e, arg) => getPreviewBytes(arg));
 }
-async function libraryListHandler() {
-  return libraryDocuments(getRepo());
-}
-async function libraryDetailHandler(args) {
-  return documentDetail(getRepo(), LibraryDetailReq.parse(args).docName);
-}
-async function openFile(filePath) {
-  const error2 = await shell.openPath(filePath);
-  if (error2) throw new Error("无法打开系统编辑器：" + error2);
-}
 async function blankDocument(filePath, format) {
-  if (format === "txt") {
+  if (format === "txt" || format === "md") {
     await promises.writeFile(filePath, "");
     return;
   }
@@ -66954,10 +67016,22 @@ async function blankDocument(filePath, format) {
     "word/document.xml": enc.encode('<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p/><w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr></w:body></w:document>')
   }, { mtime: new Date(1980, 0, 1) }));
 }
+async function libraryListHandler() {
+  return libraryDocuments(getRepo());
+}
+async function libraryDetailHandler(args) {
+  return documentDetail(getRepo(), LibraryDetailReq.parse(args).docName);
+}
+async function openFile(filePath) {
+  const error2 = await shell.openPath(filePath);
+  if (error2) throw new Error("无法打开系统编辑器：" + error2);
+}
 async function libraryMutationHandler(args) {
   const request2 = LibraryMutationSchema.parse(args);
   const repo = getRepo();
   switch (request2.type) {
+    case "refreshWorkspace":
+      return refreshWorkspaceDocuments(repo);
     case "document":
       await updateDocument(repo, request2.docName, request2);
       break;
@@ -67041,7 +67115,7 @@ function registerLibraryHandlers() {
     }
     let workspaceName;
     if (request2.type === "createDocument") workspaceName = request2.name.trim().toLowerCase().endsWith("." + request2.format) ? request2.name.trim() : request2.name.trim() + "." + request2.format;
-    else if (["importVersion", "save", "undoReplacement", "moveBranch"].includes(request2.type)) workspaceName = request2.docName;
+    else if ("docName" in request2 && ["importVersion", "save", "undoReplacement", "moveBranch"].includes(request2.type)) workspaceName = request2.docName;
     const label2 = labels[request2.type];
     return label2 ? withUndoableAction(repo, label2, () => libraryMutationHandler(request2), workspaceName) : libraryMutationHandler(request2);
   });
@@ -69515,6 +69589,21 @@ async function projectRequest(args) {
       return importProjectItems(repo, req);
     case "refresh":
       return refreshProject(repo, req.projectId);
+    case "creationTarget":
+      return { folder: await resolveProjectWorkingFolder(repo, req.projectId, req.parentId) };
+    case "createEntry": {
+      const name = validateDocName(req.name.trim());
+      if (req.kind === "folder") return createProjectEntry(repo, { ...req, name });
+      const filename = name.toLowerCase().endsWith("." + req.format) ? name : name + "." + req.format;
+      const temporary = await promises.mkdtemp(path$1.join(os.tmpdir(), "dockitty-project-new-"));
+      try {
+        const file2 = path$1.join(temporary, filename);
+        await blankDocument(file2, req.format);
+        return await createProjectEntry(repo, { ...req, name: filename }, await promises.readFile(file2));
+      } finally {
+        if (path$1.dirname(temporary) === os.tmpdir() && path$1.basename(temporary).startsWith("dockitty-project-new-")) await promises.rm(temporary, { recursive: true, force: true });
+      }
+    }
     case "recordIteration":
       return recordProjectIteration(repo, req.projectId, req.nodeId, req.title, req.requestId);
     case "updateNode":
