@@ -65751,6 +65751,7 @@ function createWindow() {
     minHeight: 600,
     show: false,
     title: "稿喵",
+    icon: path$1.join(app.getAppPath(), "resources/icon.png"),
     webPreferences: {
       preload: path$1.join(__dirname, "../preload/index.cjs"),
       contextIsolation: true,
@@ -65776,7 +65777,10 @@ function createWindow() {
     win = null;
   });
 }
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  app.setAppUserModelId("com.wordgit.app");
+  createWindow();
+});
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });

@@ -61377,6 +61377,7 @@ function HelpDocument({ repoRoot }) {
     ] })
   ] });
 }
+const brandIcon = "data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20256%20256'%20role='img'%20aria-label='稿喵图标'%3e%3crect%20x='4'%20y='4'%20width='248'%20height='248'%20rx='54'%20fill='%23e7f1e7'/%3e%3csvg%20xmlns='http://www.w3.org/2000/svg'%20x='15'%20y='10'%20width='226'%20height='236'%20viewBox='80%2036%20178%20202'%20role='img'%20aria-label='稿喵，小猫接住文稿'%3e%3cg%20opacity='1'%3e%3cellipse%20cx='151'%20cy='227'%20rx='70'%20ry='7'%20fill='%23284f45'%20opacity='.12'/%3e%3cg%20transform='translate(0%200)'%3e%3cg%20data-cat-tail='true'%20fill='none'%20stroke-linecap='round'%3e%3cpath%20d='M179%20205C208%20218%20242%20201%20241%20174C241%20161%20232%20156%20224%20163'%20stroke='%23284f45'%20stroke-width='15'/%3e%3cpath%20d='M179%20205C208%20218%20242%20201%20241%20174C241%20161%20232%20156%20224%20163'%20stroke='%23e9b98b'%20stroke-width='9'/%3e%3c/g%3e%3cellipse%20cx='151'%20cy='173'%20rx='55'%20ry='51'%20fill='%23fffdf6'%20stroke='%23284f45'%20stroke-width='4'/%3e%3cpath%20d='M101%2096%20101%2047l31%2023q19-6%2038%200l31-23v49q2%2043-50%2043t-50-43Z'%20fill='%23fffdf6'%20stroke='%23284f45'%20stroke-width='4.5'%20stroke-linejoin='round'/%3e%3cpath%20d='m109%2062%2019%2016-18%2010m83-26-19%2016%2018%2010'%20fill='%23e9b98b'/%3e%3cg%20fill='%23284f45'%3e%3cellipse%20cx='131'%20cy='101'%20rx='3.5'%20ry='4.5'/%3e%3cellipse%20cx='171'%20cy='101'%20rx='3.5'%20ry='4.5'/%3e%3c/g%3e%3cpath%20d='m146%20115%205%204%205-4m-5%204v5q-8%206-13-1m13%201q8%206%2013-1M117%20115l-16-3m16%2011-16%203m84-11%2016-3m-16%2011%2016%203'%20fill='none'%20stroke='%23284f45'%20stroke-width='3'%20stroke-linecap='round'/%3e%3c/g%3e%3cpath%20data-cat-arms='true'%20d='M105%20154Q88%20154%20101%20174M197%20154Q215%20154%20201%20174'%20fill='none'%20stroke='%23284f45'%20stroke-width='4'%20stroke-linecap='round'/%3e%3cg%20data-cat-paper='true'%20transform='translate(151%20174)%20rotate(0)'%3e%3cpath%20d='M-40-40h57l32%2023v51q0%207-7%207h-82q-9%200-9-9v-63q0-9%209-9Z'%20fill='%23fffdf6'%20stroke='%23284f45'%20stroke-width='4'%20stroke-linejoin='round'/%3e%3cpath%20d='M17-40v23h32'%20fill='%23dceee4'%20stroke='%23284f45'%20stroke-width='3'%20stroke-linejoin='round'/%3e%3cpath%20d='M-28-10h53m-53%2015h53m-53%2015h34.45'%20fill='none'%20stroke='%237da893'%20stroke-width='4'%20stroke-linecap='round'/%3e%3c/g%3e%3cg%20data-cat-paws='true'%20fill='%23fffdf6'%20stroke='%23284f45'%20stroke-width='4'%20stroke-linecap='round'%3e%3cellipse%20cx='101'%20cy='174'%20rx='15'%20ry='12'%20transform='rotate(-18%20101%20174)'/%3e%3cellipse%20cx='201'%20cy='174'%20rx='15'%20ry='12'%20transform='rotate(18%20201%20174)'/%3e%3cpath%20d='M97%20171v5m6-5v5M198%20171v5m6-5v5'%20stroke-width='2'/%3e%3c/g%3e%3c/g%3e%3c/svg%3e%3c/svg%3e";
 const extension = (name) => name.includes(".") ? name.split(".").pop().toLowerCase() : "";
 const baseName = (name) => name.split(/[\\/]/).pop() ?? name;
 function FileIcon({ name, size = 18 }) {
@@ -61617,7 +61618,7 @@ function Workspace() {
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wordgit-workspace", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { className: "wg-menubar", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-brand", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(Files, { size: 19 }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: brandIcon, alt: "" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "稿喵" })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("details", { className: "wg-menu", children: [
@@ -62116,12 +62117,158 @@ function Workspace() {
 function MainLayout() {
   return /* @__PURE__ */ jsxRuntimeExports.jsx(Workspace, {});
 }
+function renderCat(t) {
+  const ink = "#284f45", paper = "#fffdf6", mint = "#dceee4", warm = "#e9b98b";
+  const clamp2 = (x) => Math.max(0, Math.min(1, x));
+  const smooth = (a, b, value) => {
+    const p = clamp2((value - a) / (b - a));
+    return p * p * (3 - 2 * p);
+  };
+  const mix2 = (a, b, p) => a + (b - a) * p;
+  const num = (x) => Number(x.toFixed(3));
+  function key(values2) {
+    for (let i = 1; i < values2.length; i++) {
+      if (t <= values2[i][0]) return mix2(values2[i - 1][1], values2[i][1], smooth(values2[i - 1][0], values2[i][0], t));
+    }
+    return values2[values2.length - 1][1];
+  }
+  const arrival = smooth(0.035, 0.4, t), grip = smooth(0.4, 0.7, t);
+  const pulse = Math.sin(Math.PI * clamp2((t - 0.4) / 0.35)) * (1 - clamp2((t - 0.4) / 0.35));
+  const falling = clamp2((t - 0.035) / 0.365), cushioning = clamp2((t - 0.4) / 0.22);
+  const px2 = mix2(184, 151, arrival);
+  const py = t < 0.4 ? mix2(-66, 134, falling * falling) : t < 0.62 ? mix2(134, 182, 1 - (1 - cushioning) ** 3) : key([[0.62, 182], [0.76, 171], [0.93, 174], [1, 174]]);
+  const angle = key([[0, -18], [0.4, 5], [0.62, -2], [0.86, 0], [1, 0]]);
+  const bodyY = 9 * pulse;
+  const handY = t < 0.4 ? 184 - 16 * smooth(0.24, 0.4, t) : py + 34 * (1 - grip);
+  const left = 101 - 8 * (1 - grip), right = 201 + 8 * (1 - grip);
+  const eye = 4.5 * (1 - 0.8 * pulse);
+  const arms = `M105 ${num(154 + bodyY)}Q88 ${num(handY - 20)} ${num(left)} ${num(handY)}M197 ${num(154 + bodyY)}Q215 ${num(handY - 20)} ${num(right)} ${num(handY)}`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 260" role="img" aria-label="稿喵，小猫接住文稿"><g opacity="${num(smooth(0, 0.06, t))}">
+    <ellipse cx="151" cy="227" rx="70" ry="7" fill="${ink}" opacity=".12"/>
+    <g transform="translate(0 ${num(bodyY)})">
+      <g data-cat-tail="true" fill="none" stroke-linecap="round"><path d="M179 205C208 218 242 201 241 174C241 161 232 156 224 163" stroke="${ink}" stroke-width="15"/><path d="M179 205C208 218 242 201 241 174C241 161 232 156 224 163" stroke="${warm}" stroke-width="9"/></g>
+      <ellipse cx="151" cy="173" rx="55" ry="51" fill="${paper}" stroke="${ink}" stroke-width="4"/>
+      <path d="M101 96 101 47l31 23q19-6 38 0l31-23v49q2 43-50 43t-50-43Z" fill="${paper}" stroke="${ink}" stroke-width="4.5" stroke-linejoin="round"/>
+      <path d="m109 62 19 16-18 10m83-26-19 16 18 10" fill="${warm}"/>
+      <g fill="${ink}"><ellipse cx="131" cy="101" rx="3.5" ry="${num(eye)}"/><ellipse cx="171" cy="101" rx="3.5" ry="${num(eye)}"/></g>
+      <path d="m146 115 5 4 5-4m-5 4v5q-8 6-13-1m13 1q8 6 13-1M117 115l-16-3m16 11-16 3m84-11 16-3m-16 11 16 3" fill="none" stroke="${ink}" stroke-width="3" stroke-linecap="round"/>
+    </g>
+    <path data-cat-arms="true" d="${arms}" fill="none" stroke="${ink}" stroke-width="4" stroke-linecap="round"/>
+    <g data-cat-paper="true" transform="translate(${num(px2)} ${num(py)}) rotate(${num(angle)})">
+      <path d="M-40-40h57l32 23v51q0 7-7 7h-82q-9 0-9-9v-63q0-9 9-9Z" fill="${paper}" stroke="${ink}" stroke-width="4" stroke-linejoin="round"/>
+      <path d="M17-40v23h32" fill="${mint}" stroke="${ink}" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M-28-10h53m-53 15h53m-53 15h34.45" fill="none" stroke="#7da893" stroke-width="4" stroke-linecap="round"/>
+    </g>
+    <g data-cat-paws="true" fill="${paper}" stroke="${ink}" stroke-width="4" stroke-linecap="round">
+      <ellipse cx="${num(left)}" cy="${num(handY)}" rx="15" ry="12" transform="rotate(${num(-18 * grip)} ${num(left)} ${num(handY)})"/>
+      <ellipse cx="${num(right)}" cy="${num(handY)}" rx="15" ry="12" transform="rotate(${num(18 * grip)} ${num(right)} ${num(handY)})"/>
+      <path d="M${num(left - 4)} ${num(handY - 3)}v5m6-5v5M${num(right - 3)} ${num(handY - 3)}v5m6-5v5" stroke-width="2"/>
+    </g>
+  </g></svg>`;
+}
+function StartupScreen({ ready, revealRef, onFinish }) {
+  const canvas = reactExports.useRef(null);
+  const backdrop = reactExports.useRef(null);
+  const paper = reactExports.useRef(null);
+  const [caught, setCaught] = reactExports.useState(false);
+  const [phase, setPhase] = reactExports.useState("catching");
+  const [reduced, setReduced] = reactExports.useState(() => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false);
+  reactExports.useEffect(() => {
+    const media = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+    const change = () => setReduced(media?.matches ?? false);
+    media?.addEventListener("change", change);
+    return () => media?.removeEventListener("change", change);
+  }, []);
+  reactExports.useEffect(() => {
+    if (!canvas.current) return;
+    if (reduced) {
+      canvas.current.innerHTML = renderCat(1);
+      setCaught(true);
+      return;
+    }
+    let frame2 = 0;
+    let start;
+    const tick = (now2) => {
+      start ??= now2;
+      const t = Math.min(1, (now2 - start) / 940);
+      if (canvas.current) canvas.current.innerHTML = renderCat(t);
+      if (t === 1) {
+        setCaught(true);
+        setPhase("waiting");
+        return;
+      }
+      frame2 = requestAnimationFrame(tick);
+    };
+    frame2 = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame2);
+  }, [reduced]);
+  reactExports.useEffect(() => {
+    if (!ready || !caught || !revealRef.current) return;
+    const page = revealRef.current;
+    const finish = () => {
+      page.style.clipPath = "";
+      page.style.visibility = "visible";
+      onFinish();
+    };
+    if (reduced) {
+      finish();
+      return;
+    }
+    const source = canvas.current?.querySelector("[data-cat-paper]");
+    if (!source || !paper.current || !backdrop.current || !page.animate) {
+      finish();
+      return;
+    }
+    const rect = source.getBoundingClientRect();
+    const sheet = paper.current;
+    sheet.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-49 -40 98 81" preserveAspectRatio="none" aria-hidden="true">${source.innerHTML}</svg>`;
+    Object.assign(sheet.style, { display: "block", left: rect.left + "px", top: rect.top + "px", width: rect.width + "px", height: rect.height + "px" });
+    const inset = `inset(${rect.top}px ${window.innerWidth - rect.right}px ${window.innerHeight - rect.bottom}px ${rect.left}px round 7px)`;
+    page.style.clipPath = inset;
+    page.style.visibility = "visible";
+    setPhase("expanding");
+    const options2 = { duration: 280, easing: "cubic-bezier(.22,1,.36,1)", fill: "forwards" };
+    const expansion = sheet.animate([
+      { left: rect.left + "px", top: rect.top + "px", width: rect.width + "px", height: rect.height + "px", borderRadius: "7px" },
+      { left: "0px", top: "0px", width: window.innerWidth + "px", height: window.innerHeight + "px", borderRadius: "0px" }
+    ], options2);
+    const animations2 = [
+      expansion,
+      page.animate([{ clipPath: inset }, { clipPath: "inset(0px 0px 0px 0px round 0px)" }], options2),
+      backdrop.current.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, fill: "forwards" }),
+      sheet.firstElementChild.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 70, fill: "forwards" }),
+      sheet.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, delay: 120, fill: "forwards" })
+    ];
+    let active = true;
+    expansion.finished.then(() => {
+      if (active) finish();
+    }).catch(() => {
+    });
+    return () => {
+      active = false;
+      animations2.forEach((animation) => animation.cancel());
+    };
+  }, [ready, caught, reduced, revealRef, onFinish]);
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-startup", "data-phase": phase, role: "status", "aria-label": "稿喵正在启动", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-startup-backdrop", ref: backdrop, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-startup-content", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-startup-cat", ref: canvas }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: "稿喵" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "每一稿，都有迹可循。" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: ready ? "文档已就绪" : "正在打开你的文档…" })
+    ] }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-opening-paper", ref: paper, "aria-hidden": "true" })
+  ] });
+}
 function App() {
   const { repoRoot, setRepo } = useRepoStore();
   const theme = useUiStore((s) => s.theme);
   const [checking, setChecking] = reactExports.useState(true);
   const [error, setError] = reactExports.useState("");
   const [notice, setNotice] = reactExports.useState("");
+  const [entered, setEntered] = reactExports.useState(false);
+  const revealRef = reactExports.useRef(null);
+  const queryClient2 = useQueryClient();
+  const finishEntrance = reactExports.useCallback(() => setEntered(true), []);
   reactExports.useEffect(() => {
     const root = document.documentElement;
     if (theme === "system") root.removeAttribute("data-theme");
@@ -62134,6 +62281,7 @@ function App() {
       const result = await api.repo.bootstrap(repoRoot ?? void 0);
       setRepo(result.repoRoot, result.repoName);
       setNotice(result.notice ?? "");
+      await queryClient2.fetchQuery({ queryKey: ["library", result.repoRoot], queryFn: () => api.library.list(), retry: false });
     } catch (e) {
       setError(e.message);
     } finally {
@@ -62147,14 +62295,18 @@ function App() {
     try {
       const root = await api.dialog.pickFolder("选择原文档库文件夹（含 repo.yaml）");
       if (!root) return;
+      setChecking(true);
       const result = await api.repo.open(root);
       setRepo(result.repoRoot, "我的文档");
+      await queryClient2.fetchQuery({ queryKey: ["library", result.repoRoot], queryFn: () => api.library.list(), retry: false });
       setError("");
     } catch (e) {
       setError(e.message);
+    } finally {
+      setChecking(false);
     }
   }
-  return /* @__PURE__ */ jsxRuntimeExports.jsx(MotionConfig, { reducedMotion: "user", children: checking ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex h-screen items-center justify-center text-muted-foreground", children: "正在打开你的文档…" }) : error ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex h-screen flex-col items-center justify-center gap-4 bg-background p-8", children: [
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(MotionConfig, { reducedMotion: "user", children: error ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex h-screen flex-col items-center justify-center gap-4 bg-background p-8", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-xl font-semibold", children: "稿喵暂时无法打开文档库" }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("p", { role: "alert", className: "max-w-xl break-words text-sm text-destructive", children: error }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-muted-foreground", children: "原有文档不会被删除。请检查保存位置、磁盘或访问权限。" }),
@@ -62163,11 +62315,12 @@ function App() {
       /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-button", onClick: () => void reconnect(), children: "选择原文档库位置" })
     ] })
   ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-    notice && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { role: "status", className: "wg-startup-notice", children: [
+    !checking && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { ref: revealRef, className: "wg-app-reveal", inert: !entered, "aria-hidden": !entered, style: entered ? void 0 : { visibility: "hidden" }, children: /* @__PURE__ */ jsxRuntimeExports.jsx(MainLayout, {}) }),
+    !entered && /* @__PURE__ */ jsxRuntimeExports.jsx(StartupScreen, { ready: !checking, revealRef, onFinish: finishEntrance }),
+    entered && notice && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { role: "status", className: "wg-startup-notice", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: notice }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setNotice(""), children: "知道了" })
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(MainLayout, {})
+    ] })
   ] }) });
 }
 const queryClient = new QueryClient({

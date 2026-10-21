@@ -1,16 +1,18 @@
 {
   "archiveKind": "compiled-application-snapshot",
   "originalTypeScriptAvailable": false,
-  "version": "0.2.0",
-  "originalDirectory": "gaomiao-windows-aMYhW2",
+  "version": "0.2.1",
+  "originalDirectory": "gaomiao-0.2.1-windows-x64",
   "electronVersion": "32.3.3",
   "files": {
-    "resources/app/out/main/index.js": "58b87b9075c7e820e080fc79423b7b4c746830c13310ebb59f9ed24404b2adc8",
+    "resources/app/out/main/index.js": "e99738fe4ea596e21b952e6efc65cb36b510b77a241488313f26cdf128573144",
     "resources/app/out/preload/index.cjs": "d41df302fa76c68c67384f5cef4c30915b8eabf8ef2e2783931d4592721ecb50",
-    "resources/app/out/renderer/assets/index-BLdVCrS2.css": "53297e17d8f3a0510bd813c82629c8c08b56f29e276b4e72c75fc33f64aa6380",
-    "resources/app/out/renderer/assets/index-KsAaCQo6.js": "e48fc3070dc494bc885d00bdc503845d6236ed783e73ae4e62493ebe97949f3e",
-    "resources/app/out/renderer/index.html": "753723fac4d2f278b36e657dde1d88f3638af585b785f725aa989ec8fec654e4",
-    "resources/app/package.json": "09c2741878f88be83fb145b0ab8ba9ca5c1a36abf9660ce748b1765842fc9818",
-    "使用教程.md": "f19747efae58d8f897350125744fb7f1a25ddd82e002e06c3e709447beb7daa4"
+    "resources/app/out/renderer/assets/index-D5ECKFvJ.css": "2756658a4d6b748b4da187ce722ac6edc091a7996557503faf805e5f22a92301",
+    "resources/app/out/renderer/assets/index-c5j3w1lj.js": "dc4d653858b16d473470fcf35a7bfe532359bcc537da26e318619594b18c5aa2",
+    "resources/app/out/renderer/index.html": "21218ec6e79e962ba1e34b474fe9ddcce742ef1f32c073cdb0a1ff92626070a3",
+    "resources/app/package.json": "e198290a1815705b553849e1f69807e099b013a4790efec5af6bfb420b9aff2c",
+    "resources/app/resources/icon.ico": "01f5e84afecade9b0252b77738b742075fd1d11af307e9f802aefb33e60e4c46",
+    "resources/app/resources/icon.png": "7a5ba0705ece321fc4c28af3d1c31400244824350b40a959cef6ed5d378cdd4f",
+    "使用教程.md": "35504d4e9ec6933f7c449f3bd1f4b31503573b1a08ed2ca98ef425e764c6c985"
   }
 }

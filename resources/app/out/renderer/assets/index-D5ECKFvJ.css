@@ -10,6 +10,7 @@
 .wg-startup-notice{position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:60;display:flex;gap:18px;align-items:center;max-width:85vw;padding:12px 18px;border:1px solid var(--wg-line);border-radius:8px;background:var(--wg-surface);color:var(--wg-text);box-shadow:var(--wg-shadow);font-size:12px}.wg-startup-notice button{white-space:nowrap;color:var(--wg-accent)}
 
 .wg-help-document{max-height:65vh;overflow:auto;padding:0 12px 12px 0;line-height:1.85;color:var(--wg-text)}.wg-help-lead{padding:14px 18px;background:var(--wg-selected);border-radius:8px}.wg-help-document section{padding:16px 2px;border-bottom:1px solid var(--wg-line)}.wg-help-document h2{font-size:15px;font-weight:650;margin-bottom:8px}.wg-help-document p{margin:8px 0}.wg-help-document code{overflow-wrap:anywhere;font-size:12px;color:var(--wg-accent)}.wg-help-document ol{padding-left:22px;list-style:decimal}.wg-help-document li{margin:8px 0}.wg-help-document details{padding:9px 0}.wg-help-document summary{cursor:pointer;font-weight:550}
+.wg-startup{position:fixed;inset:0;z-index:100;pointer-events:none;color:var(--wg-text);font-family:'Segoe UI','Microsoft YaHei',sans-serif}.wg-startup-backdrop{position:absolute;inset:0;display:grid;place-items:center;background:var(--wg-bg)}.wg-startup-content{display:flex;flex-direction:column;align-items:center;transform:translateY(-12px)}.wg-startup-cat{width:300px;height:260px}.wg-startup-cat svg{display:block;width:100%;height:100%}.wg-startup-content h1{font-size:30px;letter-spacing:7px;font-weight:600;margin:8px 0 10px;padding-left:7px}.wg-startup-content p{font-size:12px;letter-spacing:2px;color:var(--wg-muted)}.wg-startup-content small{font-size:11px;color:var(--wg-muted);margin-top:28px}.wg-opening-paper{display:none;position:fixed;overflow:hidden;background:var(--wg-surface);z-index:101}.wg-opening-paper svg{display:block;width:100%;height:100%}.wg-app-reveal{height:100vh;background:var(--wg-bg)}.wg-brand img{display:block;width:29px;height:29px;object-fit:contain}
 /*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
 @layer properties {
   @supports (((-webkit-hyphens: none)) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {
@@ -483,6 +484,10 @@
 @layer components;
 
 @layer utilities {
+  .visible {
+    visibility: visible;
+  }
+
   .absolute {
     position: absolute;
   }
@@ -593,12 +598,20 @@
     margin-left: 22px;
   }
 
+  .block {
+    display: block;
+  }
+
   .flex {
     display: flex;
   }
 
   .grid {
     display: grid;
+  }
+
+  .hidden {
+    display: none;
   }
 
   .inline-flex {
