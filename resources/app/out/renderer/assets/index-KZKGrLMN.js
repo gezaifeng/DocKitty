@@ -65297,7 +65297,6 @@ function filePath(project, node) {
 }
 function FilePreview({ projectId, node, project }) {
   const [html, setHtml] = reactExports.useState(""), resources = reactExports.useRef([]);
-  const assetsVersion = project.nodes.filter((n) => n.kind === "file").map((n) => `${n.id}:${n.contentHash ?? ""}`).join("|");
   const query = useQuery({ queryKey: ["project-preview", projectId, node.id, node.contentHash], queryFn: () => request({ action: "readFile", projectId, nodeId: node.id }), enabled: !node.linkTarget });
   reactExports.useEffect(() => {
     let active = true;
@@ -65345,7 +65344,7 @@ function FilePreview({ projectId, node, project }) {
       resources.current.forEach((url) => URL.revokeObjectURL(url));
       resources.current = [];
     };
-  }, [query.data, node.id, projectId, assetsVersion]);
+  }, [query.data, node.id, projectId, project.refreshedAt]);
   if (node.linkTarget) return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-preview-empty", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx(Link2, { size: 28 }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "链接入口 · 只记录目标路径，不展开目标内容" }),
@@ -65519,11 +65518,11 @@ function ProjectWorkspace({ modePicker }) {
         /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: detail ? `${detail.nodes.filter((n) => !n.parentId).length} 项资料 · ${detail.relations.length} 条关系` : "文件、文件夹与每一轮迭代" })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-project-actions", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "wg-button", disabled: busy || !!parent?.snapshot, title: parent?.snapshot ? "历史文件夹快照，请返回当前层导入" : void 0, onClick: () => void importFiles(false), children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "wg-button", disabled: busy, onClick: () => void importFiles(false), children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(Import, { size: 15 }),
           " 批量导入文件"
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "wg-button primary", disabled: busy || !!parent?.snapshot, title: parent?.snapshot ? "历史文件夹快照，请返回当前层导入" : void 0, onClick: () => void importFiles(true), children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "wg-button primary", disabled: busy, onClick: () => void importFiles(true), children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(Folder, { size: 15 }),
           " 导入文件夹"
         ] })
