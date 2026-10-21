@@ -1,6 +1,7 @@
 "use strict";
 const electron = require("electron");
 const api = {
+  projects: { request: (request) => electron.ipcRenderer.invoke("projects.request", request) },
   appearance: { setTheme: (theme) => electron.ipcRenderer.invoke("appearance.theme", { theme }) },
   library: {
     list: () => electron.ipcRenderer.invoke("library.list", {}),
@@ -51,6 +52,7 @@ const api = {
     getBytes: (docName, commitId) => electron.ipcRenderer.invoke("preview.getBytes", { docName, commitId })
   },
   dialog: {
+    pickFiles: () => electron.ipcRenderer.invoke("dialog.pickFiles"),
     pickFolder: (title) => electron.ipcRenderer.invoke("dialog.pickFolder", { title }).then((r) => r.path),
     pickFile: (title, filters) => electron.ipcRenderer.invoke("dialog.pickFile", { title, filters }).then((r) => r.path),
     savePath: (title, defaultName) => electron.ipcRenderer.invoke("dialog.savePath", { title, defaultName }).then((r) => r.path)
