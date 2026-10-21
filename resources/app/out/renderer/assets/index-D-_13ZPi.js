@@ -65322,8 +65322,7 @@ function FilePreview({ projectId, node, project }) {
           return null;
         }
         if (target.origin !== "https://dockitty.invalid") return null;
-        const candidates = project.nodes.filter((n) => n.kind === "file" && originalPath(n) === target.href);
-        const asset = (node.snapshotRootId ? candidates.find((n) => n.snapshotRootId === node.snapshotRootId) : void 0) ?? candidates.find((n) => !n.snapshot);
+        const asset = project.nodes.find((n) => n.kind === "file" && originalPath(n) === target.href);
         if (!asset || kind === "css" && !asset.name.toLowerCase().endsWith(".css")) return null;
         const bytes = await request({ action: "readFile", projectId, nodeId: asset.id });
         if (kind === "css") return new TextDecoder().decode(bytes.data);
@@ -65344,7 +65343,7 @@ function FilePreview({ projectId, node, project }) {
       resources.current.forEach((url) => URL.revokeObjectURL(url));
       resources.current = [];
     };
-  }, [query.data, node.id, projectId, project.refreshedAt]);
+  }, [query.data, node.id, projectId]);
   if (node.linkTarget) return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-preview-empty", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx(Link2, { size: 28 }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "链接入口 · 只记录目标路径，不展开目标内容" }),
@@ -65634,14 +65633,14 @@ function ProjectWorkspace({ modePicker }) {
     ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("section", { className: "wg-project-content", children: view === "graph" ? /* @__PURE__ */ jsxRuntimeExports.jsx(ProjectGraph, { nodes, relations: detail.relations, selectedId, onSelect: select, onOpen: openNode, onContext: (node, x, y) => {
         setSelectedId(node.id);
-        setMenu({ node, x: Math.min(x, window.innerWidth - 245), y: Math.min(y, window.innerHeight - 340) });
+        setMenu({ node, x: Math.min(x, window.innerWidth - 245), y: Math.min(y, window.innerHeight - 260) });
       }, onMove: async (nodeId, position) => {
         await run2(() => request({ action: "updateNode", projectId, nodeId, position }));
       }, onRelation: editRelation }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-document-grid-scroll", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-document-grid", role: "list", "aria-label": "当前层项目资料", children: nodes.map((node) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { role: "listitem", className: `wg-document-card ${selectedId === node.id ? "selected" : ""}`, "aria-label": `资料 ${node.title}`, onClick: () => select(node.id), onDoubleClick: () => openNode(node.id), onContextMenu: (e) => {
           e.preventDefault();
           setSelectedId(node.id);
-          setMenu({ node, x: Math.min(e.clientX, window.innerWidth - 245), y: Math.min(e.clientY, window.innerHeight - 340) });
+          setMenu({ node, x: Math.min(e.clientX, window.innerWidth - 245), y: Math.min(e.clientY, window.innerHeight - 260) });
         }, children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-document-card-heading", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "wg-document-type", children: [
