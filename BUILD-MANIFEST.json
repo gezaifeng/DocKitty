@@ -1,8 +1,8 @@
 {
   "archiveKind": "compiled-application-snapshot",
   "originalTypeScriptAvailable": false,
-  "version": "0.5.8",
-  "originalDirectory": "gaomiao-windows-a6sFK5",
+  "version": "0.5.9",
+  "originalDirectory": "gaomiao-windows-uk3TGN",
   "electronVersion": "32.3.3",
   "files": {
     "Hairline-LICENSE.txt": "948d56f0bc8c383c04c453136dcfb78407f97de65ff8bb4fabff2b79ddd17f59",
@@ -23,14 +23,14 @@
     "resources/app/out/preload/index.cjs": "8b761b009ca2407430295b4d001cf28d11ae87e4b81fee888b799be1d828df70",
     "resources/app/out/renderer/assets/cat-D_fsyJ-0.png": "ca72804eb1178fcc1fe98b23c99bc386e909f5aca12c8aca14df37e4ccfe6b3a",
     "resources/app/out/renderer/assets/gaomiao-D-Hjr120.png": "3d5821b769db49e20ae2301205ddeeeadc227123b9c981c9bcb4ff40118c38ce",
-    "resources/app/out/renderer/assets/index-B8NyH0fX.css": "81ab8105925bb66f7e360aff95e00652151e416e3c523f7ff3eaff02ccf92c32",
-    "resources/app/out/renderer/assets/index-CrATbO9v.js": "3da8a318dc2af65a45e51d105eb5417663b4ba365e7da004917112ebd075c540",
+    "resources/app/out/renderer/assets/index-DDKDiYgT.css": "38b7e029ad1f37ea3b4f46da5a27e73fe56e7d972f3992d3ecb5b4f23d6d61db",
+    "resources/app/out/renderer/assets/index-uDUZFIFc.js": "608437621d9d831a2764aa5080df4366cd56ba1ac2b28ce36fdc0f7191cb84b1",
     "resources/app/out/renderer/assets/paper-CsFc-hZ7.png": "f45dff6f97cebeba52dfb8b9ff5c94debd9bc0942814aee6a34856bbc6dc54de",
-    "resources/app/out/renderer/index.html": "bdc6890a82a1cae04ab6ae4609ff93948f1286e6c7a43d199f77ff82650b586e",
-    "resources/app/package.json": "7e0410099b97b6efc4ff7eb0bab8a181ecc9672914b57af16fa4d96579712530",
+    "resources/app/out/renderer/index.html": "51ec2d39f8fa6ce932f3e6acf088685f275f4563af16331767fe89678e132d23",
+    "resources/app/package.json": "b4a8ab9631d8779cc40a9a854dab98d3312a2b717d403add32fc5ca16a69bfb3",
     "resources/app/resources/icon.ico": "9fc2dd00a90413ce71fe6c31e63d41591a287f0c72647562b3dbfb10b5162bc2",
     "resources/app/resources/icon.png": "3d5821b769db49e20ae2301205ddeeeadc227123b9c981c9bcb4ff40118c38ce",
     "resources/app/resources/installer-mode.json": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-    "使用教程.md": "455a10f584a8de512ef6b320c6a2a61c8f6c38745285b6661ebac398c5106aad"
+    "使用教程.md": "c42a372a565b58e011da71af0d8bb573ce84c0fb2ff8a759596961039ef58d04"
   }
 }

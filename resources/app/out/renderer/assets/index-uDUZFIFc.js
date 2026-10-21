@@ -67129,6 +67129,7 @@ function SettingsPage() {
   ] });
 }
 const themeOptions = [
+  { id: "redline", label: "赤幕 / REDLINE", detail: "红黑白 · 斜切拼贴与短促入场" },
   { id: "liquid", label: "液态玻璃", detail: "流动曲面 · 通透磨砂与边缘高光" },
   { id: "liquid-dark", label: "液态玻璃 · 深色", detail: "深色玻璃 · 柔和亮字与流动光影" },
   { id: "blockframe", label: "BlockFrame 黑框积木", detail: "暖纸底色 · 黑框与硬投影" },
@@ -67190,6 +67191,10 @@ function ThemePicker() {
       theme === t.id && /* @__PURE__ */ jsxRuntimeExports.jsx(Check, { size: 14 })
     ] }, t.id)) })
   ] });
+}
+function ThemedTitle({ text }) {
+  const redline = useUiStore((s) => s.theme === "redline");
+  return redline ? /* @__PURE__ */ jsxRuntimeExports.jsx(jsxRuntimeExports.Fragment, { children: Array.from(text).map((letter, index) => /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "wg-title-letter", children: letter }, index)) }) : /* @__PURE__ */ jsxRuntimeExports.jsx(jsxRuntimeExports.Fragment, { children: text });
 }
 function VersionStatistics({ detail, onSelect, onOpenVersion, onCompare }) {
   const repoRoot = useRepoStore((s) => s.repoRoot);
@@ -67832,7 +67837,7 @@ function HelpDocument({ repoRoot }) {
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "09 · 主题与全局功能" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "顶部“主题”可选择“液态玻璃”及其深色外观，使用通透磨砂控件、边缘高光与流动背景。“功能”菜单位于“文件”右侧，可开关关系图左下角的小组件、减少动态效果或减少透明度；玻璃主题下还可分别关闭背景流动与指针光效。指针光源立即跟随鼠标，短暂残影留在原位置后淡出。" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "顶部“主题”可选择“赤幕 / REDLINE”，以红黑白、斜切纸片、拼贴标题与短促入场呈现导航、文档、分类和统计；正文与输入内容保持清晰。主题选择会保存，下次启动仍使用你的选择。也可选择“液态玻璃”及其深色外观，使用通透磨砂控件、边缘高光与流动背景。“功能”菜单位于“文件”右侧，可开关关系图左下角的小组件、减少动态效果或减少透明度；玻璃主题下还可分别关闭背景流动与指针光效。指针光源立即跟随鼠标，短暂残影留在原位置后淡出。" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "右键关系图的小组件可切换 Riffle、Drawer、Terminal、Cabinet、Turntable，或选择“关闭小组件”。关闭后可从“功能 → 关系图小组件”重新打开，保留所选视效。这些选择会在下次启动时保留。使用帮助位于顶栏最右侧。" })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
@@ -68375,7 +68380,7 @@ function FileIcon({ name, size = 18 }) {
 }
 function Workspace({ modePicker } = {}) {
   const { repoRoot, repoName, setRepo } = useRepoStore();
-  const { selectedDocName, selectDoc, rightPanel, setRightPanel } = useUiStore();
+  const { selectedDocName, selectDoc, rightPanel, setRightPanel, theme } = useUiStore();
   const queryClient2 = useQueryClient();
   const [view, setView] = reactExports.useState("overview");
   const [selectedVersionId, setSelectedVersionId] = reactExports.useState(null);
@@ -68794,7 +68799,7 @@ function Workspace({ modePicker } = {}) {
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-projectbar", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx(FolderOpen, { size: 18 }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: repoName }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "wg-project-title", children: /* @__PURE__ */ jsxRuntimeExports.jsx(ThemedTitle, { text: repoName ?? "我的文档" }) }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("small", { title: repoRoot, children: repoRoot })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-project-actions", children: [
@@ -68936,7 +68941,7 @@ function Workspace({ modePicker } = {}) {
         ] })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `wg-main-area ${view === "overview" ? "overview" : view === "stats" ? "statistics" : ""}`, children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(AnimatePresence, { mode: "wait", initial: false, children: /* @__PURE__ */ jsxRuntimeExports.jsx(motion.div, { className: "wg-main-view", initial: { opacity: 0, y: 7 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -5 }, transition: { duration: 0.2 }, children: view === "stats" && detail ? /* @__PURE__ */ jsxRuntimeExports.jsx(VersionStatistics, { detail, onSelect: selectVersion, onOpenVersion: (id2) => {
+        /* @__PURE__ */ jsxRuntimeExports.jsx(AnimatePresence, { mode: "wait", initial: false, children: /* @__PURE__ */ jsxRuntimeExports.jsx(motion.div, { className: "wg-main-view", initial: theme === "redline" ? { opacity: 0, x: -18 } : { opacity: 0, y: 7 }, animate: { opacity: 1, x: 0, y: 0 }, exit: theme === "redline" ? { opacity: 0, x: 12 } : { opacity: 0, y: -5 }, transition: theme === "redline" ? { duration: 0.18, ease: [0.18, 0.84, 0.25, 1] } : { duration: 0.2 }, children: view === "stats" && detail ? /* @__PURE__ */ jsxRuntimeExports.jsx(VersionStatistics, { detail, onSelect: selectVersion, onOpenVersion: (id2) => {
           setSelectedVersionId(id2);
           setView("overview");
           setHistoryOpen(true);
@@ -70386,7 +70391,7 @@ function ProjectWorkspace({ modePicker }) {
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-projectbar", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx(FolderOpen, { size: 19 }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: detail?.name ?? "项目文档库" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "wg-project-title", children: /* @__PURE__ */ jsxRuntimeExports.jsx(ThemedTitle, { text: detail?.name ?? "项目文档库" }) }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: detail ? `${detail.nodes.filter((n) => !n.parentId).length} 项资料 · ${detail.relations.length} 条关系` : "文件、文件夹与每一轮迭代" })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-project-actions", children: [
@@ -71098,7 +71103,7 @@ function App() {
     };
     apply();
     media.addEventListener("change", apply);
-    void api.appearance?.setTheme(theme === "dark" || theme === "liquid-dark" ? "dark" : theme === "system" ? "system" : "light");
+    void api.appearance?.setTheme(theme === "dark" || theme === "liquid-dark" || theme === "redline" ? "dark" : theme === "system" ? "system" : "light");
     return () => media.removeEventListener("change", apply);
   }, [theme]);
   reactExports.useEffect(() => {
