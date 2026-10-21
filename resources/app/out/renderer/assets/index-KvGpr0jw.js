@@ -26104,6 +26104,12 @@ const useUiStore = create$1()(
       rightPanel: "preview",
       theme: "blockframe",
       themeButtonPos: null,
+      showGraphWidget: true,
+      glassBackgroundMotion: true,
+      glassPointerLight: true,
+      reduceMotion: false,
+      reduceTransparency: false,
+      setFeature: (feature, enabled) => set({ [feature]: enabled }),
       selectDoc: (docName2) => set({ selectedDocName: docName2 }),
       setPendingCommit: (docName2, workspacePath) => set({ pendingCommitDocName: docName2, pendingCommitWorkspacePath: workspacePath }),
       clearPendingCommit: () => set({ pendingCommitDocName: null, pendingCommitWorkspacePath: null }),
@@ -26115,7 +26121,7 @@ const useUiStore = create$1()(
       name: "word-git-ui-v1",
       version: 2,
       migrate: (state) => ({ theme: "blockframe", themeButtonPos: state?.themeButtonPos ?? null }),
-      partialize: (s) => ({ theme: s.theme, themeButtonPos: s.themeButtonPos })
+      partialize: (s) => ({ theme: s.theme, themeButtonPos: s.themeButtonPos, showGraphWidget: s.showGraphWidget, glassBackgroundMotion: s.glassBackgroundMotion, glassPointerLight: s.glassPointerLight, reduceMotion: s.reduceMotion, reduceTransparency: s.reduceTransparency })
     }
   )
 );
@@ -31223,7 +31229,7 @@ const DialogOverlay = reactExports.forwardRef(({ className, ...props }, ref) => 
   {
     ref,
     className: cn(
-      "fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "wg-modal-backdrop fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className
     ),
     ...props
@@ -36699,6 +36705,7 @@ function drawer(el, options2) {
 const figures = { Riffle: riffle, Drawer: drawer, Terminal: terminal, Cabinet: cabinet, Turntable: turntable };
 const descriptions = { Riffle: "卡片托盘", Drawer: "抽屉柜", Terminal: "终端记录", Cabinet: "机柜", Turntable: "旋转台" };
 function GraphRiffle() {
+  const visible = useUiStore((s) => s.showGraphWidget), setFeature = useUiStore((s) => s.setFeature);
   const host = reactExports.useRef(null);
   const [selected, setSelected] = reactExports.useState(() => {
     try {
@@ -36710,10 +36717,10 @@ function GraphRiffle() {
   });
   const [menu, setMenu] = reactExports.useState(null);
   reactExports.useEffect(() => {
-    if (!host.current) return;
+    if (!visible || !host.current) return;
     const figure = figures[selected](host.current, { play: false, label: descriptions[selected] + "，鼠标互动；右键切换视效" });
     return () => figure.destroy();
-  }, [selected]);
+  }, [selected, visible]);
   reactExports.useEffect(() => {
     if (!menu) return;
     document.querySelector('.wg-figure-menu [aria-checked="true"]')?.focus();
@@ -36730,7 +36737,8 @@ function GraphRiffle() {
       document.removeEventListener("keydown", key);
     };
   }, [menu]);
-  const showMenu = (x, y) => setMenu({ x: Math.max(8, Math.min(x, window.innerWidth - 240)), y: Math.max(8, Math.min(y, window.innerHeight - 280)) });
+  const showMenu = (x, y) => setMenu({ x: Math.max(8, Math.min(x, window.innerWidth - 240)), y: Math.max(8, Math.min(y, window.innerHeight - 330)) });
+  if (!visible) return null;
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-graph-riffle", onPointerDown: (e) => e.stopPropagation(), onContextMenu: (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -36759,7 +36767,12 @@ function GraphRiffle() {
           descriptions[name]
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("span", { "aria-hidden": "true", children: selected === name ? "✓" : "" })
-      ] }, name))
+      ] }, name)),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("hr", {}),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { role: "menuitem", onClick: () => {
+        setMenu(null);
+        setFeature("showGraphWidget", false);
+      }, children: "关闭小组件" })
     ] }), document.body)
   ] });
 }
@@ -40898,13 +40911,13 @@ class DocumentParser {
   }
   parseDocumentFile(xmlDoc) {
     var xbody = globalXmlParser.element(xmlDoc, "body");
-    var background = globalXmlParser.element(xmlDoc, "background");
+    var background2 = globalXmlParser.element(xmlDoc, "background");
     var sectPr = globalXmlParser.element(xbody, "sectPr");
     return {
       type: DomType.Document,
       children: this.parseBodyElements(xbody),
       props: sectPr ? parseSectionProperties(sectPr, globalXmlParser) : {},
-      cssStyle: background ? this.parseBackground(background) : {}
+      cssStyle: background2 ? this.parseBackground(background2) : {}
     };
   }
   parseBackground(elem) {
@@ -67106,6 +67119,8 @@ function SettingsPage() {
   ] });
 }
 const themeOptions = [
+  { id: "liquid", label: "液态玻璃", detail: "流动曲面 · 通透磨砂与边缘高光" },
+  { id: "liquid-dark", label: "液态玻璃 · 深色", detail: "深色玻璃 · 柔和亮字与流动光影" },
   { id: "blockframe", label: "BlockFrame 黑框积木", detail: "暖纸底色 · 黑框与硬投影" },
   { id: "raw", label: "粉绿方块", detail: "粉绿色块 · 直角黑框与硬投影" },
   { id: "retro", label: "经典视窗", detail: "桌面窗口 · 凸凹边框与标题栏" },
@@ -67804,6 +67819,11 @@ function HelpDocument({ repoRoot }) {
       /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "中英混合字数=汉字+英文词，不等同Word/WPS字数；正文不包含页眉、页脚、脚注文字。首稿没有上一稿，增删为“—”。章节改名且没有稳定标识时不自动猜测对应关系；Excel插列或复杂重排可能无法可靠对齐，统计说明会标出口径。文件损坏、旧格式或超出差异计算限制时，缺失值不会画成零。覆盖同版本更新当前节点，不新增节点。保存活动不代表实际编辑时长。" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "“查找版本”可按名称、说明、作者、日期及分类筛选。Excel历史预览可以切换工作表，并保留稀疏单元格的真实坐标；回收分支遇到同名时可填写新的恢复名称。" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "BlockFrame为新默认主题，可在顶栏切换其他主题。系统开启“减少动态效果”时，启动与统计入场运动会跳过。" })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "09 · 主题与全局功能" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "顶部“主题”可选择“液态玻璃”及其深色外观，使用通透磨砂控件、边缘高光与流动背景。“功能”菜单位于“文件”右侧，可开关关系图左下角的小组件、减少动态效果或减少透明度；玻璃主题下还可分别关闭背景流动与指针光效。指针光源立即跟随鼠标，短暂残影留在原位置后淡出。" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "右键关系图的小组件可切换 Riffle、Drawer、Terminal、Cabinet、Turntable，或选择“关闭小组件”。关闭后可从“功能 → 关系图小组件”重新打开，保留所选视效。这些选择会在下次启动时保留。使用帮助位于顶栏最右侧。" })
     ] })
   ] });
 }
@@ -68106,6 +68126,48 @@ function FileMenu({ children, busy = false, onError, onNotice }) {
       children && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("hr", {}),
         children
+      ] })
+    ] })
+  ] });
+}
+function FeaturesMenu() {
+  const state = useUiStore(), menu = reactExports.useRef(null);
+  const glass = state.theme === "liquid" || state.theme === "liquid-dark";
+  reactExports.useEffect(() => {
+    const outside = (event) => {
+      if (menu.current && !menu.current.contains(event.target)) menu.current.open = false;
+    };
+    const key = (event) => {
+      if (event.key === "Escape" && menu.current?.open) {
+        menu.current.open = false;
+        menu.current.querySelector("summary")?.focus();
+      }
+    };
+    document.addEventListener("pointerdown", outside);
+    document.addEventListener("keydown", key);
+    return () => {
+      document.removeEventListener("pointerdown", outside);
+      document.removeEventListener("keydown", key);
+    };
+  }, []);
+  const toggle = (feature, label2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { role: "menuitemcheckbox", "aria-checked": state[feature], onClick: () => state.setFeature(feature, !state[feature]), children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: label2 }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(Check, { size: 14, "aria-hidden": "true", style: { visibility: state[feature] ? "visible" : "hidden" } })
+  ] }, feature);
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("details", { className: "wg-menu wg-features-menu", ref: menu, onBlurCapture: (event) => {
+    if (event.relatedTarget instanceof Node && !event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false;
+  }, children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("summary", { children: "功能" }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { role: "menu", "aria-label": "全局功能", children: [
+      toggle("showGraphWidget", "关系图小组件"),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("hr", {}),
+      toggle("reduceMotion", "减少动态效果"),
+      toggle("reduceTransparency", "减少透明度"),
+      glass && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("hr", {}),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { className: "wg-feature-heading", children: "液态玻璃效果" }),
+        toggle("glassBackgroundMotion", "背景流动"),
+        toggle("glassPointerLight", "指针光效")
       ] })
     ] })
   ] });
@@ -68511,13 +68573,14 @@ function Workspace({ modePicker } = {}) {
         /* @__PURE__ */ jsxRuntimeExports.jsx("hr", {}),
         /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setRightPanel("settings"), children: "备份与保存设置" })
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-menubutton", onClick: () => open2("help"), children: "使用帮助" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(FeaturesMenu, {}),
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-menu-spacer" }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-theme-label", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "主题" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx(ThemePicker, {})
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "wg-local", children: "本地文档库" })
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "wg-local", children: "本地文档库" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-menubutton wg-help-trigger", onClick: () => open2("help"), children: "使用帮助" })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-projectbar", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
@@ -69957,14 +70020,15 @@ function ProjectWorkspace({ modePicker }) {
         /* @__PURE__ */ jsxRuntimeExports.jsx("hr", {}),
         /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setRightPanel("settings"), children: "备份与保存设置" })
       ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(FeaturesMenu, {}),
       /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-menubutton", onClick: () => setMcpOpen(true), children: "接入 Agent" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-menubutton", onClick: () => setHelpOpen(true), children: "使用帮助" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-menu-spacer" }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-theme-label", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "主题" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx(ThemePicker, {})
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "wg-local", children: "本地项目资料" })
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "wg-local", children: "本地项目资料" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-menubutton wg-help-trigger", onClick: () => setHelpOpen(true), children: "使用帮助" })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-projectbar", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
@@ -70409,16 +70473,17 @@ const Mascot = reactExports.forwardRef(function Mascot2(_, ref) {
     /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "wg-badge-anchor", "data-version-paper": true, "aria-hidden": "true" })
   ] }) });
 });
-function StartupScreen({ ready, revealRef, onFinish }) {
+function StartupScreen({ ready, revealRef, onFinish, reduceMotion = false }) {
   const mascot = reactExports.useRef(null);
   const backdrop = reactExports.useRef(null);
   const exiting = reactExports.useRef(false);
   const [caught, setCaught] = reactExports.useState(false);
   const [phase, setPhase] = reactExports.useState("connecting");
-  const [reduced2, setReduced] = reactExports.useState(() => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false);
+  const [systemReduced, setSystemReduced] = reactExports.useState(() => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false);
+  const reduced2 = reduceMotion || systemReduced;
   reactExports.useEffect(() => {
     const media = window.matchMedia?.("(prefers-reduced-motion: reduce)");
-    const change = () => setReduced(media?.matches ?? false);
+    const change = () => setSystemReduced(media?.matches ?? false);
     media?.addEventListener("change", change);
     return () => media?.removeEventListener("change", change);
   }, []);
@@ -70508,9 +70573,144 @@ function StartupScreen({ ready, revealRef, onFinish }) {
     /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: ready ? "文档已就绪" : "正在打开你的文档…" })
   ] }) }) });
 }
+const glassSurfaces = ".wg-menubar,.wg-project-actions,.wg-viewbar nav,.wg-theme-trigger,.wg-button,.wg-icon-button,.wg-viewbar nav button,.wg-nav>button,.wg-stat-sidebar section button,.wg-search,.wg-nav,.wg-inspector,.wg-file-center,.wg-graph-canvas,.wg-document-card,.wg-graph-node,.wg-version-card,.wg-stat-sidebar,.wg-stat-chart-panel,.wg-stat-cards section,.wg-stat-detail,.wg-stat-table,.wg-theme-options,.wg-menu>div,.wg-version-menu,.wg-cat-menu,.wg-edge-style-menu,.wg-dialog,.wg-project-library-list,.wg-column";
+function glassPoint(panel, clientX, clientY) {
+  const rect = panel.getBoundingClientRect();
+  return { x: (clientX - rect.left) * panel.offsetWidth / rect.width - panel.clientLeft, y: (clientY - rect.top) * panel.offsetHeight / rect.height - panel.clientTop };
+}
+function installGlassLight() {
+  const lights = /* @__PURE__ */ new Map(), lifetime = 700;
+  let frame2 = 0;
+  const head = (x, y) => `radial-gradient(ellipse 170px 135px at ${x}px ${y}px,rgba(255,255,255,.25) 0%,rgba(255,255,255,.12) 25%,rgba(255,255,255,.035) 55%,rgba(255,255,255,0) 100%)`;
+  function schedule() {
+    if (!frame2) frame2 = requestAnimationFrame(paint);
+  }
+  function leave(panel, light, time2) {
+    if (!light.active) return;
+    light.points.push({ x: light.x, y: light.y, time: time2 });
+    light.active = false;
+    panel.style.removeProperty("--wg-light-head");
+  }
+  function move(event) {
+    if (event.pointerType === "touch") return;
+    const panel = event.target instanceof Element ? event.target.closest(glassSurfaces) : null, time2 = performance.now();
+    for (const [other, light] of lights) if (other !== panel) leave(other, light, time2);
+    if (panel && panel.offsetWidth && panel.offsetHeight) {
+      const point = glassPoint(panel, event.clientX, event.clientY);
+      let light = lights.get(panel);
+      if (!light) {
+        light = { ...point, clientX: event.clientX, clientY: event.clientY, active: true, points: [] };
+        lights.set(panel, light);
+      } else if (light.active && Math.hypot(point.x - light.x, point.y - light.y) > 6) {
+        light.points.push({ x: light.x, y: light.y, time: time2 });
+        light.points = light.points.slice(-16);
+      }
+      Object.assign(light, point, { clientX: event.clientX, clientY: event.clientY, active: true });
+      panel.dataset.glassLight = "";
+      panel.style.setProperty("--wg-light-x", String(point.x));
+      panel.style.setProperty("--wg-light-y", String(point.y));
+      panel.style.setProperty("--wg-light-head", head(point.x, point.y));
+    }
+    if (lights.size) schedule();
+  }
+  function paint(time2) {
+    frame2 = 0;
+    let fading = false;
+    for (const [panel, light] of lights) {
+      if (!panel.isConnected) {
+        lights.delete(panel);
+        continue;
+      }
+      if (light.active) {
+        const point = glassPoint(panel, light.clientX, light.clientY);
+        if (point.x !== light.x || point.y !== light.y) {
+          Object.assign(light, point);
+          panel.style.setProperty("--wg-light-x", String(point.x));
+          panel.style.setProperty("--wg-light-y", String(point.y));
+          panel.style.setProperty("--wg-light-head", head(point.x, point.y));
+        }
+        fading = true;
+      }
+      light.points = light.points.filter((point) => time2 - point.time < lifetime);
+      const traces = light.points.map((point) => {
+        const opacity = 0.052 * Math.pow(Math.max(0, 1 - (time2 - point.time) / lifetime), 1.7);
+        return `radial-gradient(ellipse 125px 105px at ${point.x}px ${point.y}px,rgba(255,255,255,${opacity.toFixed(4)}) 0%,rgba(255,255,255,${(opacity * 0.28).toFixed(4)}) 48%,rgba(255,255,255,0) 100%)`;
+      });
+      panel.style.setProperty("--wg-light-traces", traces.length ? traces.join(",") : "linear-gradient(transparent,transparent)");
+      if (traces.length) fading = true;
+      else if (!light.active) {
+        panel.removeAttribute("data-glass-light");
+        panel.style.removeProperty("--wg-light-traces");
+        lights.delete(panel);
+      }
+    }
+    if (fading) schedule();
+  }
+  function clear() {
+    cancelAnimationFrame(frame2);
+    frame2 = 0;
+    for (const panel of lights.keys()) {
+      panel.removeAttribute("data-glass-light");
+      for (const property of ["--wg-light-head", "--wg-light-traces", "--wg-light-x", "--wg-light-y"]) panel.style.removeProperty(property);
+    }
+    lights.clear();
+  }
+  const exit = (event) => {
+    if (!event.relatedTarget) {
+      for (const [panel, light] of lights) leave(panel, light, performance.now());
+      if (lights.size) schedule();
+    }
+  };
+  const hidden = () => {
+    if (document.hidden) clear();
+  };
+  document.addEventListener("pointermove", move, true);
+  document.addEventListener("pointerout", exit, true);
+  document.addEventListener("visibilitychange", hidden);
+  window.addEventListener("blur", clear);
+  return () => {
+    clear();
+    document.removeEventListener("pointermove", move, true);
+    document.removeEventListener("pointerout", exit, true);
+    document.removeEventListener("visibilitychange", hidden);
+    window.removeEventListener("blur", clear);
+  };
+}
+const background = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="silk-jade" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f0f0c8"/><stop offset=".38" stop-color="#b4c59e"/><stop offset=".64" stop-color="#6c9f89"/><stop offset="1" stop-color="#c7d7bc"/></linearGradient><linearGradient id="silk-peach" x1="0" y1="0" x2=".5" y2="1"><stop stop-color="#f5ddbd"/><stop offset=".5" stop-color="#d99178"/><stop offset="1" stop-color="#f1e4c8"/></linearGradient><linearGradient id="silk-light" x1="0" y1="0" x2="1" y2=".7"><stop stop-color="#fff" stop-opacity=".1"/><stop offset=".48" stop-color="#fff" stop-opacity=".85"/><stop offset=".66" stop-color="#fff" stop-opacity=".1"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs><path class="jade-ribbon" d="M-350 120 C170 -250 230 130 460 190 C790 280 660 600 1000 720 C1360 850 1430 1180 1730 970 L1740 1350 L-380 1350Z" fill="url(#silk-jade)"><animate attributeName="d" dur="14s" begin="-3s" repeatCount="indefinite" calcMode="spline" keyTimes="0;.5;1" keySplines=".4 0 .6 1;.4 0 .6 1" values="M-350 120 C170 -250 230 130 460 190 C790 280 660 600 1000 720 C1360 850 1430 1180 1730 970 L1740 1350 L-380 1350Z;M-350 120 C150 -170 380 90 480 280 C690 450 800 460 1070 650 C1390 780 1415 1130 1730 970 L1740 1350 L-380 1350Z;M-350 120 C170 -250 230 130 460 190 C790 280 660 600 1000 720 C1360 850 1430 1180 1730 970 L1740 1350 L-380 1350Z"/></path><path class="peach-ribbon" d="M680 -270 C610 40 1010 20 930 370 C890 550 1180 690 1640 400 L1860 -230Z" fill="url(#silk-peach)"><animate attributeName="d" dur="17s" begin="-7s" repeatCount="indefinite" calcMode="spline" keyTimes="0;.5;1" keySplines=".35 0 .65 1;.35 0 .65 1" values="M680 -270 C610 40 1010 20 930 370 C890 550 1180 690 1640 400 L1860 -230Z;M680 -270 C770 90 960 -45 1050 300 C1000 530 1180 870 1640 500 L1860 -230Z;M680 -270 C610 40 1010 20 930 370 C890 550 1180 690 1640 400 L1860 -230Z"/></path><path class="ambient-sheen" d="M-200 560 C190 260 420 670 680 740 C1060 835 1270 650 1620 880" fill="none" stroke="url(#silk-light)" stroke-width="160"><animate attributeName="d" dur="12s" begin="-5s" repeatCount="indefinite" calcMode="spline" keyTimes="0;.5;1" keySplines=".4 0 .6 1;.4 0 .6 1" values="M-200 560 C190 260 420 670 680 740 C1060 835 1270 650 1620 880;M-200 600 C200 440 360 750 750 600 C1100 430 1220 770 1620 780;M-200 560 C190 260 420 670 680 740 C1060 835 1270 650 1620 880"/></path><g fill="none" stroke="white" stroke-opacity=".46" stroke-width="2"><path d="M-160 360 C250 60 300 360 670 490 S1020 920 1660 1020"/><path d="M-160 383 C250 83 300 383 670 513 S1020 943 1660 1043"/><path d="M-160 406 C250 106 300 406 670 536 S1020 966 1660 1066"/><path d="M960 -80 C870 240 1260 200 1400 460"/></g></svg>';
+function LiquidGlassEffects() {
+  const { theme, glassBackgroundMotion, glassPointerLight, reduceMotion } = useUiStore();
+  const [systemReduced, setSystemReduced] = reactExports.useState(() => matchMedia("(prefers-reduced-motion: reduce)").matches);
+  const backdrop = reactExports.useRef(null), enabled = theme === "liquid" || theme === "liquid-dark";
+  const reduced2 = reduceMotion || systemReduced;
+  reactExports.useEffect(() => {
+    const media = matchMedia("(prefers-reduced-motion: reduce)"), change = () => setSystemReduced(media.matches);
+    media.addEventListener("change", change);
+    return () => media.removeEventListener("change", change);
+  }, []);
+  reactExports.useEffect(() => {
+    if (!enabled || reduced2 || !glassPointerLight) return;
+    return installGlassLight();
+  }, [enabled, reduced2, glassPointerLight]);
+  reactExports.useEffect(() => {
+    if (!enabled) return;
+    const sync = () => {
+      const svg = backdrop.current?.querySelector("svg");
+      if (!svg) return;
+      const paused = reduced2 || !glassBackgroundMotion || document.hidden;
+      backdrop.current.dataset.paused = String(paused);
+      if (paused) svg.pauseAnimations();
+      else svg.unpauseAnimations();
+    };
+    sync();
+    document.addEventListener("visibilitychange", sync);
+    return () => document.removeEventListener("visibilitychange", sync);
+  }, [enabled, reduced2, glassBackgroundMotion]);
+  return enabled ? reactDomExports.createPortal(/* @__PURE__ */ jsxRuntimeExports.jsx("div", { ref: backdrop, className: "wg-liquid-background", "aria-hidden": "true", dangerouslySetInnerHTML: { __html: background } }), document.body) : null;
+}
 function App() {
   const { repoRoot, setRepo } = useRepoStore();
   const theme = useUiStore((s) => s.theme);
+  const reduceMotion = useUiStore((s) => s.reduceMotion), reduceTransparency = useUiStore((s) => s.reduceTransparency);
   const [checking, setChecking] = reactExports.useState(true);
   const [error, setError] = reactExports.useState("");
   const [notice, setNotice] = reactExports.useState("");
@@ -70525,13 +70725,17 @@ function App() {
       const resolved = theme === "system" ? media.matches ? "dark" : "light" : theme;
       root.setAttribute("data-theme", resolved);
       root.setAttribute("data-theme-preference", theme);
-      root.style.colorScheme = resolved === "dark" ? "dark" : "light";
+      root.style.colorScheme = resolved === "dark" || resolved === "liquid-dark" ? "dark" : "light";
     };
     apply();
     media.addEventListener("change", apply);
-    void api.appearance?.setTheme(theme === "dark" ? "dark" : theme === "system" ? "system" : "light");
+    void api.appearance?.setTheme(theme === "dark" || theme === "liquid-dark" ? "dark" : theme === "system" ? "system" : "light");
     return () => media.removeEventListener("change", apply);
   }, [theme]);
+  reactExports.useEffect(() => {
+    document.documentElement.dataset.reducedMotion = String(reduceMotion);
+    document.documentElement.dataset.reducedTransparency = String(reduceTransparency);
+  }, [reduceMotion, reduceTransparency]);
   async function start2() {
     setChecking(true);
     setError("");
@@ -70564,25 +70768,28 @@ function App() {
       setChecking(false);
     }
   }
-  return /* @__PURE__ */ jsxRuntimeExports.jsx(MotionConfig, { reducedMotion: "user", children: error ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex h-screen flex-col items-center justify-center gap-4 bg-background p-8", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-xl font-semibold", children: "稿喵暂时无法打开文档库" }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("p", { role: "alert", className: "max-w-xl break-words text-sm text-destructive", children: error }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-muted-foreground", children: "原有文档不会被删除。请检查保存位置、磁盘或访问权限。" }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-4", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-button", onClick: () => void start2(), children: "重试" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-button", onClick: () => void reconnect(), children: "选择原文档库位置" })
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(MotionConfig, { reducedMotion: reduceMotion ? "always" : "user", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx(LiquidGlassEffects, {}),
+    error ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex h-screen flex-col items-center justify-center gap-4 bg-background p-8", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-xl font-semibold", children: "稿喵暂时无法打开文档库" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { role: "alert", className: "max-w-xl break-words text-sm text-destructive", children: error }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-muted-foreground", children: "原有文档不会被删除。请检查保存位置、磁盘或访问权限。" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-4", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-button", onClick: () => void start2(), children: "重试" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-button", onClick: () => void reconnect(), children: "选择原文档库位置" })
+      ] })
+    ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+      !checking && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { ref: revealRef, className: "wg-app-reveal", inert: !entered, "aria-hidden": !entered, "data-entered": entered, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-page-content", children: /* @__PURE__ */ jsxRuntimeExports.jsx(MainLayout, {}) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("img", { className: "wg-page-origin", src: mascotImages.paper, alt: "", "aria-hidden": "true" })
+      ] }),
+      !entered && /* @__PURE__ */ jsxRuntimeExports.jsx(StartupScreen, { reduceMotion, ready: !checking, revealRef, onFinish: finishEntrance }),
+      entered && notice && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { role: "status", className: "wg-startup-notice", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: notice }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setNotice(""), children: "知道了" })
+      ] })
     ] })
-  ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-    !checking && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { ref: revealRef, className: "wg-app-reveal", inert: !entered, "aria-hidden": !entered, "data-entered": entered, children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-page-content", children: /* @__PURE__ */ jsxRuntimeExports.jsx(MainLayout, {}) }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("img", { className: "wg-page-origin", src: mascotImages.paper, alt: "", "aria-hidden": "true" })
-    ] }),
-    !entered && /* @__PURE__ */ jsxRuntimeExports.jsx(StartupScreen, { ready: !checking, revealRef, onFinish: finishEntrance }),
-    entered && notice && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { role: "status", className: "wg-startup-notice", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: notice }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setNotice(""), children: "知道了" })
-    ] })
-  ] }) });
+  ] });
 }
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 5e3 } }
