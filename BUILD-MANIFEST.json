@@ -1,19 +1,21 @@
 {
   "archiveKind": "compiled-application-snapshot",
   "originalTypeScriptAvailable": false,
-  "version": "0.2.5",
-  "originalDirectory": "gaomiao-0.2.5-windows-x64",
+  "version": "0.2.6",
+  "originalDirectory": "gaomiao-0.2.6-integrated-windows-x64",
   "electronVersion": "32.3.3",
   "files": {
     "resources/app/out/main/index.js": "e99738fe4ea596e21b952e6efc65cb36b510b77a241488313f26cdf128573144",
     "resources/app/out/preload/index.cjs": "d41df302fa76c68c67384f5cef4c30915b8eabf8ef2e2783931d4592721ecb50",
-    "resources/app/out/renderer/assets/gaomiao-CvAa0Tw3.png": "363cf9e153cb5d855c8a8985f2d5abe559c6699a661ec22bc39debdfd15ca2fc",
-    "resources/app/out/renderer/assets/index-Bfx0n8go.css": "f9d614a5cb1b27c35d17ae89b134fe4ef0841e5cbf58ac077ff23fff2674afb6",
-    "resources/app/out/renderer/assets/index-uSunliFK.js": "6745d6ebd6bcfe3accbe71f1553905d545a6d9396315dc478bfc53ee01b09fa6",
-    "resources/app/out/renderer/index.html": "477265350efb5f63c0d3f4ba39d4fb48166147f98604623b2b32de370f9914ae",
-    "resources/app/package.json": "b0cb6836a496eeaaa7197365e71852e16776f881ebdc01830f8e83c5ad16e794",
-    "resources/app/resources/icon.ico": "f9c7641a1d1590a47376ac41ecbb41d0e53262c027e15e505d6cbf318473acb5",
-    "resources/app/resources/icon.png": "363cf9e153cb5d855c8a8985f2d5abe559c6699a661ec22bc39debdfd15ca2fc",
-    "使用教程.md": "21da98a93ac2effa14c9e1fcb0912de03b2f1d35909ef045060067f666cc1e52"
+    "resources/app/out/renderer/assets/cat-DM3Wb4vy.png": "b8c4bc428ed3af6cee2fe6689f83677f41981fd79cbfd32daa2c0a827fe8d8ec",
+    "resources/app/out/renderer/assets/gaomiao-D1q54MHz.png": "962cc8b7fccacecd3f55b58eba2ff8d2f56f22f07763226ae8a8e99edfb8016b",
+    "resources/app/out/renderer/assets/index-DmnSw1cg.js": "1388627e4fdd34e5ea52de4695b42aa8de852d4ba7aed582f07a4d36bfe9f0e6",
+    "resources/app/out/renderer/assets/index-UPncsupl.css": "d7bf0c653afb055d4227d111aad1316a91c0dc404584dfae21f77d710272e6c3",
+    "resources/app/out/renderer/assets/paper-CoM35D0w.png": "64fc419589063cd8d76d9028e815edeefba560a63d5bf36fee7b796b99816fda",
+    "resources/app/out/renderer/index.html": "7878cd79fbd574807e7d223b5bcb2c02497f4a94a1fbafc25dd713e913f4cabe",
+    "resources/app/package.json": "5e3602d9aa9ea6be5b92840e5d1c64d6c6e8b601f7ed9a5e3934003a0d5d0ee0",
+    "resources/app/resources/icon.ico": "16f62a24b2113a1a861dd0bd2b0b086768b9ed3dca28ca9a36fe23dbe79c1b3f",
+    "resources/app/resources/icon.png": "962cc8b7fccacecd3f55b58eba2ff8d2f56f22f07763226ae8a8e99edfb8016b",
+    "使用教程.md": "35860e98785d151e4e010b40410a275bf44ed80d54387d0c416779fe9ad7cd80"
   }
 }
