@@ -16,17 +16,16 @@ export async function* readFileBlocks(filePath: string, blockSize = 1024 * 1024)
   }
 }
 
-export async function writeFileAtomic(target: string, data: Uint8Array): Promise<void> {
+export async function writeFileAtomic(target: string, data: Uint8Array | AsyncIterable<Uint8Array>): Promise<void> {
   await fs.mkdir(path.dirname(target), { recursive: true })
   const tmp = `${target}.tmp-${process.pid}-${Math.random().toString(36).slice(2)}`
-  const fh = await fs.open(tmp, 'w')
   try {
-    await fh.write(data)
-    await fh.sync()
-  } finally {
-    await fh.close()
-  }
-  try {
+    const fh = await fs.open(tmp, 'w')
+    try {
+      if (Symbol.asyncIterator in data) for await (const block of data) await fh.writeFile(block)
+      else await fh.writeFile(data)
+      await fh.sync()
+    } finally { await fh.close() }
     for (let attempt = 0; ; attempt++) {
       try { await fs.rename(tmp, target); break }
       catch (error) {

@@ -15,9 +15,9 @@ export function FeaturesMenu() {
   const toggle = (feature: Feature, label: string) => <button key={feature} role="menuitemcheckbox" aria-checked={state[feature]} onClick={() => state.setFeature(feature, !state[feature])}><span>{label}</span><Check size={14} aria-hidden="true" style={{ visibility: state[feature] ? 'visible' : 'hidden' }}/></button>
   return <details className="wg-menu wg-features-menu" ref={menu} onBlurCapture={event => { if (event.relatedTarget instanceof Node && !event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false }}>
     <summary>功能</summary><div role="menu" aria-label="全局功能">
-      {toggle('showGraphWidget', '关系图小组件')}
-      <hr/>{toggle('reduceMotion', '减少动态效果')}{toggle('reduceTransparency', '减少透明度')}
-      {glass && <><hr/><strong className="wg-feature-heading">液态玻璃效果</strong>{toggle('glassBackgroundMotion', '背景流动')}{toggle('glassPointerLight', '指针光效')}<hr/><strong className="wg-feature-heading">背景配色</strong><div className="wg-glass-palettes" role="group" aria-label="玻璃背景配色">{glassPalettes.map(palette => <button key={palette.id} role="menuitemradio" aria-checked={state.glassPalette === palette.id} onClick={() => state.setGlassPalette(palette.id)}><span className="wg-palette-swatch" aria-hidden="true" style={{ background: `linear-gradient(135deg,${palette.colors[0]},${palette.colors[1]})` }}/><span>{palette.label}</span><Check size={12} aria-hidden="true" style={{ visibility: state.glassPalette === palette.id ? 'visible' : 'hidden' }}/></button>)}</div></>}
+      <strong className="wg-feature-heading">显示</strong>{toggle('showGraphWidget', '关系图小组件')}{toggle('reduceTransparency', '减少透明度')}
+      <hr/><strong className="wg-feature-heading">动效</strong>{toggle('reduceMotion', '减少动态效果')}
+      {glass && <><hr/><strong className="wg-feature-heading">玻璃效果</strong>{toggle('glassBackgroundMotion', '背景流动')}{toggle('glassPointerLight', '指针光效')}<hr/><strong className="wg-feature-heading">背景配色</strong><div className="wg-glass-palettes" role="group" aria-label="玻璃背景配色">{glassPalettes.map(palette => <button key={palette.id} role="menuitemradio" aria-checked={state.glassPalette === palette.id} onClick={() => state.setGlassPalette(palette.id)}><span className="wg-palette-swatch" aria-hidden="true" style={{ background: `linear-gradient(135deg,${palette.colors[0]},${palette.colors[1]})` }}/><span>{palette.label}</span><Check size={12} aria-hidden="true" style={{ visibility: state.glassPalette === palette.id ? 'visible' : 'hidden' }}/></button>)}</div></>}
     </div>
   </details>
 }

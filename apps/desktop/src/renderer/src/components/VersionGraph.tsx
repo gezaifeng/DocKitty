@@ -1,8 +1,11 @@
+import { useSessionState } from '../store/useSessionState'
+import { useRepoStore } from '../store/repoStore'
+import { AkCardArt } from './AkCardArt'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { EdgeDraft } from './EdgeEditor'
 import { GraphEdge } from './GraphEdge'
 import { GraphRiffle } from './GraphRiffle'
-import { createPortal } from 'react-dom'
+import { GraphMenu } from './GraphMenu'
 import { Minus, Plus, Maximize2, GitBranch } from 'lucide-react'
 import type { DocumentDetail, LibraryVersion } from '@wordgit/shared'
 import { useGraphConnection } from './useGraphConnection'
@@ -16,6 +19,10 @@ interface Props {
   connecting?: boolean
   layoutEpoch?: number
   onArrange(): void
+  onRefresh?(): void
+  onImport?(): void
+  onNewDocument?(): void
+  busy?: boolean
   onSelect(id: string): void
   onContext?(version: LibraryVersion, x: number, y: number): void
   onPosition(id: string, position: { x: number; y: number }): Promise<boolean>
@@ -25,19 +32,14 @@ interface Props {
   onRelation?(edge: { from: string; to: string; label: string }, x?: number, y?: number): void
 }
 
-export function VersionGraph({ detail, versions, selectedId, compareIds, connecting, layoutEpoch = 0, onArrange, onSelect, onContext, onPosition, onMoveBranch, onConnect, onRelation, onEdgeContext, edgePreview }: Props) {
+export function VersionGraph({ detail, versions, selectedId, compareIds, connecting, layoutEpoch = 0, onArrange, onRefresh, onImport, onNewDocument, busy, onSelect, onContext, onPosition, onMoveBranch, onConnect, onRelation, onEdgeContext, edgePreview }: Props) {
   const arrowId = `version-arrow-${useId().replace(/:/g, '')}`
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
-  useEffect(() => {
-    if (!menu) return
-    const close = (e: PointerEvent) => { if (!(e.target as HTMLElement).closest('.wg-layout-menu')) setMenu(null) }
-    const cancel = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenu(null) }
-    document.addEventListener('pointerdown', close); document.addEventListener('keydown', cancel)
-    document.querySelector<HTMLButtonElement>('.wg-layout-menu button')?.focus()
-    return () => { document.removeEventListener('pointerdown', close); document.removeEventListener('keydown', cancel) }
-  }, [menu])
-  const [zoom, setZoom] = useState(.85)
-  const [pan, setPan] = useState({ x: 25, y: 35 })
+  const repoRoot = useRepoStore(state => state.repoRoot)
+  const [zoom, setZoom] = useSessionState(repoRoot, 'versionGraph.' + detail.docName + '.zoom', .85)
+  const [pan, setPan] = useSessionState(repoRoot, 'versionGraph.' + detail.docName + '.pan', { x: 25, y: 35 })
+  const [lastVisibleIds, setLastVisibleIds] = useSessionState(repoRoot, 'versionGraph.' + detail.docName + '.visible', '')
+  const previousLayoutEpoch = useRef(layoutEpoch)
   const [moving, setMoving] = useState<{ id: string; x: number; y: number } | null>(null)
   const [placed, setPlaced] = useState<Record<string, { x: number; y: number }>>({})
   const moves = useRef(new Map<string, number>())
@@ -70,7 +72,8 @@ export function VersionGraph({ detail, versions, selectedId, compareIds, connect
   const points = useMemo(() => new Map(versions.map((v, index) => [v.id, v.position ?? { x: 65 + index * 265, y: 65 }])), [versions])
   const visibleIds = versions.map(v => v.id).sort().join(',')
   useEffect(() => {
-    if (!points.size) return
+    if (!points.size || lastVisibleIds === visibleIds && previousLayoutEpoch.current === layoutEpoch) return
+    setLastVisibleIds(visibleIds); previousLayoutEpoch.current = layoutEpoch
     const visible = [...points.values()]
     setPan({ x: 25 - Math.min(...visible.map(p => p.x)) * viewport.current.zoom, y: 100 - Math.min(...visible.map(p => p.y)) * viewport.current.zoom })
   }, [visibleIds, layoutEpoch])
@@ -86,9 +89,14 @@ export function VersionGraph({ detail, versions, selectedId, compareIds, connect
       <button aria-label="缩小关系图" onClick={() => setZoom(z => Math.max(.2, z - .15))}><Minus size={15} /></button>
       <span>{Math.round(zoom * 100)}%</span>
       <button aria-label="放大关系图" onClick={() => setZoom(z => Math.min(1.8, z + .15))}><Plus size={15} /></button>
-      <button aria-label="复位关系图" onClick={() => { setZoom(.85); setPan({ x: 25, y: 35 }) }}><Maximize2 size={14} /></button>
+      <button aria-label="重置视角" onClick={() => { setZoom(.85); setPan({ x: 25, y: 35 }) }}><Maximize2 size={14} /></button>
     </div>
-    {menu && createPortal(<div className="wg-version-menu wg-layout-menu" role="menu" aria-label="关系图操作" style={{ left: menu.x, top: menu.y }}><button role="menuitem" onClick={() => { setMenu(null); onArrange() }}>整理布局</button></div>, document.body)}
+    {menu && <GraphMenu {...menu} onClose={() => setMenu(null)} actions={[
+      ...(onRefresh ? [{ label: '刷新工作目录与关系', run: onRefresh, disabled: busy }] : []),
+      ...(onImport ? [{ label: '导入文档 / 版本', run: onImport, disabled: busy }] : []),
+      ...(onNewDocument ? [{ label: '新建文档', run: onNewDocument, disabled: busy }] : []),
+      { label: '整理卡片布局', run: onArrange, disabled: busy },
+    ]}/>}
     <div ref={canvas} className="wg-graph-canvas" onContextMenu={event => { if (wire.suppressContext()) { event.preventDefault(); return } if ((event.target as HTMLElement).closest('.wg-graph-node')) return; event.preventDefault(); setMenu({ x: Math.max(8, Math.min(event.clientX, window.innerWidth - 312)), y: Math.max(8, Math.min(event.clientY, window.innerHeight - 70)) }) }} onPointerDown={event => {
       if (event.button !== 0) return
       if ((event.target as HTMLElement).closest('.wg-node-body,.wg-branch-tags,.wg-edge-action')) return
@@ -163,7 +171,7 @@ export function VersionGraph({ detail, versions, selectedId, compareIds, connect
               const branch = event.dataTransfer.getData('application/wordgit-branch')
               if (branch) { event.preventDefault(); onMoveBranch(branch, v.id) }
             }}>
-              <span className="wg-node-code">{v.id.slice(0, 7)}{v.deletedAt ? ' · 已回收' : ''}</span>
+              <AkCardArt kind={detail.docName.split('.').pop()}/><span className="wg-node-code">{v.id.slice(0, 7)}{v.deletedAt ? ' · 已回收' : ''}</span>
               <strong>{v.title}</strong>
               <small>{new Date(v.createdAt).toLocaleDateString('zh-CN')} · {v.revisionCount ? `覆盖 ${v.revisionCount} 次` : '原始快照'}</small>
             </button>

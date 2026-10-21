@@ -1,5 +1,6 @@
 import { ipcMain, shell, app } from 'electron'
 import path from 'node:path'
+import os from 'node:os'
 import { spawn } from 'node:child_process'
 import { promises as fs } from 'node:fs'
 import { createProject, listProjects, getProject, importProjectItems, refreshProject, recordProjectIteration, updateProjectNode, setProjectCategory, deleteProjectCategory, deleteProjectNode, setProjectRelation, deleteProjectRelation, readProjectFile, exportProjectNode, withUndoableAction } from '@wordgit/core'
@@ -7,6 +8,8 @@ import { ProjectRequest } from '@wordgit/shared'
 import { getRepo } from '../repoState.js'
 import { mcpConfiguration } from '../mcpConfig.js'
 import { localMcpStatus, setLocalMcpEnabled } from '../mcpLocal.js'
+import { createProjectEntry, resolveProjectWorkingFolder, validateDocName } from '@wordgit/core'
+import { blankDocument } from '../documentTemplate.js'
 
 export async function projectRequest(args: unknown) {
   const req = ProjectRequest.parse(args), repo = getRepo()
@@ -22,6 +25,19 @@ export async function projectRequest(args: unknown) {
     case 'create': return createProject(repo, req.name)
     case 'import': return importProjectItems(repo, req)
     case 'refresh': return refreshProject(repo, req.projectId)
+    case 'creationTarget': return { folder: await resolveProjectWorkingFolder(repo, req.projectId, req.parentId) }
+    case 'createEntry': {
+      const name = validateDocName(req.name.trim())
+      if (req.kind === 'folder') return createProjectEntry(repo, { ...req, name })
+      const filename = name.toLowerCase().endsWith('.' + req.format) ? name : name + '.' + req.format
+      const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'dockitty-project-new-'))
+      try {
+        const file = path.join(temporary, filename); await blankDocument(file, req.format)
+        return await createProjectEntry(repo, { ...req, name: filename }, await fs.readFile(file))
+      } finally {
+        if (path.dirname(temporary) === os.tmpdir() && path.basename(temporary).startsWith('dockitty-project-new-')) await fs.rm(temporary, { recursive: true, force: true })
+      }
+    }
     case 'recordIteration': return recordProjectIteration(repo, req.projectId, req.nodeId, req.title, req.requestId)
     case 'updateNode': return updateProjectNode(repo, req.projectId, req.nodeId, req)
     case 'setCategory': return setProjectCategory(repo, req.projectId, req.category)

@@ -2,9 +2,10 @@ import path from 'node:path'
 import { promises as fs } from 'node:fs'
 import { ipcMain } from 'electron'
 import {
-  versionBytes, validateDocName,
+  validateDocName,
 } from '@wordgit/core'
 import { CH, PreviewGetBytesReq } from '@wordgit/shared'
+import { readVersionWithin } from '../versionFile.js'
 import { getRepo } from '../repoState.js'
 
 export async function getPreviewBytes(
@@ -16,9 +17,10 @@ export async function getPreviewBytes(
 
   let raw: Uint8Array
   if (commitId) {
-    raw = await versionBytes(repo, docName, commitId)
+    raw = await readVersionWithin(repo, docName, commitId)
   } else {
     const wsPath = path.join(repo.root, 'workspace', validateDocName(docName))
+    if ((await fs.stat(wsPath)).size > 20 * 1024 * 1024) throw new Error('文件超过内置预览大小（20 MiB），请导出后使用关联程序查看')
     raw = new Uint8Array(await fs.readFile(wsPath))
   }
 

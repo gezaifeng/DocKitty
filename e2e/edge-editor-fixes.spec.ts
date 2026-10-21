@@ -1,3 +1,4 @@
+import { auditPath } from './auditPath'
 import { test, expect, _electron as electron } from '@playwright/test'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
@@ -12,8 +13,8 @@ async function launch(prefix: string) {
   await page.emulateMedia({ reducedMotion: 'reduce' }); await app.evaluate(({ BrowserWindow }) => { const win = BrowserWindow.getAllWindows()[0]; win.webContents.setBackgroundThrottling(false); win.setContentSize(1600, 1000) }); await page.getByRole('button', { name: '总览工作台', exact: true }).waitFor()
   return { temporary, app, page, errors, async close() { await app.close(); if (path.dirname(temporary) === os.tmpdir() && path.basename(temporary).startsWith(prefix)) await fs.rm(temporary, { recursive: true, force: true }) } }
 }
-const output = path.resolve('docs/edge-editor-audit')
-const themes = [['blockframe', 'BlockFrame'], ['light', '浅色办公'], ['paper', '纸张书房'], ['dark', '石墨暗色'], ['raw', '粉绿方块'], ['retro', '经典视窗'], ['capsule', '胶囊文具']]
+const output = auditPath('edge-editor-audit')
+const themes = [['blockframe', '积木'], ['light', '素白'], ['paper', '暖纸'], ['dark', '石墨'], ['raw', '粉绿'], ['retro', '视窗'], ['capsule', '胶囊']]
 async function vanishedNotice(page: import('@playwright/test').Page, prefix: string) {
   await expect(page.locator('.wg-notice')).toContainText(prefix)
   await expect(page.locator('.wg-notice')).toHaveCount(0, { timeout: 3500 })
@@ -54,7 +55,7 @@ test('version editor unifies both gestures, previews the actual graph without wr
     await expect.poll(async () => (await detail()).versions.find(v => v.id === second)?.parentLabels?.[first]).toBeUndefined()
     await page.keyboard.press('Control+Shift+z'); await vanishedNotice(page, '已重做')
     for (const [theme, label] of themes) {
-      await page.getByLabel('主题风格').click(); await page.getByRole('option', { name: new RegExp(label) }).click()
+      await page.getByLabel('主题风格').click(); await page.getByRole('option').filter({ has: page.getByText(label, { exact: true }) }).click()
       await editWire(page, line); await expect(editor.getByLabel('关系备注')).toHaveValue('关系说明\n正文备注另行保留')
       await editor.getByLabel('线条格式').selectOption('double'); await expect(line).toHaveAttribute('data-line', 'double')
       await expect(editor.getByRole('button', { name: '保存', exact: true })).toBeInViewport()
@@ -97,7 +98,7 @@ test('project menus retain import, backups and relocation, while unified edge ed
     await page.keyboard.press('Control+z'); await vanishedNotice(page, '已撤回'); expect((await read()).relations[0]).toEqual(before)
     await page.keyboard.press('Control+Shift+z'); await vanishedNotice(page, '已重做')
     for (const [theme, label] of themes) {
-      await page.getByLabel('主题风格').click(); await page.getByRole('option', { name: new RegExp(label) }).click(); await editWire(page, line)
+      await page.getByLabel('主题风格').click(); await page.getByRole('option').filter({ has: page.getByText(label, { exact: true }) }).click(); await editWire(page, line)
       await expect(editor.locator('.wg-connection-direction')).toHaveCount(0); await expect(editor.getByLabel('关系备注')).toHaveValue('为期刊调整格式')
       await editor.getByLabel('线条格式').selectOption('dashed'); await expect(line).toHaveAttribute('data-line', 'dashed'); await captureGraph(run.app, path.join(output, theme + '-project-unified-editor.png'))
       await editor.getByRole('button', { name: '取消', exact: true }).click(); await expect(line).toHaveAttribute('data-line', 'solid')

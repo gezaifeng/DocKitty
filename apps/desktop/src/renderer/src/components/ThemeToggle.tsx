@@ -6,20 +6,23 @@ import type { PanInfo } from 'framer-motion'
 import { Monitor, Moon, Sun } from 'lucide-react'
 import { useUiStore } from '@renderer/store/uiStore'
 import type { Theme } from '@renderer/store/uiStore'
+import { themeOptions } from '../lib/themes'
 
 const THEME_CYCLE: Theme[] = ['system', 'light', 'dark']
 
-const THEME_META: Record<Theme, { icon: typeof Sun; label: string }> = {
-  liquid: { icon: Sun, label: '液态玻璃' },
-  'liquid-dark': { icon: Moon, label: '液态玻璃 · 深色' },
-  system: { icon: Monitor, label: '跟随系统' },
-  light: { icon: Sun, label: '浅色' },
-  dark: { icon: Moon, label: '深色' },
-  blockframe: { icon: Sun, label: 'BlockFrame' },
-  raw: { icon: Sun, label: '粉绿方块' },
-  retro: { icon: Monitor, label: '经典视窗' },
-  capsule: { icon: Sun, label: '胶囊文具' },
-  paper: { icon: Sun, label: '纸张书房' },
+const THEME_ICONS: Record<Theme, typeof Sun> = {
+  arknights: Monitor,
+  redline: Sun,
+  liquid: Sun,
+  'liquid-dark': Moon,
+  system: Monitor,
+  light: Sun,
+  dark: Moon,
+  blockframe: Sun,
+  raw: Sun,
+  retro: Monitor,
+  capsule: Sun,
+  paper: Sun,
 }
 
 interface ThemeToggleProps {
@@ -32,7 +35,8 @@ export function ThemeToggle({ containerRef }: ThemeToggleProps) {
   const dragEndAtRef = useRef(0)
   const x = useMotionValue(themeButtonPos?.x ?? 0)
   const y = useMotionValue(themeButtonPos?.y ?? 0)
-  const { icon: Icon, label } = THEME_META[theme]
+  const Icon = THEME_ICONS[theme]
+  const label = themeOptions.find(option => option.id === theme)!.label
 
   // 拖拽松手时按钮仍跟着指针，浏览器会补发一次 click；按松手时间戳区分拖拽与真正的点击
   function handleClick() {

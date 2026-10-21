@@ -14,5 +14,5 @@ export function VersionPreview({ repoRoot, docName, versionId, contentId }: { re
   if (data.ext === 'docx') return <DocxPreview data={data.data} />
   if (data.ext === 'xlsx') return <XlsxPreview data={data.data} />
   if (['txt', 'md', 'csv', 'json', 'xml', 'html'].includes(data.ext)) return <pre className="wg-text-preview">{new TextDecoder().decode(data.data)}</pre>
-  return <div className="wg-preview-empty"><strong>此格式使用系统应用查看</strong><p>点击“打开历史副本”或“导出副本”，用 Word、WPS、Excel 等查看。当前草稿不会被替换。</p></div>
+  return <div className="wg-preview-empty"><strong>此格式使用系统应用查看</strong><p>点击“打开临时副本”或“导出副本”，用 Word、WPS、Excel 等查看。当前草稿不会被替换。</p></div>
 }

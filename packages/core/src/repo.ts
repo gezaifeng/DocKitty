@@ -1,6 +1,7 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { recoverJournal } from './journal.js'
+import { withRepoWrite } from './writeLock.js'
 
 export const FORMAT_VERSION = 1
 
@@ -42,7 +43,7 @@ export class Repo {
       throw new Error(`仓库格式版本过旧（${config.formatVersion}），需要迁移工具（M2 提供）`)
     }
     const repo = new Repo(root)
-    await recoverJournal(repo)
+    await withRepoWrite(repo, () => recoverJournal(repo))
     return repo
   }
 

@@ -1,3 +1,4 @@
+import { auditPath } from './auditPath'
 import { test,expect,_electron as electron } from '@playwright/test'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
@@ -43,7 +44,7 @@ test('real branch statistics, left navigation, staggered transitions and BlockFr
   await page.getByRole('button',{name:'文本字符数'}).click()
   await page.locator('.wg-stat-sidebar').evaluate(el=>el.scrollTop=0)
   await page.waitForTimeout(550)
-  await fs.mkdir('docs/brand-lab/runtime',{recursive:true});await page.screenshot({path:'docs/brand-lab/runtime/statistics-blockframe.png',scale:'css'})
+  await fs.mkdir(auditPath('brand-lab/runtime'),{recursive:true});await page.screenshot({path: auditPath('brand-lab/runtime/statistics-blockframe.png'),scale:'css'})
   await page.evaluate(async()=>{await Promise.all(document.getAnimations().filter(animation=>Number.isFinite(Number(animation.effect?.getTiming().iterations))).map(animation=>animation.finished.catch(()=>{})))})
   const first=await page.screenshot();await page.waitForTimeout(200);expect((await page.screenshot()).equals(first)).toBeTruthy()
   await page.emulateMedia({reducedMotion:'reduce'});await page.getByRole('button',{name:'覆盖修订次数'}).click()

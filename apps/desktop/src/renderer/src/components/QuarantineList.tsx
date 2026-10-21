@@ -10,9 +10,10 @@ import type { QuarantineEntry } from '@wordgit/shared'
 
 interface QuarantineListProps {
   entries: QuarantineEntry[]
+  onRestored?(): void
 }
 
-export function QuarantineList({ entries }: QuarantineListProps) {
+export function QuarantineList({ entries, onRestored }: QuarantineListProps) {
   const queryClient = useQueryClient()
   const [names,setNames]=useState<Record<string,string>>({})
 
@@ -22,6 +23,7 @@ export function QuarantineList({ entries }: QuarantineListProps) {
       queryClient.invalidateQueries({ queryKey: keys.quarantineList() })
       queryClient.invalidateQueries({ queryKey: ['library'] })
       queryClient.invalidateQueries({ queryKey: ['documentDetail'] })
+      onRestored?.()
     },
   })
 

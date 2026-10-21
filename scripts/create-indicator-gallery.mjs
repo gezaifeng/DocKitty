@@ -1,0 +1,7 @@
+import { promises as fs } from 'node:fs'
+const dir='docs/indicator-audit'
+const report=JSON.parse(await fs.readFile(dir+'/report.json','utf8'))
+const labels={word:'Word',excel:'Excel',ppt:'PPT'}
+const esc=s=>s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;')
+await fs.writeFile(dir+'/index.html',`<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>稿喵 · 逐指标切换验收</title><style>body{margin:0;padding:32px;background:#fffdf5;color:#171717;font:15px/1.8 'Microsoft YaHei',sans-serif}h1{background:#f7cb46;border:2px solid;padding:20px;box-shadow:4px 4px 0}h2{margin-top:42px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:24px}a{color:inherit}.grid a{display:block;background:white;border:2px solid;box-shadow:4px 4px 0;text-decoration:none}img{display:block;width:100%;border-bottom:1px solid}b{display:block;padding:12px}</style><h1>稿喵 0.3.3 · 逐指标切换验收</h1><p>正式包实际点击后捕获 ${report.length} 个统计页面状态，逐项断言内容标题、唯一选中按钮及窗口宽度。使用合成 Office 测试稿件，数值仅为验证数据。点击图片放大。</p><p><a href="../visual-audit/index.html">返回全部主题与导航验收</a></p>${Object.entries(labels).map(([format,label])=>`<h2>${label} · ${report.filter(r=>r.format===format).length} 个状态</h2><div class="grid">${report.filter(r=>r.format===format).map(r=>`<a href="${esc(r.file)}" target="_blank"><img loading="lazy" src="${esc(r.file)}" alt="${esc(r.label)}"><b>${esc(r.label)}</b></a>`).join('')}</div>`).join('')}</html>`)
+console.log(`Created ${report.length} indicator screenshots gallery`)

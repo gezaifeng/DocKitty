@@ -4,9 +4,3 @@ out/
 *.log
 test-results/
 playwright-report/
-
-*.wg/
-*.wgbackup
-docs/*-audit/
-*.tgz
-.env*

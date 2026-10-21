@@ -83,13 +83,12 @@ describe('extractDocxText', () => {
     expect(text).toContain('Hello World')
   })
 
-  it('returns empty string if no document.xml', async () => {
+  it('reports missing document.xml instead of pretending the document is empty', async () => {
     const enc = new TextEncoder()
     const buf = zipSync({
       '[Content_Types].xml': enc.encode('<Types/>'),
     })
-    const text = await extractDocxText(buf)
-    expect(text).toBe('')
+    await expect(extractDocxText(buf)).rejects.toThrow('缺少正文')
   })
 
   it('strips XML tags from document.xml', async () => {
@@ -99,4 +98,14 @@ describe('extractDocxText', () => {
     expect(text).not.toContain('<w:')
     expect(text).toContain('纯文本')
   })
+})
+
+
+it('decodes XML entities and preserves paragraphs, tabs and visible inserted text', async () => {
+  const xml = '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>中文 &amp; &#65;</w:t><w:tab/><w:t>数据</w:t><w:br/><w:t>续行</w:t></w:r></w:p><w:p><w:del><w:r><w:delText>删除内容</w:delText></w:r></w:del><w:ins><w:r><w:t>新增</w:t></w:r></w:ins></w:p></w:body></w:document>'
+  expect(await extractDocxText(zipSync({ 'word/document.xml': new TextEncoder().encode(xml) }))).toBe('中文 & A\t数据\n续行\n新增')
+  await expect(extractDocxText(new Uint8Array([1, 2, 3]))).rejects.toThrow('损坏')
+})
+it('rejects oversized interactive comparisons instead of blocking indefinitely', () => {
+  expect(() => diffText('x'.repeat(160001), 'y')).toThrow('文本过长')
 })

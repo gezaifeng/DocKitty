@@ -1,3 +1,4 @@
+import { AkCardArt } from './AkCardArt'
 import { useState } from 'react'
 import { Plus, Pencil, Trash2, GripVertical, ArrowUp, ArrowDown } from 'lucide-react'
 import type { DocumentDetail, LibraryVersion } from '@wordgit/shared'
@@ -28,7 +29,7 @@ export function VersionBoard({ detail, versions, selectedId, compareIds, onSelec
         setDragging(null); setOver(null)
       }} onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOver(null) }}>
         <header className="wg-column-heading"><div><span className="wg-category-dot" /><strong>{category.name}</strong><small>{cards.length}</small></div>{category.id && <div className="wg-column-tools"><button aria-label={`重命名分类 ${category.name}`} onClick={() => onCategory('rename', category)}><Pencil size={13} /></button><button aria-label={`删除分类 ${category.name}`} onClick={() => onCategory('delete', category)}><Trash2 size={13} /></button></div>}</header>
-        <div className="wg-cards">{cards.map((version, index) => <article key={version.id} tabIndex={0} draggable className={`wg-version-card ${selectedId === version.id ? 'selected' : ''} ${compareIds.includes(version.id) ? 'compared' : ''} ${dragging === version.id ? 'dragging' : ''}`} onClick={() => onSelect(version.id)} onContextMenu={e => { e.preventDefault(); onSelect(version.id); onContext?.(version, e.clientX, e.clientY) }} onKeyDown={event => {
+        <div className="wg-cards">{cards.map((version, index) => <article key={version.id} tabIndex={0} draggable className={`wg-version-card ak-card ${selectedId === version.id ? 'selected' : ''} ${compareIds.includes(version.id) ? 'compared' : ''} ${dragging === version.id ? 'dragging' : ''}`} onClick={() => onSelect(version.id)} onContextMenu={e => { e.preventDefault(); onSelect(version.id); onContext?.(version, e.clientX, e.clientY) }} onKeyDown={event => {
           if (event.key === 'Enter') onSelect(version.id)
           if (event.altKey && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
             event.preventDefault()
@@ -40,7 +41,7 @@ export function VersionBoard({ detail, versions, selectedId, compareIds, onSelec
           if (id && id !== version.id) { event.preventDefault(); event.stopPropagation(); onMove(id, category.id, version.id) }
           setDragging(null); setOver(null)
         }}>
-          <div className="wg-branch-tags"><span className="wg-owner-tag">{version.branches[0]}</span>{category.id && <span className="wg-category-tag">{category.name}</span>}</div><div className="wg-card-eyebrow"><span>{version.branches[0]}</span><GripVertical size={13} /></div><h3>{version.title}</h3><p>{version.note || '点击查看内容和操作；右键选择继续编辑或新建分支。'}</p><footer><small>{new Date(version.createdAt).toLocaleDateString('zh-CN')}{version.revisionCount ? ` · 覆盖 ${version.revisionCount} 次` : ''}</small><div><button disabled={index === 0} aria-label={`上移版本 ${version.title}`} onClick={e => { e.stopPropagation(); onMove(version.id, category.id, cards[index - 1].id) }}><ArrowUp size={13} /></button><button disabled={index === cards.length - 1} aria-label={`下移版本 ${version.title}`} onClick={e => { e.stopPropagation(); onMove(version.id, category.id, cards[index + 2]?.id) }}><ArrowDown size={13} /></button></div></footer>
+          <AkCardArt kind={detail.docName.split('.').pop()}/><div className="wg-branch-tags"><span className="wg-owner-tag">{version.branches[0]}</span>{category.id && <span className="wg-category-tag">{category.name}</span>}</div><div className="wg-card-eyebrow"><span>{version.branches[0]}</span><GripVertical size={13} /></div><h3>{version.title}</h3><p>{version.note || '点击查看内容和操作；右键选择继续编辑或新建分支。'}</p><footer><small>{new Date(version.createdAt).toLocaleDateString('zh-CN')}{version.revisionCount ? ` · 覆盖 ${version.revisionCount} 次` : ''}</small><div><button disabled={index === 0} aria-label={`上移版本 ${version.title}`} onClick={e => { e.stopPropagation(); onMove(version.id, category.id, cards[index - 1].id) }}><ArrowUp size={13} /></button><button disabled={index === cards.length - 1} aria-label={`下移版本 ${version.title}`} onClick={e => { e.stopPropagation(); onMove(version.id, category.id, cards[index + 2]?.id) }}><ArrowDown size={13} /></button></div></footer>
         </article>)}</div>
         {!cards.length && <div className="wg-column-empty">将版本拖到这里<br />或从版本详情选择分类</div>}
       </section>

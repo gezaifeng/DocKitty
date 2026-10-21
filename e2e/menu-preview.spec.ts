@@ -1,3 +1,4 @@
+import { auditPath } from './auditPath'
 import { test, expect, _electron as electron } from '@playwright/test'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
@@ -14,8 +15,8 @@ async function launch(prefix: string) {
   await page.emulateMedia({ reducedMotion: 'reduce' }); await app.evaluate(({ BrowserWindow }) => { const win = BrowserWindow.getAllWindows()[0]; win.webContents.setBackgroundThrottling(false); win.setContentSize(1600, 1000) }); await page.getByRole('button', { name: '总览工作台', exact: true }).waitFor()
   return { temporary, app, page, errors, async close() { await app.close(); if (path.dirname(temporary) === os.tmpdir() && path.basename(temporary).startsWith(prefix)) await fs.rm(temporary, { recursive: true, force: true }) } }
 }
-const output = path.resolve('docs/menu-preview-audit')
-const themes = [['blockframe', 'BlockFrame'], ['light', '浅色办公'], ['paper', '纸张书房'], ['dark', '石墨暗色'], ['raw', '粉绿方块'], ['retro', '经典视窗'], ['capsule', '胶囊文具']]
+const output = auditPath('menu-preview-audit')
+const themes = [['blockframe', '积木'], ['light', '素白'], ['paper', '暖纸'], ['dark', '石墨'], ['raw', '粉绿'], ['retro', '视窗'], ['capsule', '胶囊']]
 
 async function dragEditor(page: import('@playwright/test').Page, dx: number, dy: number) {
   const editor = page.getByRole('dialog', { name: '编辑连线', exact: true }), handle = editor.locator(':scope > header')
@@ -46,7 +47,7 @@ test('version edge editor drags without moving cards or writing drafts and stays
     const line = page.locator(`.wg-edge-line[data-from="${first}"][data-to="${second}"]`), editor = page.getByRole('dialog', { name: '编辑连线', exact: true }), detail = () => page.evaluate(() => window.wordgit.library.detail('稿件.txt'))
     const before = await detail()
     for (const [theme, label] of themes) {
-      await page.getByLabel('主题风格').click(); await page.getByRole('option', { name: new RegExp(label) }).click()
+      await page.getByLabel('主题风格').click(); await page.getByRole('option').filter({ has: page.getByText(label, { exact: true }) }).click()
       await editWire(page, line, 'right'); const initial = (await editor.boundingBox())!
       await editor.getByLabel('关系标签').fill('拖动不会改稿'); await editor.getByLabel('箭头大小').fill('18')
       const moved = await dragEditor(page, 370, -190); expect(moved.x).toBeGreaterThan(initial.x + 300)
@@ -93,7 +94,7 @@ test('project edge menus drag and expanded previews preserve current and histori
     await page.getByRole('button', { name: '文件关系图', exact: true }).click()
     const line = page.locator('.wg-project-edges .wg-edge-line'), editor = page.getByRole('dialog', { name: '编辑连线', exact: true }), before = await read()
     for (const [theme, label] of themes) {
-      await page.getByLabel('主题风格').click(); await page.getByRole('option', { name: new RegExp(label) }).click()
+      await page.getByLabel('主题风格').click(); await page.getByRole('option').filter({ has: page.getByText(label, { exact: true }) }).click()
       await editWire(page, line, 'right'); await editor.getByLabel('关系备注').fill('保持编辑内容'); await dragEditor(page, 350, -180)
       expect(await read()).toEqual(before); await expect(editor.getByLabel('关系备注')).toHaveValue('保持编辑内容')
       await captureGraph(run.app, path.join(output, theme + '-project-dragged.png')); await page.keyboard.press('Escape'); await expect(editor).toHaveCount(0)
@@ -105,7 +106,7 @@ test('project edge menus drag and expanded previews preserve current and histori
     }
     await page.getByRole('button', { name: '文件浏览', exact: true }).click()
     for (const [theme, label] of themes) {
-      await page.getByLabel('主题风格').click(); await page.getByRole('option', { name: new RegExp(label) }).click()
+      await page.getByLabel('主题风格').click(); await page.getByRole('option').filter({ has: page.getByText(label, { exact: true }) }).click()
       for (const [name, format] of [['正文.md', 'text'], ['页面.html', 'html'], ['论文.docx', 'word'], ['数据.xlsx', 'excel']]) {
         await page.getByRole('listitem', { name: `资料 ${name}`, exact: true }).click(); await page.getByRole('button', { name: '展开预览', exact: true }).click()
         const preview = page.getByRole('dialog', { name: `预览 · ${name}`, exact: true })

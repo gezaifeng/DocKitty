@@ -42,3 +42,14 @@ it('generates matching stdio configurations using the bundled runtime', () => {
   expect(JSON.parse(result.cursor).mcpServers.dockitty).toEqual(result.server)
   expect(result.codex).toContain('[mcp_servers.dockitty.env]'); expect(result.server.env.ELECTRON_RUN_AS_NODE).toBe('1')
 })
+it('creates valid documents in the selected working folder without opening an editor', async () => {
+  const folder = path.join(temporary, 'work'); await fs.mkdir(folder)
+  for (const format of ['txt', 'docx', 'xlsx', 'md'] as const) {
+    const result = await projectRequest({ action: 'createEntry', projectId, workingFolder: folder, name: '新稿', kind: 'file', format }) as { sourcePath: string }
+    expect(result.sourcePath).toBe(path.join(folder, '新稿.' + format))
+    const bytes = await fs.readFile(result.sourcePath)
+    if (format === 'txt' || format === 'md') expect(bytes.length).toBe(0)
+    else expect(bytes.subarray(0, 2).toString()).toBe('PK')
+  }
+  expect(calls.spawn).not.toHaveBeenCalled(); expect(calls.openPath).not.toHaveBeenCalled()
+})

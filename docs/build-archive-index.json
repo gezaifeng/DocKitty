@@ -1,0 +1,624 @@
+{
+  "archivedOn": "2026-10-21",
+  "kind": "compiled-application-snapshots",
+  "originalTypeScriptSourceForEveryVersion": false,
+  "versions": {
+    "0.1.0": {
+      "ref": "refs/tags/archive-build/v0.1.0",
+      "commit": "69a03f49a43b503ebc84b03128f787f83779f086"
+    },
+    "0.2.0": {
+      "ref": "refs/tags/archive-build/v0.2.0",
+      "commit": "e316e2ce8bcb820b1c419efc505b8d921e7309fc"
+    },
+    "0.2.1": {
+      "ref": "refs/tags/archive-build/v0.2.1",
+      "commit": "aa3f7d4bcb9c9f161e351b98b1f8ad2a52e55ae8"
+    },
+    "0.2.2": {
+      "ref": "refs/tags/archive-build/v0.2.2",
+      "commit": "7bb66641ec6ebd30e9211087360f967a9587d39e"
+    },
+    "0.2.3": {
+      "ref": "refs/tags/archive-build/v0.2.3",
+      "commit": "bd0537c31fcb91bb7be01b3ad1fd679d3e20fc06"
+    },
+    "0.2.4": {
+      "ref": "refs/tags/archive-build/v0.2.4",
+      "commit": "e55137d9ad95a5403689e074885500ae0510c6c9"
+    },
+    "0.2.5": {
+      "ref": "refs/tags/archive-build/v0.2.5",
+      "commit": "a49d39c53ec50f98a3248e5a791a38405b061a1a"
+    },
+    "0.2.6": {
+      "ref": "refs/tags/archive-build/v0.2.6",
+      "commit": "4a42a7d5acf3d26c83defd12d24e6cb416e4b089"
+    },
+    "0.3.0": {
+      "ref": "refs/tags/archive-build/v0.3.0",
+      "commit": "259160df6d32c5b78d9e22bdb06a660765448569"
+    },
+    "0.3.1": {
+      "ref": "refs/tags/archive-build/v0.3.1",
+      "commit": "89e61554ef1abb9808c1caa3ee711e634aa43dfa"
+    },
+    "0.3.2": {
+      "ref": "refs/tags/archive-build/v0.3.2",
+      "commit": "042b8a04ee944ba8d7de9835db5e359feee7dff2"
+    },
+    "0.3.3": {
+      "ref": "refs/tags/archive-build/v0.3.3",
+      "commit": "3513a30c73f36c204d4403d2b9e3fb97b03e05f5"
+    },
+    "0.3.4": {
+      "ref": "refs/tags/archive-build/v0.3.4",
+      "commit": "6706c5f6f96f30d3507ef3c22171973177a1e79d"
+    },
+    "0.3.5": {
+      "ref": "refs/tags/archive-build/v0.3.5",
+      "commit": "986a8441f056d5af4620c0750006675641f3e52d"
+    },
+    "0.3.6": {
+      "ref": "refs/tags/archive-build/v0.3.6",
+      "commit": "4dbdc99b92b7d934ca7619d9b90e45ddc4b5af59"
+    },
+    "0.4.0": {
+      "ref": "refs/tags/archive-build/v0.4.0",
+      "commit": "15d2bb6c09aa9525646dda353fa19b53f2cc4930"
+    },
+    "0.5.0": {
+      "ref": "refs/tags/archive-build/v0.5.0",
+      "commit": "51429c2f068e621641480f9235139f2e4a936a90"
+    },
+    "0.5.1": {
+      "ref": "refs/tags/archive-build/v0.5.1",
+      "commit": "2311747f21a6c7e176569fb16ce48d3a29fdd575"
+    },
+    "0.5.2": {
+      "ref": "refs/tags/archive-build/v0.5.2",
+      "commit": "962c191346c9e7b5aa35628928c8ee2e5dc45f5c"
+    },
+    "0.5.3": {
+      "ref": "refs/tags/archive-build/v0.5.3",
+      "commit": "0c25723dffe49ed735bd158b73fd1cb3fec19119"
+    },
+    "0.5.4": {
+      "ref": "refs/tags/archive-build/v0.5.4",
+      "commit": "33144935722c34e79f8847830d5f006082ea9cab"
+    },
+    "0.5.5": {
+      "ref": "refs/tags/archive-build/v0.5.5",
+      "commit": "2d2174071da7fd1067dd5c2c1ce5e927340554f6"
+    },
+    "0.5.6": {
+      "ref": "refs/tags/archive-build/v0.5.6",
+      "commit": "2e8457bda5e59e35b4c86e99284d7cbf272aca21"
+    },
+    "0.5.7": {
+      "ref": "refs/tags/archive-build/v0.5.7",
+      "commit": "0ee7a4e59713a9fbde95d57b437c402bfd290a4d"
+    },
+    "0.5.8": {
+      "ref": "refs/tags/archive-build/v0.5.8",
+      "commit": "cbabe695beed78a5026de77276d702b0de793ef9"
+    },
+    "0.5.9": {
+      "ref": "refs/tags/archive-build/v0.5.9",
+      "commit": "85f4ee0d1b442778bfaaa5d2735bf0857fa46ade"
+    },
+    "0.5.10": {
+      "ref": "refs/tags/archive-build/v0.5.10",
+      "commit": "36a8f171aa3de530541ef308fabd1974b91ef0d6"
+    },
+    "0.5.11": {
+      "ref": "refs/tags/archive-build/v0.5.11",
+      "commit": "a0b5fd07f3043d3834fb5f18b87610cee11f12c1"
+    },
+    "0.5.12": {
+      "ref": "refs/tags/archive-build/v0.5.12",
+      "commit": "929594b62a9664c08e210928db41c69778567660"
+    },
+    "0.5.13": {
+      "ref": "refs/tags/archive-build/v0.5.13",
+      "commit": "f12f4967a851c4b8527d515a652a36cdd215cbe7"
+    }
+  },
+  "builds": [
+    {
+      "directory": "word_git-0.1.0-windows-x64",
+      "version": "0.1.0",
+      "ref": "refs/tags/archive-build-variant/v0.1.0/word_git-0.1.0-windows-x64",
+      "commit": "69a03f49a43b503ebc84b03128f787f83779f086",
+      "tree": "b8f30b0a7d7cc1907de655465c9b509c310464f3",
+      "fileCount": 9,
+      "verified": true
+    },
+    {
+      "directory": "word_git-windows-DF0pPM",
+      "version": "0.1.0",
+      "ref": "refs/tags/archive-build-variant/v0.1.0/word_git-windows-DF0pPM",
+      "commit": "9eef2cd2df2c76498b81c93b00c78d2db564b70e",
+      "tree": "f20ece8582e1902c3414c2476ddc53454cf365f0",
+      "fileCount": 8,
+      "verified": true
+    },
+    {
+      "directory": "word_git-windows-bwi0RX",
+      "version": "0.1.0",
+      "ref": "refs/tags/archive-build-variant/v0.1.0/word_git-windows-bwi0RX",
+      "commit": "c98b83cdf812e55bd36d72b49845a97a97775533",
+      "tree": "582b8da330a3145b42065ff248a6ee40a9ffdd7d",
+      "fileCount": 8,
+      "verified": true
+    },
+    {
+      "directory": "word_git-windows-glP1dv",
+      "version": "0.1.0",
+      "ref": "refs/tags/archive-build-variant/v0.1.0/word_git-windows-glP1dv",
+      "commit": "dae600658a2270a331c782d9e039dde0e0c98a6f",
+      "tree": "7c5b73e8e1218861736380cc612a06e05ddca8ab",
+      "fileCount": 8,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-windows-aMYhW2",
+      "version": "0.2.0",
+      "ref": "refs/tags/archive-build-variant/v0.2.0/gaomiao-windows-aMYhW2",
+      "commit": "e316e2ce8bcb820b1c419efc505b8d921e7309fc",
+      "tree": "53bc69187fa74b3e946185feb8507abf38bbb3bc",
+      "fileCount": 8,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-0.2.1-windows-x64",
+      "version": "0.2.1",
+      "ref": "refs/tags/archive-build-variant/v0.2.1/gaomiao-0.2.1-windows-x64",
+      "commit": "aa3f7d4bcb9c9f161e351b98b1f8ad2a52e55ae8",
+      "tree": "26795d602fd9316d85e6d759f9b2d66405bc4534",
+      "fileCount": 10,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-windows-NCvcU8",
+      "version": "0.2.1",
+      "ref": "refs/tags/archive-build-variant/v0.2.1/gaomiao-windows-NCvcU8",
+      "commit": "831b4eec94c2253c80ddb3cdab82dddaf677b25c",
+      "tree": "8aa8ca5735660823d66270b5015553bc418903b8",
+      "fileCount": 10,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-0.2.2-windows-x64",
+      "version": "0.2.2",
+      "ref": "refs/tags/archive-build-variant/v0.2.2/gaomiao-0.2.2-windows-x64",
+      "commit": "7bb66641ec6ebd30e9211087360f967a9587d39e",
+      "tree": "18565455e03ca9ad04fdebe654932180df603f28",
+      "fileCount": 21,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-0.2.3-windows-x64",
+      "version": "0.2.3",
+      "ref": "refs/tags/archive-build-variant/v0.2.3/gaomiao-0.2.3-windows-x64",
+      "commit": "bd0537c31fcb91bb7be01b3ad1fd679d3e20fc06",
+      "tree": "20ae560c42dc48bd658da5bd6638186e0bec4648",
+      "fileCount": 17,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-0.2.4-windows-x64",
+      "version": "0.2.4",
+      "ref": "refs/tags/archive-build-variant/v0.2.4/gaomiao-0.2.4-windows-x64",
+      "commit": "e55137d9ad95a5403689e074885500ae0510c6c9",
+      "tree": "0f162b47f4fd2878a41eeed9d7e497b50be14d55",
+      "fileCount": 11,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-0.2.5-windows-x64",
+      "version": "0.2.5",
+      "ref": "refs/tags/archive-build-variant/v0.2.5/gaomiao-0.2.5-windows-x64",
+      "commit": "a49d39c53ec50f98a3248e5a791a38405b061a1a",
+      "tree": "ace214bff661db59d4ac350f58ad06e0b1875047",
+      "fileCount": 11,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-0.2.6-integrated-windows-x64",
+      "version": "0.2.6",
+      "ref": "refs/tags/archive-build-variant/v0.2.6/gaomiao-0.2.6-integrated-windows-x64",
+      "commit": "3e534f1fc7259257b0ac88af47c3f0cf1c6e3247",
+      "tree": "05f05723c1478fe9e8f350400d3c71e62be8fbf6",
+      "fileCount": 13,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-0.2.6-windows-x64",
+      "version": "0.2.6",
+      "ref": "refs/tags/archive-build-variant/v0.2.6/gaomiao-0.2.6-windows-x64",
+      "commit": "4a42a7d5acf3d26c83defd12d24e6cb416e4b089",
+      "tree": "836ace0bd500b7c437060ba88f4bcd0952651540",
+      "fileCount": 13,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-0.3.0-unverified-windows-x64",
+      "version": "0.3.0",
+      "ref": "refs/tags/archive-build-variant/v0.3.0/gaomiao-0.3.0-unverified-windows-x64",
+      "commit": "cf6c4bc990819eeb0cd582e192ad3b5ff7e48b40",
+      "tree": "12da0f7a3ccf91b40e54c5de3ba76305f372c2a1",
+      "fileCount": 13,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-0.3.0-windows-x64",
+      "version": "0.3.0",
+      "ref": "refs/tags/archive-build-variant/v0.3.0/gaomiao-0.3.0-windows-x64",
+      "commit": "259160df6d32c5b78d9e22bdb06a660765448569",
+      "tree": "f61ff59d6f75b0918b2bf47bfb0319156a3451f0",
+      "fileCount": 14,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-0.3.1-windows-x64",
+      "version": "0.3.1",
+      "ref": "refs/tags/archive-build-variant/v0.3.1/gaomiao-0.3.1-windows-x64",
+      "commit": "89e61554ef1abb9808c1caa3ee711e634aa43dfa",
+      "tree": "872ac4287d2d6b25095666aed2a1fbf4180ccf4c",
+      "fileCount": 15,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-0.3.2-windows-x64",
+      "version": "0.3.2",
+      "ref": "refs/tags/archive-build-variant/v0.3.2/gaomiao-0.3.2-windows-x64",
+      "commit": "042b8a04ee944ba8d7de9835db5e359feee7dff2",
+      "tree": "0fd34f291af8706908ad09d4bc6cbd5facdf2ae2",
+      "fileCount": 14,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-0.3.3-windows-x64",
+      "version": "0.3.3",
+      "ref": "refs/tags/archive-build-variant/v0.3.3/gaomiao-0.3.3-windows-x64",
+      "commit": "3513a30c73f36c204d4403d2b9e3fb97b03e05f5",
+      "tree": "bada56755a3f7b31e28a666c8f1b624b3ccc6684",
+      "fileCount": 16,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-0.3.4-windows-x64",
+      "version": "0.3.4",
+      "ref": "refs/tags/archive-build-variant/v0.3.4/gaomiao-0.3.4-windows-x64",
+      "commit": "6706c5f6f96f30d3507ef3c22171973177a1e79d",
+      "tree": "9a8245b84bd014b93fd3d55dafa674d03191f2e5",
+      "fileCount": 21,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-0.3.5-windows-x64",
+      "version": "0.3.5",
+      "ref": "refs/tags/archive-build-variant/v0.3.5/gaomiao-0.3.5-windows-x64",
+      "commit": "986a8441f056d5af4620c0750006675641f3e52d",
+      "tree": "6caeb61171493bf762df5050eef5be715ea67087",
+      "fileCount": 15,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-0.3.6-windows-x64",
+      "version": "0.3.6",
+      "ref": "refs/tags/archive-build-variant/v0.3.6/gaomiao-0.3.6-windows-x64",
+      "commit": "4dbdc99b92b7d934ca7619d9b90e45ddc4b5af59",
+      "tree": "85f3c305c094d562b8484c9c381a50d1e8303146",
+      "fileCount": 39,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-windows-CVkcNf",
+      "version": "0.4.0",
+      "ref": "refs/tags/archive-build-variant/v0.4.0/gaomiao-windows-CVkcNf",
+      "commit": "15d2bb6c09aa9525646dda353fa19b53f2cc4930",
+      "tree": "7e6c2d9def43a4523c6251eaad7ae1c417deafec",
+      "fileCount": 15,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-windows-5UFbkL",
+      "version": "0.5.0",
+      "ref": "refs/tags/archive-build-variant/v0.5.0/gaomiao-windows-5UFbkL",
+      "commit": "b139b5f9896c5cdec28f78ebfbcf73c4ef7b8def",
+      "tree": "9ff97bf95de35f9938bca4dbbad72c11f0d61bad",
+      "fileCount": 27,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-windows-KMccAi",
+      "version": "0.5.0",
+      "ref": "refs/tags/archive-build-variant/v0.5.0/gaomiao-windows-KMccAi",
+      "commit": "ffb68d23d561ee6207a45e1aa2e2c32b7a73248b",
+      "tree": "80349ec5e89f486c1d17b94baf70876794aee172",
+      "fileCount": 27,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-windows-NDkftq",
+      "version": "0.5.0",
+      "ref": "refs/tags/archive-build-variant/v0.5.0/gaomiao-windows-NDkftq",
+      "commit": "4bdc9552171a3148cf02b5d27ab4887213900200",
+      "tree": "63b903210251e14f761dd279d27175863cefc197",
+      "fileCount": 27,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-windows-TUeYgX",
+      "version": "0.5.0",
+      "ref": "refs/tags/archive-build-variant/v0.5.0/gaomiao-windows-TUeYgX",
+      "commit": "d50960cc71dad42f5c49108b7694e3e116ce7f79",
+      "tree": "83f15e6b3a97c8b53f1aafda22c19ef4fb6d8c6c",
+      "fileCount": 27,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-windows-Y6BaiP",
+      "version": "0.5.0",
+      "ref": "refs/tags/archive-build-variant/v0.5.0/gaomiao-windows-Y6BaiP",
+      "commit": "f051c37c5dde206b5cc868e1e8a189112b2fa5d8",
+      "tree": "be246021e16b64e4a332371381643e7057b2c7c2",
+      "fileCount": 27,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-windows-Yq500w",
+      "version": "0.5.0",
+      "ref": "refs/tags/archive-build-variant/v0.5.0/gaomiao-windows-Yq500w",
+      "commit": "eb5f126e76b3ff1753922033127d5dbd5ddd91e8",
+      "tree": "613c318a73375cefa280d17924534a4528890b4b",
+      "fileCount": 27,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-windows-jhFsu6",
+      "version": "0.5.0",
+      "ref": "refs/tags/archive-build-variant/v0.5.0/gaomiao-windows-jhFsu6",
+      "commit": "2ad8aef8b1acc89ada7c74ed9337045ab7ae0962",
+      "tree": "2961d4f8c8cf633dbdad6e87af3e0d7410ac7636",
+      "fileCount": 27,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-windows-tqbh5K",
+      "version": "0.5.0",
+      "ref": "refs/tags/archive-build-variant/v0.5.0/gaomiao-windows-tqbh5K",
+      "commit": "49c13bbc40e3860af00ea7a89267b4458a716258",
+      "tree": "784db6e24964dd6fecdb5d70b8f3535ebee782dd",
+      "fileCount": 27,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-windows-z55op7",
+      "version": "0.5.0",
+      "ref": "refs/tags/archive-build-variant/v0.5.0/gaomiao-windows-z55op7",
+      "commit": "51429c2f068e621641480f9235139f2e4a936a90",
+      "tree": "c00d3aff869c6ae91bc82da4da0d71681804c5e1",
+      "fileCount": 27,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-windows-Rps9Cs",
+      "version": "0.5.1",
+      "ref": "refs/tags/archive-build-variant/v0.5.1/gaomiao-windows-Rps9Cs",
+      "commit": "10a9ced47369448d5830d4b176ccfe54bd8ae539",
+      "tree": "dc2863699c5cb0d2f53c3f6413b006a84be1a84c",
+      "fileCount": 27,
+      "verified": true
+    },
+    {
+      "directory": "install-smoke-0.5.1",
+      "version": "0.5.1",
+      "ref": "refs/tags/archive-build-variant/v0.5.1/install-smoke-0.5.1",
+      "commit": "2311747f21a6c7e176569fb16ce48d3a29fdd575",
+      "tree": "33a203f410284b9bdefaec03b7d9eb4a7fdaeab5",
+      "fileCount": 27,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-windows-IAgbUH",
+      "version": "0.5.2",
+      "ref": "refs/tags/archive-build-variant/v0.5.2/gaomiao-windows-IAgbUH",
+      "commit": "4ea02a23429e3a74a3e7b886b7ece901a8edd14e",
+      "tree": "4251a2944b52983139ce6ab6b90741910cf76b93",
+      "fileCount": 28,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-windows-ufwbk4",
+      "version": "0.5.2",
+      "ref": "refs/tags/archive-build-variant/v0.5.2/gaomiao-windows-ufwbk4",
+      "commit": "12c6cfee4b9bcb7207d25bf696b8cce288a618f4",
+      "tree": "b14e7e817a4ed53252e3d34b72b8cd2b8b00b1b6",
+      "fileCount": 28,
+      "verified": true
+    },
+    {
+      "directory": "installer-payload-0.5.2-40YbMC",
+      "version": "0.5.2",
+      "ref": "refs/tags/archive-build-variant/v0.5.2/installer-payload-0.5.2-40YbMC",
+      "commit": "962c191346c9e7b5aa35628928c8ee2e5dc45f5c",
+      "tree": "e95c1dbfb5efe80379b0238574ad75a3e802a1b4",
+      "fileCount": 28,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-windows-v2fzuK",
+      "version": "0.5.3",
+      "ref": "refs/tags/archive-build-variant/v0.5.3/gaomiao-windows-v2fzuK",
+      "commit": "8f949309ea6bdd865ca3683ddff2075d7f63030c",
+      "tree": "da6aed7aba1ddd64adf17e93c8addd6b7c8d4a79",
+      "fileCount": 28,
+      "verified": true
+    },
+    {
+      "directory": "installer-payload-0.5.3-RplIIZ",
+      "version": "0.5.3",
+      "ref": "refs/tags/archive-build-variant/v0.5.3/installer-payload-0.5.3-RplIIZ",
+      "commit": "c314d2d33ec862ca41d68485596cf574efe9841d",
+      "tree": "97502133c172e6fdd5497ebaa351ae897c86fb8d",
+      "fileCount": 28,
+      "verified": true
+    },
+    {
+      "directory": "installer-payload-0.5.3-hmoAT6",
+      "version": "0.5.3",
+      "ref": "refs/tags/archive-build-variant/v0.5.3/installer-payload-0.5.3-hmoAT6",
+      "commit": "0c25723dffe49ed735bd158b73fd1cb3fec19119",
+      "tree": "85b68cc727a21838aa1a10cd33e2e9642a96de63",
+      "fileCount": 28,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-windows-7wBc3k",
+      "version": "0.5.4",
+      "ref": "refs/tags/archive-build-variant/v0.5.4/gaomiao-windows-7wBc3k",
+      "commit": "c42491bb9462ef94440c1c804a4d645d5828d848",
+      "tree": "b48afac776909545698fd090d77fc459017b1748",
+      "fileCount": 28,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-windows-iFOuxJ",
+      "version": "0.5.4",
+      "ref": "refs/tags/archive-build-variant/v0.5.4/gaomiao-windows-iFOuxJ",
+      "commit": "8ea5db3e6682f8f166dcee486e7f7359ca868597",
+      "tree": "11634301247d2348ab9d8cbaa581c4a4676b5455",
+      "fileCount": 28,
+      "verified": true
+    },
+    {
+      "directory": "installer-payload-0.5.4-0zmeAY",
+      "version": "0.5.4",
+      "ref": "refs/tags/archive-build-variant/v0.5.4/installer-payload-0.5.4-0zmeAY",
+      "commit": "33144935722c34e79f8847830d5f006082ea9cab",
+      "tree": "b1af317cf76f2a8d39ce6a37690ab7d657a25737",
+      "fileCount": 28,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-windows-P8eZ7L",
+      "version": "0.5.5",
+      "ref": "refs/tags/archive-build-variant/v0.5.5/gaomiao-windows-P8eZ7L",
+      "commit": "62efc63dce50a3a52d69242f73633f7505709de0",
+      "tree": "ce662124644e83f40784dcace199cfa941e87e53",
+      "fileCount": 28,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-windows-TJ4Okd",
+      "version": "0.5.5",
+      "ref": "refs/tags/archive-build-variant/v0.5.5/gaomiao-windows-TJ4Okd",
+      "commit": "2d2174071da7fd1067dd5c2c1ce5e927340554f6",
+      "tree": "6ea48a49990befcf8d1740ed2b9ad61012626e2f",
+      "fileCount": 28,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-windows-NcVwo3",
+      "version": "0.5.6",
+      "ref": "refs/tags/archive-build-variant/v0.5.6/gaomiao-windows-NcVwo3",
+      "commit": "2e8457bda5e59e35b4c86e99284d7cbf272aca21",
+      "tree": "408f2d002246410e2ef9efe68b1cbca729224c63",
+      "fileCount": 28,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-windows-Ggn2a6",
+      "version": "0.5.7",
+      "ref": "refs/tags/archive-build-variant/v0.5.7/gaomiao-windows-Ggn2a6",
+      "commit": "98ff5caaa3b0707f194e19a933bddd965de0075e",
+      "tree": "f5181d3b6677ed629d52523f963f83cff0a70779",
+      "fileCount": 28,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-windows-HXjCNZ",
+      "version": "0.5.7",
+      "ref": "refs/tags/archive-build-variant/v0.5.7/gaomiao-windows-HXjCNZ",
+      "commit": "1427afa4814fa21bd9b5a68f95f17eb2d688082f",
+      "tree": "7a639e797155aa951283ff0bc7f3b8576dbc457f",
+      "fileCount": 28,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-windows-dcxn71",
+      "version": "0.5.7",
+      "ref": "refs/tags/archive-build-variant/v0.5.7/gaomiao-windows-dcxn71",
+      "commit": "0ee7a4e59713a9fbde95d57b437c402bfd290a4d",
+      "tree": "ecff624fecfd06a4c7d95a427ab195cc5d0ec5a4",
+      "fileCount": 28,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-windows-a6sFK5",
+      "version": "0.5.8",
+      "ref": "refs/tags/archive-build-variant/v0.5.8/gaomiao-windows-a6sFK5",
+      "commit": "cbabe695beed78a5026de77276d702b0de793ef9",
+      "tree": "edf639a739d9dd61204c523e5d4cb79c7b921fa2",
+      "fileCount": 28,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-windows-uk3TGN",
+      "version": "0.5.9",
+      "ref": "refs/tags/archive-build-variant/v0.5.9/gaomiao-windows-uk3TGN",
+      "commit": "85f4ee0d1b442778bfaaa5d2735bf0857fa46ade",
+      "tree": "465e45e61d1b75f0247f1b68e3c13bf95a5ce74c",
+      "fileCount": 28,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-windows-5ORSeb",
+      "version": "0.5.10",
+      "ref": "refs/tags/archive-build-variant/v0.5.10/gaomiao-windows-5ORSeb",
+      "commit": "36a8f171aa3de530541ef308fabd1974b91ef0d6",
+      "tree": "640585600e7c3098280ee6c006181330bbd08107",
+      "fileCount": 28,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-0.5.11-windows-x64",
+      "version": "0.5.11",
+      "ref": "refs/tags/archive-build-variant/v0.5.11/gaomiao-0.5.11-windows-x64",
+      "commit": "a0b5fd07f3043d3834fb5f18b87610cee11f12c1",
+      "tree": "69bcbb17f743879f8c729fff73d79557a5f4111b",
+      "fileCount": 28,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-0.5.12-windows-x64",
+      "version": "0.5.12",
+      "ref": "refs/tags/archive-build-variant/v0.5.12/gaomiao-0.5.12-windows-x64",
+      "commit": "929594b62a9664c08e210928db41c69778567660",
+      "tree": "80db836a9777dbfe4abe8879e9728b3b578b655e",
+      "fileCount": 28,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-0.5.13-windows-x64",
+      "version": "0.5.13",
+      "ref": "refs/tags/archive-build-variant/v0.5.13/gaomiao-0.5.13-windows-x64",
+      "commit": "f12f4967a851c4b8527d515a652a36cdd215cbe7",
+      "tree": "28ec9d2dd61ebfa4a34f5126adca1b503491f684",
+      "fileCount": 112,
+      "verified": true
+    },
+    {
+      "directory": "gaomiao-windows-KN3Ufe",
+      "version": "0.5.13",
+      "ref": "refs/tags/archive-build-variant/v0.5.13/gaomiao-windows-KN3Ufe",
+      "commit": "735d95eec365107d62c8c879226161cf6d3d5acb",
+      "tree": "a8f2c6bc90696532393a2bfca4e27ca2d8183700",
+      "fileCount": 113,
+      "verified": true
+    }
+  ]
+}

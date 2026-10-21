@@ -1,3 +1,4 @@
+import { auditPath } from './auditPath'
 import { test, expect, _electron as electron } from '@playwright/test'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
@@ -17,7 +18,7 @@ test('independent editing sessions, Git tips, viewport controls and source isola
  let app=await launch(),page=await app.firstWindow();const errors:string[]=[]
  const connect=async()=>{page=await app.firstWindow();page.on('pageerror',e=>errors.push(e.message));await page.emulateMedia({reducedMotion:'reduce'});await expect(page.getByRole('button',{name:'总览工作台',exact:true})).toBeVisible();await app.evaluate(({shell})=>{shell.openPath=async file=>{(globalThis as any).editCopy=file;return ''}})}
  const detail=()=>page.evaluate(name=>window.wordgit.library.detail(name),name)
- const output=path.resolve('docs/editing-audit');await fs.mkdir(output,{recursive:true})
+ const output=auditPath('editing-audit');await fs.mkdir(output,{recursive:true})
  try{
   await connect();await page.evaluate(({source,name})=>window.wordgit.doc.import(source,name),{source,name})
   await expect(page.locator('.wg-document-card')).toHaveCount(1);await page.locator('.wg-document-card').click()
@@ -29,7 +30,7 @@ test('independent editing sessions, Git tips, viewport controls and source isola
   const before=await page.locator('.wg-inspector').boundingBox(),separator=page.getByRole('separator',{name:'调整详情栏宽度'}),handle=await separator.boundingBox()
   await page.mouse.move(handle!.x+4,handle!.y+150);await page.mouse.down();await page.mouse.move(handle!.x-180,handle!.y+150,{steps:10});await page.mouse.up()
   expect((await page.locator('.wg-inspector').boundingBox())!.width).toBeGreaterThan(before!.width+100)
-  await page.getByRole('button',{name:'复位关系图',exact:true}).click()
+  await page.getByRole('button',{name:'重置视角',exact:true}).click()
   const graphNode=page.locator('.wg-graph-node').first()
   for(let attempt=0;attempt<2;attempt++){
    const at=await graphNode.boundingBox()
@@ -67,8 +68,8 @@ test('independent editing sessions, Git tips, viewport controls and source isola
   await fs.writeFile(bfile,docx('杂志B独立投稿格式'))
   await expect.poll(async()=>(await detail()).versions.length,{timeout:15000}).toBe(3)
   const b=(await detail()).branchHeads['杂志B投稿'];expect((await detail()).versions.find(v=>v.id===b)?.parents).toEqual([first]);expect((await detail()).branchHeads.main).toBe(child)
-  await expect(page.getByLabel('查看分支')).toHaveValue('current');await expect(page.locator('.wg-graph-node')).toHaveCount(1)
-  await page.getByLabel('查看分支').selectOption('all');await expect(page.locator('.wg-graph-node')).toHaveCount(3)
+  await expect(page.getByLabel('查看范围')).toHaveValue('current');await expect(page.locator('.wg-graph-node')).toHaveCount(1)
+  await page.getByLabel('查看范围').selectOption('all');await expect(page.locator('.wg-graph-node')).toHaveCount(3)
   await page.screenshot({path:path.join(output,'主稿与并列投稿分支.png')})
   await page.getByRole('button',{name:'展开预览',exact:true}).click();await expect(page.getByRole('dialog').locator('.wg-docx-preview section').first()).toBeVisible();await page.screenshot({path:path.join(output,'展开文档预览.png')});await page.getByRole('button',{name:'关闭',exact:true}).click()
   await page.getByRole('button',{name:'总览工作台',exact:true}).click();await expect(page.locator('.wg-document-grid')).toBeVisible();await expect(page.locator('.wg-main-view')).toHaveCSS('opacity','1');await page.screenshot({path:path.join(output,'文档主题边框与完整分割线.png')})

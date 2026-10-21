@@ -19,9 +19,15 @@ for (const [id, { folder, manifest }] of packages) {
   const destination = path.join(directory, 'licenses', id.replaceAll('/', '__').replace(/^@/, ''))
   await fs.mkdir(destination, { recursive: true })
   const files = (await fs.readdir(folder)).filter(n => /^(license|notice|third.party)/i.test(n))
-  if (!files.length) throw new Error('Missing bundled dependency license: ' + id)
+  if (!files.length) {
+    const vendored = path.join(root, 'vendor/dependency-licenses', id, 'LICENSE')
+    if (await fs.access(vendored).then(() => true, () => false)) { await fs.copyFile(vendored, path.join(destination, 'LICENSE')); notices.push(`${id} — ${manifest.license} — ${manifest.repository?.url ?? manifest.repository ?? manifest.homepage ?? ''}`); continue }
+    const readme = (await fs.readdir(folder)).find(name => /^readme(?:\.|$)/i.test(name))
+    if (!readme) throw new Error('Missing bundled dependency license and source notices: ' + id)
+    files.push(readme, 'package.json')
+  }
   for (const file of files) await fs.cp(path.join(folder, file), path.join(destination, file), { recursive: true })
-  notices.push(`${id} — ${manifest.license} — ${manifest.repository?.url ?? manifest.homepage ?? ''}`)
+  notices.push(`${id} — ${manifest.license ?? 'not specified in upstream package; see included README and package.json'} — ${manifest.repository?.url ?? manifest.repository ?? manifest.homepage ?? ''}`)
 }
 await fs.writeFile(path.join(directory, 'licenses/README.md'), '# Bundled MCP dependencies\n\n' + notices.map(n => '- ' + n).join('\n') + '\n')
 console.log(`Collected licenses for ${packages.size} bundled MCP packages.`)

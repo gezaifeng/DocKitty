@@ -3,7 +3,7 @@ import path from 'node:path'
 import type { Repo } from './repo.js'
 import { StorageContext } from './storageContext.js'
 import { docIdOf, docIds, listBranches, readCurrentBranch, writeCurrentBranch, readHead, writeHead } from './refs.js'
-import { encodeFile, getManifest, getManifestByContent, materializeFile, putManifest } from './ingest/index.js'
+import { encodeFile, getManifest, getManifestByContent, materializeFile, materializeFileStream, putManifest } from './ingest/index.js'
 import { readCommit, readTree, writeCommit, writeTree, type Commit, type Tree } from './model.js'
 import { readFileBlocks, teeHash, writeFileAtomic } from './fsutil.js'
 import { openJournal, closeJournal } from './journal.js'
@@ -12,6 +12,7 @@ import { withRepoWrite } from './writeLock.js'
 import { readLibraryMeta, writeLibraryMeta, resolveVersion, workingVersion } from './libraryMeta.js'
 import { sha256 } from './hashes.js'
 import { registerImportSource } from './importSources.js'
+import { discardCheckoutStage, publishWorkspaceCheckout } from './workspaceTransaction.js'
 
 export interface CommitResult {
   docId: string
@@ -147,7 +148,7 @@ export async function workspaceStatus(repo: Repo, docName: string): Promise<{ di
   return { dirty: false, versionId, exists }
 }
 
-export async function checkoutDocUnlocked(repo: Repo, docName: string, opts: { branch?: string; commitId?: string }): Promise<{ docId: string; commitId: string }> {
+export async function checkoutDocUnlocked(repo: Repo, docName: string, opts: { branch?: string; commitId?: string; switchBranch?: boolean }): Promise<{ docId: string; commitId: string }> {
   validateDocName(docName)
   const docId = docIdOf(docName)
   const ctx = StorageContext.forRepo(repo)
@@ -159,27 +160,20 @@ export async function checkoutDocUnlocked(repo: Repo, docName: string, opts: { b
   const tree = await readTree(ctx, commit.tree)
   const docAbs = path.join(repo.root, 'workspace', docName)
 
-  const materialized: Array<{ target: string; data: Uint8Array }> = []
-  for (const [rel, manifestId] of Object.entries(tree.entries)) {
-    const m = await getManifest(ctx, manifestId)
-    materialized.push({ target: containedPath(docAbs, rel), data: await materializeFile(ctx, m) })
+  const stage = await fs.mkdtemp(path.join(repo.root, 'workspace', '.checkout-')), stageName = path.basename(stage)
+  try {
+    const next = path.join(stage, 'next')
+    if (!Object.hasOwn(tree.entries, '')) await fs.mkdir(next)
+    for (const [rel, manifestId] of Object.entries(tree.entries)) {
+      const m = await getManifest(ctx, manifestId)
+      await writeFileAtomic(containedPath(next, rel), materializeFileStream(ctx, m))
+    }
+    if ((await workspaceStatus(repo, docName)).dirty) await commitDocUnlocked(repo, docName, { message: '恢复或切换前自动保护的工作区', author: 'word_git' })
+    await publishWorkspaceCheckout(repo, docName, stageName, commitId, opts.switchBranch ? branch : undefined)
+  } finally {
+    const pending = await fs.access(path.join(repo.root, 'journal', stageName + '.json')).then(() => true, () => false)
+    if (!pending) await discardCheckoutStage(repo, stageName)
   }
-  if ((await workspaceStatus(repo, docName)).dirty) {
-    await commitDocUnlocked(repo, docName, { message: '恢复或切换前自动保护的工作区', author: 'word_git' })
-  }
-  if (Object.keys(tree.entries).length === 0) await fs.mkdir(docAbs, { recursive: true })
-
-  // 物化全部条目（原子写；writeFileAtomic 自建父目录）
-  for (const item of materialized) await writeFileAtomic(item.target, item.data)
-
-  // 删除工作区中不属于该 tree 的多余文件（目录型文档）
-  const keep = new Set(Object.keys(tree.entries))
-  const present: string[] = []
-  await collectDocPaths(docAbs, '', present)
-  for (const rel of present) {
-    if (!keep.has(rel)) await fs.rm(containedPath(docAbs, rel))
-  }
-  await workingVersion(repo, docName, commitId)
   return { docId, commitId }
 }
 
@@ -258,6 +252,5 @@ export async function switchBranchUnlocked(repo: Repo, docName: string, branch: 
   validateBranchName(branch)
   const docId = docIdOf(docName)
   if (!(await readHead(repo, docId, branch))) throw new Error(`分支不存在：${branch}`)
-  await checkoutDocUnlocked(repo, docName, { branch })
-  await writeCurrentBranch(repo, docId, branch)
+  await checkoutDocUnlocked(repo, docName, { branch, switchBranch: true })
 }

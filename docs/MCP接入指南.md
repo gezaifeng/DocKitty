@@ -1,6 +1,6 @@
 # 稿喵 MCP 接入指南
 
-适用稿喵 0.5.4，普通用户无需额外安装 Node.js。先打开稿喵，左上角选择“项目管理”，再点击“接入 Agent”。弹窗生成当前软件路径与文档库路径的完整配置。
+适用稿喵 0.5.13，普通用户无需额外安装 Node.js。先打开稿喵，在版本管理或项目管理顶栏点击“接入 Agent”。弹窗生成当前软件路径与文档库路径的完整配置。
 
 ## Codex、Claude Code 与 Cursor
 
@@ -25,7 +25,45 @@
 
 连接期间保持稿喵打开。服务只接受本机带密钥的请求，地址和密钥会在重启后沿用；关闭本机连接或退出稿喵后停止。密钥不要提交到 GitHub。DSH 的 stdio 沙箱限制了项目外文件访问，本版本采用本机 HTTP，不需要移动已有资料。
 
-## Agent 的使用流程
+## 先查询能力
+
+连接后先调用 `dockitty_get_capabilities`。返回当前服务版本、桌面版本、文档库位置、两种管理模式和关键操作规则。0.5.13 与桌面共用文稿修改、分支、连线、预览限额、比较和统计服务，校验与界面相同。
+
+## 版本管理流程
+
+1. `dockitty_list_documents` 列出文稿；`dockitty_get_document` 读取版本编号、唯一分支归属、分类、备注、连线与编辑副本。
+2. `dockitty_import_document` 导入一份新文稿；`dockitty_import_version` 将另一份文件加入现有文稿；`dockitty_create_document` 创建 Word、Excel、TXT 或 Markdown。
+3. 基于某版修改：调用 `dockitty_prepare_draft`，明确 `docName / versionId / branch / mode`。工具返回库内独立文件 `workspacePath`，不自动启动编辑器。Agent 用自己的编辑工具修改该文件，再调用 `dockitty_sync_draft`。首次有改动新增一稿，后续保存更新同一稿；相同内容重复同步不新增节点。源文件不回写。
+4. 所选版本必须是指定分支末端；从历史稿发展时填写新分支名称。`dockitty_manage_branch` 支持 create、switch、recycle、restore、moveTip；删除当前编辑分支被拒绝。移动指针与修改版本归属是两个不同操作。
+5. `dockitty_update_version` 修改标题、备注、分类、位置和回收状态；`dockitty_version_relation` 的 moveBranch 修改唯一归属并断开旧连线，可指定目标分支前版本，也可保持独立。
+6. `dockitty_version_relation` 支持前后连接、断开、反转、标签、关系备注和样式。反转交换实际前后关系，不改正文、归属和位置；自连接、循环被拒绝。断开后的稿件保留原分支标签。
+7. `dockitty_version_statistics` 返回桌面同一份量化结果及缺失原因；`dockitty_compare_versions` 按 A → B 比较正文；CSV 用 `dockitty_export_version_statistics`。统计查看不切换编辑分支。
+
+### 版本工具表
+
+| 工具 | 用途 |
+| --- | --- |
+| dockitty_list_documents / dockitty_get_document | 文稿列表、全部版本与回收状态 |
+| dockitty_import_document / dockitty_create_document | 导入或新建文稿 |
+| dockitty_import_version | 加入现有文稿，或明确替换一稿 |
+| dockitty_update_document / dockitty_update_version | 显示名称、版本备注、分类、位置与回收 / 还原 |
+| dockitty_prepare_draft / dockitty_sync_draft | 独立编辑副本及保存同步 |
+| dockitty_save_workspace / dockitty_undo_replacement | 兼容工作区保存、撤销覆盖 |
+| dockitty_manage_branch / dockitty_list_recycled_branches | 建立、切换、回收、恢复和移动分支指针 |
+| dockitty_version_category / dockitty_arrange_versions | 分类与看板排序 |
+| dockitty_version_relation / dockitty_tidy_versions | 前后连线、备注、格式、归属与整理卡片布局 |
+| dockitty_refresh_workspace | 扫描受管工作目录，不扫描原始论文目录 |
+| dockitty_read_version / dockitty_export_version | 读取不超过 1 MiB 的快照，或完整无覆盖导出 |
+| dockitty_compare_versions | 与桌面相同的方向性正文差异 |
+| dockitty_version_statistics / dockitty_export_version_statistics | 桌面量化与 CSV 导出 |
+| dockitty_purge_version | 明确确认后的永久删除 |
+| dockitty_edit_history | 当前 MCP 进程的可恢复操作撤回 / 重做 |
+
+永久删除需先取得用户明确授权，并传 `confirmation: "PERMANENTLY DELETE"`。同时删除来源文件还需 `deleteSource: true` 及与详情一致的完整 `confirmedSourcePath`。普通回收使用 `deleted: true`，不会删除来源。永久删除清空该进程撤回记录；校验拒绝的操作不会清空。
+
+MCP 与桌面各自保存当前启动的撤回栈，不跨进程共享。外部管理数据更新会使过期记录失效，避免覆盖新整理结果；Agent 或 Word 对文件正文的修改不由撤回回退。
+
+## 项目管理的使用流程
 
 先列出/创建项目文档库，再导入当前资料。当 agent 在来源文件中修改内容后：
 

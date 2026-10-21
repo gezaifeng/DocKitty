@@ -1,3 +1,4 @@
+import { auditPath } from './auditPath'
 import { test,expect,_electron as electron } from '@playwright/test'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
@@ -16,8 +17,8 @@ test('complete version, classification, structured metrics, baseline and export 
   await page.emulateMedia({reducedMotion:'reduce'})
   await expect(page.locator('.wg-startup')).toHaveCount(0)
   await expect(page.getByRole('button',{name:'总览工作台',exact:true})).toBeVisible()
-  await fs.mkdir('docs/integration-audit',{recursive:true})
-  await fs.mkdir('docs/indicator-audit',{recursive:true})
+  await fs.mkdir(auditPath('integration-audit'),{recursive:true})
+  await fs.mkdir(auditPath('indicator-audit'),{recursive:true})
   const indicatorReport:Array<{format:string,label:string,file:string}>=[]
   async function auditIndicators(format:string){
    const buttons=page.locator('.wg-stat-sidebar section button')
@@ -28,7 +29,7 @@ test('complete version, classification, structured metrics, baseline and export 
     await expect(page.locator('.wg-stat-heading h1')).toBeInViewport()
     await expect(page.locator('.wg-stat-sidebar button.active')).toHaveCount(1)
     expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false)
-    const file=`${format}-${i}.png`;await page.screenshot({path:'docs/indicator-audit/'+file,scale:'css'})
+    const file=`${format}-${i}.png`;await page.screenshot({path: auditPath('indicator-audit/')+file,scale:'css'})
     indicatorReport.push({format,label:label.trim(),file})
    }
   }
@@ -53,8 +54,8 @@ test('complete version, classification, structured metrics, baseline and export 
   const stats=await page.evaluate(({name,branch})=>window.wordgit.stats.versions(name,branch),{name,branch})
   await expect(page.locator('.wg-stat-cards section').nth(1).locator('strong')).toHaveText(String(stats.versions.at(-1)!.values.wordCount))
   await page.locator('.wg-stat-filters summary').click();await page.getByLabel('基准版本',{exact:true}).selectOption(first);await page.getByLabel('对照分支',{exact:true}).selectOption('导师路线')
-  await expect(page.locator('.wg-stat-filters')).toContainText('共同版本 0');await page.getByLabel('仅分叉后版本').check();await expect(page.locator('.wg-stat-cards section').first().locator('strong')).toHaveText('2')
-  await page.getByLabel('仅分叉后版本').uncheck();await page.getByLabel('起始版本',{exact:true}).selectOption(latest);await expect(page.locator('.wg-stat-cards section').first().locator('strong')).toHaveText('1');await page.getByRole('button',{name:'清除范围',exact:true}).click()
+  await expect(page.locator('.wg-stat-filters')).toContainText('各分支按唯一归属分别统计');await expect(page.getByLabel('仅分叉后版本')).toHaveCount(0);await expect(page.locator('.wg-stat-cards section').first().locator('strong')).toHaveText('2')
+  await page.getByLabel('起始版本',{exact:true}).selectOption(latest);await expect(page.locator('.wg-stat-cards section').first().locator('strong')).toHaveText('1');await page.getByRole('button',{name:'清除范围',exact:true}).click()
   await page.getByLabel('统计起始日期').fill('2099-01-01');await expect(page.locator('.wg-stat-cards section').first().locator('strong')).toHaveText('0');await page.getByRole('button',{name:'清除范围',exact:true}).click()
   await page.getByLabel('趋势横轴').selectOption('time');await page.locator('.wg-stat-filters summary').click()
   const csv=path.join(temporary,'统计.csv');await app.evaluate(({dialog},filePath)=>{dialog.showSaveDialog=async()=>({canceled:false,filePath})},csv)
@@ -69,12 +70,12 @@ test('complete version, classification, structured metrics, baseline and export 
    if(metric==='结构变化明细')await expect(page.locator('.wg-stat-chart-panel')).toContainText('修改段落')
    if(metric==='保存活动')await page.getByLabel('活动统计周期').selectOption('week')
    if(metric==='字数目标')await page.getByLabel('目标字数').fill('10000')
-   await page.waitForTimeout(350);await page.screenshot({path:'docs/integration-audit/word-'+metric+'.png',scale:'css'})
-   await page.locator('.wg-stat-chart-panel').screenshot({path:'docs/integration-audit/word-'+metric+'-detail.png'})
+   await page.waitForTimeout(350);await page.screenshot({path: auditPath('integration-audit/word-')+metric+'.png',scale:'css'})
+   await page.locator('.wg-stat-chart-panel').screenshot({path: auditPath('integration-audit/word-')+metric+'-detail.png'})
   }
   await auditIndicators('word')
   await page.getByRole('button',{name:'与基准比较内容',exact:true}).click();await expect(page.getByRole('dialog')).toContainText('两份版本');await page.getByRole('button',{name:'关闭',exact:true}).click()
-  await page.getByRole('button',{name:'查看这份版本',exact:true}).click();await expect(page.locator('.wg-selected-version h3')).toHaveText('补充实验')
+  await page.getByRole('button',{name:'查看这份版本',exact:true}).click();await expect(page.locator('.wg-inspector-heading h3')).toHaveText('补充实验')
   expect((await page.evaluate(name=>window.wordgit.library.detail(name),name)).currentBranch).toBe(branch);expect((await fs.readFile(workspace)).equals(expectedBytes)).toBeTruthy()
   // New sheet, formula rewrite, numeric aggregation and sparse multi-sheet preview.
   const book=new ExcelJS.Workbook(),sheet=book.addWorksheet('数据');sheet.getCell('C5').value=10;sheet.getCell('C7').value=20;sheet.getCell('D7').value={formula:'C5+C7',result:30}
@@ -85,7 +86,7 @@ test('complete version, classification, structured metrics, baseline and export 
   await expect(page.locator('.wg-document-card')).toHaveCount(2);await page.locator('.wg-document-card').filter({hasText:xname}).click()
   await expect(page.getByRole('tab',{name:'汇总',exact:true})).toBeVisible();await page.getByRole('tab',{name:'汇总',exact:true}).click();await expect(page.locator('.wg-xlsx-grid')).toContainText('9');await expect(page.locator('.wg-xlsx-grid')).toContainText('40')
   await page.getByRole('button',{name:'版本统计',exact:true}).click();await page.getByRole('button',{name:'改写公式',exact:false}).click();await expect(page.locator('.wg-stat-cards section').nth(1).locator('strong')).toHaveText('1')
-  await page.getByRole('button',{name:'数值列统计',exact:true}).click();await page.getByLabel('数值列').selectOption('数据!C');await expect(page.locator('.wg-stat-chart-panel')).toContainText('30');await page.screenshot({path:'docs/integration-audit/excel-columns.png',scale:'css'});await page.locator('.wg-stat-chart-panel').screenshot({path:'docs/integration-audit/excel-columns-detail.png'})
+  await page.getByRole('button',{name:'数值列统计',exact:true}).click();await page.getByLabel('数值列').selectOption('数据!C');await expect(page.locator('.wg-stat-chart-panel')).toContainText('30');await page.screenshot({path: auditPath('integration-audit/excel-columns.png'),scale:'css'});await page.locator('.wg-stat-chart-panel').screenshot({path: auditPath('integration-audit/excel-columns-detail.png')})
   await auditIndicators('excel')
   // Rename-conflict recovery restores the old reference without replacing the new one.
   await page.evaluate(name=>window.wordgit.branch.delete(name,'导师路线'),name)
@@ -101,9 +102,9 @@ test('complete version, classification, structured metrics, baseline and export 
   await page.evaluate(name=>window.wordgit.library.mutate({type:'save',docName:name,mode:'new',message:'演示补充结果'}),pname)
   await expect(page.locator('.wg-document-card')).toHaveCount(3);await page.locator('.wg-document-card').filter({hasText:pname}).click();await page.getByRole('button',{name:'版本统计',exact:true}).click()
   await page.getByRole('button',{name:'幻灯片文本修改',exact:false}).click();await expect(page.locator('.wg-stat-cards section').nth(1).locator('strong')).toHaveText('1')
-  await page.screenshot({path:'docs/integration-audit/ppt-changes.png',scale:'css'})
+  await page.screenshot({path: auditPath('integration-audit/ppt-changes.png'),scale:'css'})
   await auditIndicators('ppt')
-  await fs.writeFile('docs/indicator-audit/report.json',JSON.stringify(indicatorReport,null,2))
+  await fs.writeFile(auditPath('indicator-audit/report.json'),JSON.stringify(indicatorReport,null,2))
   expect(errors).toEqual([])
  }finally{await app.close();if(path.dirname(temporary)===os.tmpdir()&&path.basename(temporary).startsWith('gaomiao-integration-'))await fs.rm(temporary,{recursive:true,force:true})}
 })

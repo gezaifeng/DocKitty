@@ -1,5 +1,6 @@
 import { promises as fsp } from 'node:fs'
 import path from 'node:path'
+import { createHash } from 'node:crypto'
 import { readFileBlocks, writeFileAtomic } from '../fsutil.js'
 import type { StorageContext } from '../storageContext.js'
 import { encodeGeneric, materializeGeneric } from './generic.js'
@@ -29,6 +30,18 @@ async function* streamOnce(buf: Uint8Array): AsyncGenerator<Uint8Array> {
 
 export async function materializeFile(ctx: StorageContext, m: FileManifest): Promise<Uint8Array> {
   return m.encoding === 'ooxml' ? decodeOoxml(ctx, m) : materializeGeneric(ctx, m)
+}
+
+export async function* materializeFileStream(ctx: StorageContext, m: FileManifest): AsyncGenerator<Uint8Array> {
+  if (m.encoding === 'ooxml') { yield await decodeOoxml(ctx, m); return }
+  if (!Number.isSafeInteger(m.size) || m.size < 0) throw new Error('历史文件大小无效')
+  const hash = createHash('sha256'); let size = 0
+  for (const id of m.ref.chunks) {
+    const block = await ctx.chunks.get(id); hash.update(block); size += block.length
+    if (size > m.size) throw new Error('历史文件大小校验失败')
+    yield block
+  }
+  if (size !== m.size || hash.digest('hex') !== m.sha256) throw new Error('历史文件内容校验失败')
 }
 
 function canonical(m: FileManifest): string {

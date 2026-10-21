@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { Repo } from '../src/repo.js'
@@ -19,6 +19,32 @@ beforeEach(async () => {
 afterEach(async () => { await cleanup(dir) })
 
 describe('backup', () => {
+  it('includes user folders named index and temporary-looking document names', async () => {
+    const folder = path.join(repo.root, 'workspace', 'index'); await fs.mkdir(folder)
+    await fs.writeFile(path.join(folder, 'notes.tmp-user.txt'), 'user data, not an internal temporary file')
+    await commitDoc(repo, 'index', { message: 'v1', author: 'test' })
+    const backup = path.join(dir, 'index.wgbak'); await exportBackup(repo, backup)
+    const restored = await importBackup(backup, path.join(dir, 'index-restored'))
+    expect(await fs.readFile(path.join(restored.root, 'workspace', 'index', 'notes.tmp-user.txt'), 'utf8')).toBe('user data, not an internal temporary file')
+  })
+  it('keeps the restore destination empty and removes staging when a write fails', async () => {
+    await fs.writeFile(path.join(repo.root, 'workspace', 'draft.txt'), 'source must remain intact')
+    await commitDoc(repo, 'draft.txt', { message: 'v1', author: 'test' })
+    const backup = path.join(dir, 'atomic.zip'), target = path.join(dir, 'atomic-restore')
+    await exportBackup(repo, backup); await fs.mkdir(target)
+    const originalOpen = fs.open.bind(fs)
+    const write = vi.spyOn(fs, 'open').mockImplementation(async (file, flags, mode) => {
+      const handle = await originalOpen(file, flags, mode)
+      if (flags === 'wx' && String(file).endsWith(path.join('workspace', 'draft.txt'))) handle.writeFile = vi.fn().mockRejectedValue(Object.assign(new Error('disk full fixture'), { code: 'ENOSPC' }))
+      return handle
+    })
+    try {
+      await expect(importBackup(backup, target)).rejects.toThrow('disk full fixture')
+      expect(await fs.readdir(target)).toEqual([])
+      expect((await fs.readdir(dir)).some(name => name.startsWith('.wordgit-restore-'))).toBe(false)
+      expect(await fs.readFile(path.join(repo.root, 'workspace', 'draft.txt'), 'utf8')).toBe('source must remain intact')
+    } finally { write.mockRestore() }
+  })
   it('拒绝恢复覆盖已有目录，备份中不包含进程锁', async () => {
     const backupPath = path.join(dir, 'safe.zip')
     await exportBackup(repo, backupPath)
@@ -35,7 +61,7 @@ describe('backup', () => {
     files['../escape.txt'] = new TextEncoder().encode('unsafe')
     await fs.writeFile(backupPath, zipSync(files))
     const target = path.join(dir, 'restore.wg')
-    await expect(importBackup(backupPath, target)).rejects.toThrow('未校验')
+    await expect(importBackup(backupPath, target)).rejects.toThrow(/未校验|无效路径/)
     await expect(fs.stat(target)).rejects.toThrow()
     const manifest = JSON.parse(new TextDecoder().decode(files['_manifest.json']))
     manifest.files.push({ path: '../escape.txt', sha256: 'unused' })

@@ -1,0 +1,41 @@
+/* Structure is shared by every theme; surfaces, borders and typography retain theme tokens. */
+.wg-inspector.wg-inspector-organized{display:flex;flex-direction:column;gap:12px;overflow:hidden;min-width:0}
+.wg-inspector-organized>header{flex-shrink:0;margin:0;padding-bottom:12px}
+.wg-inspector-organized .wg-inspector-document{flex-shrink:0;max-height:38%;overflow:auto;border-bottom:var(--wg-stroke) solid var(--wg-line);padding-bottom:10px}
+.wg-inspector-document>summary{cursor:pointer;font-weight:600;line-height:1.6;color:var(--wg-text)}
+.wg-inspector-document .wg-document-info{padding-top:12px}
+.wg-inspector-document .wg-workspace-status{margin:10px 0;align-items:flex-start}
+.wg-inspector-document .wg-workspace-status small{overflow-wrap:anywhere}
+.wg-inspector-document .wg-branch-control{margin-bottom:0}
+.wg-inspector-heading{flex-shrink:0;min-width:0}
+.wg-inspector-heading h2,.wg-inspector-heading h3{font-size:17px;line-height:1.45;margin:0 0 6px;overflow-wrap:anywhere}
+.wg-inspector-heading p{margin:0;color:var(--wg-muted);font-size:11px;line-height:1.6;overflow-wrap:anywhere}
+.wg-inspector-identity{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.wg-inspector-identity span{font-size:10px;padding:3px 7px;border:var(--wg-stroke) solid var(--wg-line);border-radius:var(--wg-radius);color:var(--wg-text)}
+.wg-inspector-primary{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;flex-shrink:0}
+.wg-inspector-primary .wg-preview-expand{margin:0}
+.wg-inspector-primary button,.wg-inspector-footer button{min-width:0;white-space:normal;justify-content:center}
+.wg-inspector-tabs{display:flex;flex-direction:column;min-height:80px;flex:1;overflow:hidden}
+.wg-inspector-tabs>nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px;flex-shrink:0;border-bottom:var(--wg-stroke) solid var(--wg-line);padding-bottom:6px}
+.wg-inspector-tabs>nav>button{background:transparent;color:var(--wg-muted);border:var(--wg-stroke) solid transparent;border-radius:var(--wg-radius);padding:8px 3px;min-width:0;font:inherit;cursor:pointer}
+.wg-inspector-tabs>nav>button[aria-selected=true]{background:var(--wg-selected);color:var(--wg-text);border-color:var(--wg-line);font-weight:600}
+.wg-inspector-tabs>nav>button:focus-visible{outline:2px solid var(--wg-focus);outline-offset:-2px}
+.wg-inspector-tabpanel{flex:1;min-height:0;overflow:auto;padding:12px 1px 2px;overscroll-behavior:contain}
+.wg-inspector-tabpanel>.wg-preview-pane{margin:0;max-height:none;min-height:180px}
+.wg-inspector-tabpanel .wg-selected-version{padding:0;border:0}
+.wg-inspector-tabpanel .wg-version-remark{margin-top:12px}
+.wg-inspector-tabpanel .wg-project-preview{padding:0;border:0;margin:0}
+.wg-inspector-tabpanel .wg-project-category-field{margin-top:0}
+.wg-inspector-tabpanel .wg-project-path{overflow-wrap:anywhere;max-height:none}
+.wg-inspector-footer{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;flex-shrink:0;padding-top:10px;border-top:var(--wg-stroke) solid var(--wg-line)}
+.wg-inspector-footer>button:last-child{grid-column:1/-1}
+.wg-inspector-tip{font-size:11px;color:var(--wg-muted);line-height:1.8;margin:8px 0}
+.wg-version-menu,.wg-project-menu{max-height:calc(100vh - 16px);overflow-y:auto;overscroll-behavior:contain}
+@media(max-height:760px){.wg-inspector.wg-inspector-organized{gap:8px}.wg-inspector-heading h2,.wg-inspector-heading h3{font-size:15px}.wg-inspector-primary button,.wg-inspector-footer button{padding-top:6px;padding-bottom:6px}}
+@media(prefers-reduced-transparency:reduce){.wg-inspector-tabs>nav>button[aria-selected=true]{background:var(--wg-selected)}}
+
+.wg-project-inspector.wg-inspector-organized .wg-inspector-tabpanel{margin:0;border:0;padding:12px 1px 2px}
+.wg-project-inspector.wg-inspector-organized .wg-inspector-tabpanel>section{margin:0;border:0;padding:0}
+.wg-inspector-organized .wg-inspector-heading h2,.wg-inspector-organized .wg-inspector-heading h3{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.wg-inspector-organized .wg-inspector-heading .wg-project-path{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+@media(max-height:760px){.wg-inspector.wg-inspector-organized{padding-top:0;padding-bottom:10px}.wg-inspector-organized>header{padding-top:10px;padding-bottom:10px}.wg-inspector-organized .wg-inspector-document{padding-bottom:5px}.wg-inspector-organized .wg-inspector-heading h2{margin-top:0}.wg-inspector-organized .wg-inspector-primary button,.wg-inspector-organized .wg-inspector-footer button{font-size:11px}.wg-inspector-organized .wg-inspector-tabs>nav>button{padding-top:5px;padding-bottom:5px}.wg-inspector-organized .wg-inspector-footer{padding-top:7px;gap:5px}}

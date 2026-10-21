@@ -7,6 +7,9 @@ import './assets/globals.css'
 import './assets/themes.css'
 import './assets/extra-themes.css'
 import './assets/liquid-glass.css'
+import './assets/redline.css'
+import './vendor/ak-ui/scoped.css'
+import './assets/ak-ui.css'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 5_000 } },

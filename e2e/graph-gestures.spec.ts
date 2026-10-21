@@ -1,3 +1,4 @@
+import { auditPath } from './auditPath'
 import { test, expect, _electron as electron } from '@playwright/test'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
@@ -12,8 +13,8 @@ async function launch(prefix: string) {
   await page.emulateMedia({ reducedMotion: 'reduce' }); await app.evaluate(({ BrowserWindow }) => { const win = BrowserWindow.getAllWindows()[0]; win.webContents.setBackgroundThrottling(false); win.setContentSize(1600, 1000) }); await page.getByRole('button', { name: '总览工作台', exact: true }).waitFor()
   return { temporary, app, page, errors, async close() { await app.close(); if (path.dirname(temporary) === os.tmpdir() && path.basename(temporary).startsWith(prefix)) await fs.rm(temporary, { recursive: true, force: true }) } }
 }
-const themes = [['blockframe', 'BlockFrame'], ['light', '浅色办公'], ['paper', '纸张书房'], ['dark', '石墨暗色'], ['raw', '粉绿方块'], ['retro', '经典视窗'], ['capsule', '胶囊文具']]
-const output = path.resolve('docs/edge-editor-audit')
+const themes = [['blockframe', '积木'], ['light', '素白'], ['paper', '暖纸'], ['dark', '石墨'], ['raw', '粉绿'], ['retro', '视窗'], ['capsule', '胶囊']]
+const output = auditPath('edge-editor-audit')
 async function formatWire(app: import('@playwright/test').ElectronApplication, page: import('@playwright/test').Page, line: import('@playwright/test').Locator, theme: string, mode: string, index: number) {
   await editWire(page, line, 'right')
   const menu = page.getByRole('dialog', { name: '编辑连线', exact: true })
@@ -68,16 +69,16 @@ test('right-drag project wires, graphical label/reversal, undo/redo, category, m
     await page.keyboard.press('Control+z'); await expect.poll(async () => (await read()).nodes.find(n => n.name === '正文.md')!.position).toEqual(previous)
     await expect(source).toHaveCSS('left', `${previous.x}px`)
     const category = await page.evaluate(projectId => window.wordgit.projects!.request({ action: 'setCategory', projectId, category: { name: '投稿材料' } }) as Promise<{ id: string }>, projectId)
-    await page.getByLabel('资料分类', { exact: true }).selectOption(category.id); await page.keyboard.press('Control+z'); await expect.poll(async () => (await read()).nodes.find(n => n.name === '正文.md')?.categoryId ?? '').toBe('')
+    await page.locator('.wg-inspector-organized').getByRole('tab', { name: '信息', exact: true }).click(); await page.getByLabel('资料分类', { exact: true }).selectOption(category.id); await page.keyboard.press('Control+z'); await expect.poll(async () => (await read()).nodes.find(n => n.name === '正文.md')?.categoryId ?? '').toBe('')
     await page.keyboard.press('Control+Shift+z'); await expect.poll(async () => (await read()).nodes.find(n => n.name === '正文.md')?.categoryId).toBe(category.id)
     const screenshots: string[] = []
     for (const [index, [theme, label]] of themes.entries()) {
-      await page.getByLabel('主题风格').click(); await page.getByRole('option', { name: new RegExp(label) }).click()
+      await page.getByLabel('主题风格').click(); await page.getByRole('option').filter({ has: page.getByText(label, { exact: true }) }).click()
       const format = await formatWire(run.app, page, page.locator('.wg-project-edges .wg-edge-line'), theme, 'project', index)
       await expect.poll(async () => (await read()).relations[0].style).toEqual(format)
-      await page.getByText('文件', { exact: true }).click(); await expect(page.locator('details.wg-menu')).toHaveAttribute('open', '')
+      await page.getByText('文件', { exact: true }).click(); await expect(page.locator('details.wg-menu:not(.wg-features-menu)')).toHaveAttribute('open', '')
       await expect(page.getByRole('button', { name: /^撤回/ })).toBeInViewport(); const menuName = theme + '-project-menu.png'; screenshots.push(menuName); await captureGraph(run.app, path.join(output, menuName))
-      await page.locator('.wg-projectbar').click({ position: { x: 250, y: 20 } }); await expect(page.locator('details.wg-menu')).not.toHaveAttribute('open', '')
+      await page.locator('.wg-projectbar').click({ position: { x: 250, y: 20 } }); await expect(page.locator('details.wg-menu:not(.wg-features-menu)')).not.toHaveAttribute('open', '')
       await editWire(page, page.locator('.wg-project-edges .wg-edge-line')); const dialogName = theme + '-project-edge.png'; screenshots.push(dialogName); await captureGraph(run.app, path.join(output, dialogName)); await page.getByRole('dialog').getByRole('button', { name: '取消', exact: true }).click()
       await dragWire(page, source, target, false); const draftName = theme + '-project-drag.png'; screenshots.push(draftName); await captureGraph(run.app, path.join(output, draftName)); await page.keyboard.press('Escape'); await page.mouse.up({ button: 'right' })
     }
@@ -108,7 +109,7 @@ test('version wire gestures, labels and real reversal are undoable, cycle reject
     await editWire(page, line()); await page.getByLabel('关系标签').fill('投刊前修改'); await page.getByRole('dialog').getByRole('button', { name: '保存', exact: true }).click()
     await expect.poll(async () => (await detail()).versions.find(v => v.id === second)?.parentLabels?.[first]).toBe('投刊前修改')
     for (const [index, [theme, label]] of themes.entries()) {
-      await page.getByLabel('主题风格').click(); await page.getByRole('option', { name: new RegExp(label) }).click()
+      await page.getByLabel('主题风格').click(); await page.getByRole('option').filter({ has: page.getByText(label, { exact: true }) }).click()
       const format = await formatWire(run.app, page, line(), theme, 'version', index)
       await expect.poll(async () => (await detail()).versions.find(v => v.id === second)?.parentStyles?.[first]).toEqual(format)
       await editWire(page, line()); await page.getByRole('button', { name: '反转箭头', exact: true }).click()
@@ -123,7 +124,7 @@ test('version wire gestures, labels and real reversal are undoable, cycle reject
     await page.evaluate(({ first, third }) => window.wordgit.library.mutate({ type: 'relations', docName: '论文.txt', versionId: first, targetVersionId: third, action: 'connectNext' }), { first, third })
     const before = await detail(); await page.evaluate(({ first, third }) => window.wordgit.library.mutate({ type: 'relations', docName: '论文.txt', versionId: first, targetVersionId: third, action: 'reverseConnection' }).then(() => false, () => true), { first, third }).then(rejected => expect(rejected).toBe(true)); expect(await detail()).toEqual(before)
     await next.click({ button: 'right' }); await expect(page.getByRole('menu', { name: /版本操作/ })).toBeVisible(); await page.keyboard.press('Escape')
-    await page.getByText('文件', { exact: true }).click(); await page.locator('.wg-projectbar').click({ position: { x: 300, y: 20 } }); await expect(page.locator('details.wg-menu')).not.toHaveAttribute('open', '')
+    await page.getByText('文件', { exact: true }).click(); await page.locator('.wg-projectbar').click({ position: { x: 300, y: 20 } }); await expect(page.locator('details.wg-menu:not(.wg-features-menu)')).not.toHaveAttribute('open', '')
     await fs.writeFile(source, '外部原稿新修改'); await fs.writeFile(path.join(root, 'workspace', '论文.txt'), '未记录的 Word 修改')
     await page.keyboard.press('Control+z'); expect(await fs.readFile(source, 'utf8')).toBe('外部原稿新修改'); expect(await fs.readFile(path.join(root, 'workspace', '论文.txt'), 'utf8')).toBe('未记录的 Word 修改')
     expect(run.errors).toEqual([])
@@ -138,7 +139,7 @@ test('imports undo and redo through the File menu, text shortcuts stay local, pe
     const source = path.join(temporary, '撤回验证.txt'); await fs.writeFile(source, '原始内容')
     const id = (await page.evaluate(source => window.wordgit.doc.import(source), source)).commitId
     const card = page.getByRole('listitem', { name: '文档 撤回验证.txt', exact: true }); await expect(card).toBeVisible(); await card.click()
-    await page.getByText('文件', { exact: true }).click(); await page.getByRole('button', { name: /^撤回：导入文档/ }).click(); await expect(card).toHaveCount(0); await expect(page.locator('details.wg-menu')).not.toHaveAttribute('open', '')
+    await page.getByText('文件', { exact: true }).click(); await page.getByRole('button', { name: /^撤回：导入文档/ }).click(); await expect(card).toHaveCount(0); await expect(page.locator('details.wg-menu:not(.wg-features-menu)')).not.toHaveAttribute('open', '')
     await fs.writeFile(source, '原文件后来修改')
     await page.keyboard.press('Control+Shift+z'); await expect(card).toBeVisible(); await card.click()
     const before = await page.evaluate(() => window.wordgit.history!.status())

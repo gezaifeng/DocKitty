@@ -1,3 +1,4 @@
+import { auditPath } from './auditPath'
 import { test, expect, _electron as electron } from '@playwright/test'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
@@ -35,11 +36,11 @@ test('five native figures switch, persist and never react to canvas dragging', a
       await page.screenshot({path:`docs/management-audit/figure-${name.toLowerCase()}.png`})
       await page.mouse.move(box.x+900,box.y+300)
     }
-    await figure.click({button:'right'});await page.screenshot({path:'docs/management-audit/figure-switch-menu.png'});await page.getByRole('menuitemradio',{name:/^Riffle ·/}).click()
-    for (const [theme, label] of [['blockframe', 'BlockFrame'], ['light', '浅色办公'], ['paper', '纸张书房'], ['dark', '石墨暗色']]) {
-      await page.getByLabel('主题风格').click(); await page.getByRole('option', { name: new RegExp(label) }).click()
+    await figure.click({button:'right'});await page.screenshot({path: auditPath('management-audit/figure-switch-menu.png')});await page.getByRole('menuitemradio',{name:/^Riffle ·/}).click()
+    for (const [theme, label] of [['blockframe', '积木'], ['light', '素白'], ['paper', '暖纸'], ['dark', '石墨']]) {
+      await page.getByLabel('主题风格').click(); await page.getByRole('option').filter({ has: page.getByText(label, { exact: true }) }).click()
       await page.waitForTimeout(300) // Allow the existing theme color transition to settle before visual capture.
-      await page.screenshot({ path: `docs/management-audit/riffle-${theme}.png` })
+      await page.screenshot({ path: auditPath(`management-audit/riffle-${theme}.png`) })
       const colors = await figure.evaluate(el => ({ figure: getComputedStyle(el).getPropertyValue('--hl-hi'), text: getComputedStyle(el).getPropertyValue('--wg-text') }))
       expect(colors.figure.trim()).toBe(colors.text.trim())
     }

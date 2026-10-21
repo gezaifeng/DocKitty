@@ -51,7 +51,7 @@ describe('ThemeToggle', () => {
   it('shows the current theme in the accessible label', () => {
     renderToggle()
     expect(
-      screen.getByRole('button', { name: '切换主题（当前：跟随系统）' }),
+      screen.getByRole('button', { name: '切换主题（当前：系统）' }),
     ).toBeInTheDocument()
   })
 
@@ -74,7 +74,7 @@ describe('ThemeToggle', () => {
     renderToggle()
     await userEvent.click(screen.getByRole('button', { name: /切换主题/ }))
     expect(
-      screen.getByRole('button', { name: '切换主题（当前：浅色）' }),
+      screen.getByRole('button', { name: '切换主题（当前：素白）' }),
     ).toBeInTheDocument()
   })
 

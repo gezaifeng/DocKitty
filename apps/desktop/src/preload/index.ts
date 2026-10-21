@@ -1,7 +1,14 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { IpcApi, WatcherChangeEvent } from '@wordgit/shared'
 
 const api: IpcApi = {
+  drop: {
+    paths: files => [...new Set(files.map(file => webUtils.getPathForFile(file)).filter(Boolean))],
+    inspect: paths => ipcRenderer.invoke('drop.inspect', paths),
+    prepare: (paths, projectId, parentId, workingFolder) => ipcRenderer.invoke('drop.prepare', { paths, projectId, parentId, workingFolder }),
+    importProject: request => ipcRenderer.invoke('drop.project', request),
+    createProjects: paths => ipcRenderer.invoke('drop.projects', paths),
+  },
   history: { status: () => ipcRenderer.invoke('history.status'), undo: () => ipcRenderer.invoke('history.undo'), redo: () => ipcRenderer.invoke('history.redo') },
   projects: { request: (request) => ipcRenderer.invoke('projects.request', request) },
   appearance: { setTheme: (theme) => ipcRenderer.invoke('appearance.theme', { theme }) },

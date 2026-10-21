@@ -9,6 +9,7 @@ import { registerLibraryHandlers } from './libraryHandlers.js'
 import { registerVersionStatsHandlers } from './versionStatsHandlers.js'
 import { registerProjectHandlers } from './projectHandlers.js'
 import { registerEditHistoryHandlers } from './editHistoryHandlers.js'
+import { registerDropHandlers } from './dropHandlers.js'
 
 export function registerAllHandlers(): void {
   registerRepoHandlers()
@@ -22,4 +23,5 @@ export function registerAllHandlers(): void {
   registerVersionStatsHandlers()
   registerProjectHandlers()
   registerEditHistoryHandlers()
+  registerDropHandlers()
 }

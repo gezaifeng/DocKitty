@@ -160,6 +160,9 @@ importers:
       fflate:
         specifier: ^0.8.2
         version: 0.8.3
+      saxes:
+        specifier: 6.0.0
+        version: 6.0.0
     devDependencies:
       '@types/diff':
         specifier: ^8.0.0

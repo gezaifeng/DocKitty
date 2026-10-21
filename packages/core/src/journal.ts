@@ -2,6 +2,7 @@ import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import type { Repo } from './repo.js'
 import { writeFileAtomic } from './fsutil.js'
+import { discardCheckoutStage, recoverWorkspaceCheckout } from './workspaceTransaction.js'
 
 export interface JournalEntry {
   id: string
@@ -42,7 +43,10 @@ export async function recoverJournal(repo: Repo): Promise<number> {
   let count = 0
   for (const name of names) {
     if (!name.endsWith('.json')) continue
+    const entry = JSON.parse(await fs.readFile(path.join(jDir, name), 'utf8'))
+    if (entry.op === 'checkout') await recoverWorkspaceCheckout(repo, entry)
     await fs.rm(path.join(jDir, name), { force: true })
+    if (entry.op === 'checkout') await discardCheckoutStage(repo, entry.stage)
     count++
   }
   return count

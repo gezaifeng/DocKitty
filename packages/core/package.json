@@ -9,7 +9,8 @@
   },
   "dependencies": {
     "diff": "^9.0.0",
-    "fflate": "^0.8.2"
+    "fflate": "^0.8.2",
+    "saxes": "6.0.0"
   },
   "devDependencies": {
     "@types/diff": "^8.0.0",

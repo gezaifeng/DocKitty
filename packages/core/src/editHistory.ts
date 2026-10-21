@@ -8,7 +8,11 @@ import { validateDocName } from './names.js'
 
 interface Snapshot { files: Map<string, Buffer>; directories: string[]; hash: string }
 interface Change { file: string; before?: Buffer; after?: Buffer }
-interface Entry { label: string; changes: Change[]; addedDirectories: string[]; removedDirectories: string[]; beforeHash: string; afterHash: string }
+export interface ExternalHistory {
+  validate(direction: 'undo' | 'redo'): Promise<void>
+  apply(direction: 'undo' | 'redo'): Promise<void>
+}
+interface Entry { label: string; changes: Change[]; addedDirectories: string[]; removedDirectories: string[]; beforeHash: string; afterHash: string; external?: ExternalHistory }
 const histories = new Map<string, { undo: Entry[]; redo: Entry[] }>()
 const history = (repo: Repo) => {
   const root = path.resolve(repo.root)
@@ -53,7 +57,7 @@ async function capture(repo: Repo, workspaceName?: string): Promise<Snapshot> {
   }
   return { files, directories, hash: hash.digest('hex') }
 }
-export async function withUndoableAction<T>(repo: Repo, label: string, action: () => Promise<T>, workspaceName?: string): Promise<T> {
+export async function withUndoableAction<T>(repo: Repo, label: string, action: () => Promise<T>, workspaceName?: string, external?: ExternalHistory): Promise<T> {
   return withRepoWrite(repo, async () => {
     const before = await capture(repo, workspaceName)
     let result!: T, failure: unknown, failed = false
@@ -68,7 +72,7 @@ export async function withUndoableAction<T>(repo: Repo, label: string, action: (
       if (!a || !b || !a.equals(b)) changes.push({ file, before: a, after: b })
     }
     if (!changes.length && before.hash === after.hash) { if (failed) throw failure; return result }
-    state.undo.push({ label, changes, addedDirectories: after.directories.filter(d => !before.directories.includes(d)), removedDirectories: before.directories.filter(d => !after.directories.includes(d)), beforeHash: before.hash, afterHash: after.hash })
+    state.undo.push({ label, changes, addedDirectories: after.directories.filter(d => !before.directories.includes(d)), removedDirectories: before.directories.filter(d => !after.directories.includes(d)), beforeHash: before.hash, afterHash: after.hash, external })
     if (state.undo.length > 100) state.undo.shift()
     state.redo = []
     if (failed) throw failure
@@ -84,6 +88,7 @@ async function replay(repo: Repo, direction: 'undo' | 'redo') {
       clearEditHistory(repo)
       throw new Error('资料已被其他操作更新，旧撤回记录已清除，以免覆盖新内容')
     }
+    await entry.external?.validate(direction)
     const applied: Change[] = [], target = direction === 'undo' ? 'before' : 'after', original = direction === 'undo' ? 'after' : 'before'
     let workspaceEditsPreserved = false
     async function write(change: Change, side: 'before' | 'after') {
@@ -104,6 +109,7 @@ async function replay(repo: Repo, direction: 'undo' | 'redo') {
       for (const dir of [...remove].sort((a, b) => b.length - a.length)) await fs.rmdir(path.join(repo.root, dir)).catch(error => { if (!['ENOENT', 'ENOTEMPTY'].includes(error.code)) throw error })
       const create = direction === 'undo' ? entry.removedDirectories : entry.addedDirectories
       for (const dir of create) await fs.mkdir(path.join(repo.root, dir), { recursive: true })
+      await entry.external?.apply(direction)
     } catch (error) { for (const change of applied.reverse()) await write(change, original); throw error }
     state[direction].pop(); state[direction === 'undo' ? 'redo' : 'undo'].push(entry)
     return { ...editHistoryStatus(repo), workspaceEditsPreserved }

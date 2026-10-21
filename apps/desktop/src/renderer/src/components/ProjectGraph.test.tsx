@@ -28,3 +28,17 @@ it('keeps ordinary right-click menus and cancels an unfinished wire with Escape'
   fireEvent.pointerDown(source, { button: 2, clientX: 100, clientY: 100 }); fireEvent.pointerMove(canvas, { clientX: 400, clientY: 100 }); fireEvent.keyDown(window, { key: 'Escape' }); fireEvent.pointerUp(canvas, { button: 2, clientX: 400, clientY: 100 })
   expect(props.onConnect).not.toHaveBeenCalled(); expect(document.querySelector('.wg-connection-preview')).toBeNull()
 })
+
+it('occludes edges and their pointer targets beneath every card, including crossing cards', () => {
+  const node = (id: string, x: number) => ({ id, name: id, title: id, kind: 'file' as const, parentId: null, note: '', size: 0, createdAt: '', position: { x, y: 30 } })
+  render(<ProjectGraph nodes={[node('A', 0), node('B', 700), node('C', 350)]} relations={[{ id: 'AB', from: 'A', to: 'B', kind: 'custom', label: '', note: '' }]} selectedId={null} onSelect={vi.fn()} onOpen={vi.fn()} onContext={vi.fn()} onMove={vi.fn(async () => {})} onRelation={vi.fn()}/> )
+  expect(document.querySelectorAll('.wg-edge-card-mask')).toHaveLength(3)
+  expect(document.querySelector('[data-project-occlusion]')?.getAttribute('mask')).toMatch(/^url\(#project-mask-/)
+  expect(document.querySelectorAll('.wg-edge-card-shield')).toHaveLength(3)
+  const blocker = document.querySelector('[data-occlusion-node="C"]')!
+  expect(blocker.getAttribute('x')).toBe('350')
+  const card = screen.getByRole('button', { name: '项目节点 C' })
+  fireEvent.pointerDown(card, { button: 0, clientX: 360, clientY: 40 })
+  fireEvent.pointerMove(document.querySelector('.wg-graph-canvas')!, { clientX: 410, clientY: 60 })
+  expect(document.querySelector('[data-occlusion-node="C"]')!.getAttribute('x')).toBe('400')
+})

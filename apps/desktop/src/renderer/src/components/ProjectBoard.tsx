@@ -1,3 +1,4 @@
+import { AkCardArt } from './AkCardArt'
 import { useState } from 'react'
 import { File, Folder, GripVertical, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { ProjectCategory, ProjectNode } from '@wordgit/shared'
@@ -23,14 +24,14 @@ export function ProjectBoard({ categories, nodes, selectedId, onSelect, onOpen, 
         setDragging(null); setOver(null)
       }}>
         <header className="wg-column-heading"><div><span className="wg-category-dot"/><strong>{category.name}</strong><small>{cards.length}</small></div>{category.id && <div className="wg-column-tools"><button aria-label={`重命名项目分类 ${category.name}`} onClick={() => onCategory('rename', category)}><Pencil size={13}/></button><button aria-label={`删除项目分类 ${category.name}`} onClick={() => onCategory('delete', category)}><Trash2 size={13}/></button></div>}</header>
-        <div className="wg-cards">{cards.map(node => <article key={node.id} tabIndex={0} role="button" aria-label={`看板资料 ${node.title}`} draggable className={`wg-version-card ${selectedId === node.id ? 'selected' : ''} ${dragging === node.id ? 'dragging' : ''}`} onClick={() => onSelect(node.id)} onDoubleClick={() => onOpen(node.id)} onContextMenu={e => { e.preventDefault(); onContext(node, e.clientX, e.clientY) }} onKeyDown={e => {
+        <div className="wg-cards">{cards.map(node => <article key={node.id} data-drop-folder={node.kind === 'folder' ? node.id : undefined} tabIndex={0} role="button" aria-label={`看板资料 ${node.title}`} draggable className={`wg-version-card ak-card ${selectedId === node.id ? 'selected' : ''} ${dragging === node.id ? 'dragging' : ''}`} onClick={() => onSelect(node.id)} onDoubleClick={() => onOpen(node.id)} onContextMenu={e => { e.preventDefault(); onContext(node, e.clientX, e.clientY) }} onKeyDown={e => {
           if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(node.id) }
           if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
             e.preventDefault(); const index = columns.indexOf(category), offset = e.key === 'ArrowRight' ? 1 : -1
             onMove(node.id, columns[Math.max(0, Math.min(columns.length - 1, index + offset))].id)
           }
         }} onDragStart={e => { e.dataTransfer.setData('application/dockitty-project-item', node.id); e.dataTransfer.effectAllowed = 'move'; setDragging(node.id) }} onDragEnd={() => { setDragging(null); setOver(null) }}>
-          <div className="wg-card-eyebrow"><span>{node.kind === 'folder' ? <Folder size={14}/> : <File size={14}/>} {node.kind === 'folder' ? '文件夹' : node.name.split('.').pop()?.toUpperCase()}</span><GripVertical size={13}/></div><h3>{node.title}</h3><p>{node.note || node.name}</p><footer><small>{node.linkTarget ? '链接入口' : node.snapshot ? '历史快照' : '当前内容'}</small><span className="wg-project-card-category">{category.name}</span></footer>
+          <AkCardArt kind={node.kind === 'folder' ? 'folder' : node.name.split('.').pop()}/><div className="wg-card-eyebrow"><span>{node.kind === 'folder' ? <Folder size={14}/> : <File size={14}/>} {node.kind === 'folder' ? '文件夹' : node.name.split('.').pop()?.toUpperCase()}</span><GripVertical size={13}/></div><h3>{node.title}</h3><p>{node.note || node.name}</p><footer><small>{node.linkTarget ? '链接入口' : node.snapshot ? '历史快照' : '当前内容'}</small><span className="wg-project-card-category">{category.name}</span></footer>
         </article>)}</div>{!cards.length && <div className="wg-column-empty">将当前层的资料拖到这里<br/>或在详情中选择分类</div>}
       </section>
     })}<button className="wg-add-column" onClick={() => onCategory('create')}><Plus size={20}/><span>新分类</span></button></div>

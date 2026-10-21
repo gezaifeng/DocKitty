@@ -5,7 +5,7 @@ import type { Repo } from './repo.js'
 import { StorageContext } from './storageContext.js'
 import { docIds, docIdOf, listBranches, readHead, readCurrentBranch, writeHead } from './refs.js'
 import { readCommit, readTree, writeCommit, writeTree } from './model.js'
-import { encodeFile, getManifest, putManifest, materializeFile } from './ingest/index.js'
+import { encodeFile, getManifest, putManifest, materializeFile, materializeFileStream } from './ingest/index.js'
 import { readLibraryMeta, writeLibraryMeta, resolveVersion, type LibraryMeta, type VersionMeta } from './libraryMeta.js'
 import { commitDocUnlocked, checkoutDocUnlocked, createBranchUnlocked, switchBranchUnlocked, workspaceStatus } from './ops.js'
 import { validateDocName, validateBranchName, containedPath } from './names.js'
@@ -326,11 +326,28 @@ export async function exportVersion(repo: Repo, docName: string, id: string, des
   const target = path.resolve(destination)
   const repoRoot = path.resolve(repo.root)
   if (target === repoRoot || target.startsWith(repoRoot + path.sep)) throw new Error('请导出到仓库外，避免覆盖工作区或历史数据')
-  if (await fs.stat(target).then(() => true, () => false)) throw new Error('目标已存在，请选择新的文件名或空目录')
-  const files: Array<{ target: string; bytes: Uint8Array }> = []
-  for (const [rel, manifestId] of Object.entries(tree.entries)) files.push({ target: containedPath(target, rel), bytes: await materializeFile(ctx, await getManifest(ctx, manifestId)) })
-  if (!files.length) await fs.mkdir(target, { recursive: true })
-  for (const file of files) await writeFileAtomic(file.target, file.bytes)
+  if (await fs.lstat(target).then(() => true, error => { if (error.code === 'ENOENT') return false; throw error })) throw new Error('目标已存在，请选择新的文件名或空目录')
+  const parent = path.dirname(target)
+  await fs.mkdir(parent, { recursive: true })
+  const actualParent = await fs.realpath(parent), actualRepo = await fs.realpath(repoRoot)
+  const relative = path.relative(actualRepo, actualParent)
+  if (!relative || !path.isAbsolute(relative) && relative !== '..' && !relative.startsWith('..' + path.sep)) throw new Error('请导出到仓库外，不能通过链接写入仓库')
+  const stage = await fs.mkdtemp(path.join(parent, '.wordgit-export-'))
+  try {
+    const next = path.join(stage, 'next'), file = Object.hasOwn(tree.entries, '')
+    if (!file) await fs.mkdir(next)
+    for (const [rel, manifestId] of Object.entries(tree.entries)) await writeFileAtomic(containedPath(next, rel), materializeFileStream(ctx, await getManifest(ctx, manifestId)))
+    if (file) {
+      try { await fs.link(next, target) }
+      catch (error) {
+        if (!['ENOTSUP', 'EOPNOTSUPP', 'EPERM'].includes((error as NodeJS.ErrnoException).code ?? '')) throw error
+        const { constants } = await import('node:fs'); await fs.copyFile(next, target, constants.COPYFILE_EXCL)
+      }
+    } else await fs.rename(next, target)
+  } finally {
+    if (path.dirname(stage) !== parent || !path.basename(stage).startsWith('.wordgit-export-')) throw new Error('导出暂存路径无效')
+    await fs.rm(stage, { recursive: true, force: true })
+  }
 }
 
 export async function beginVersionEdit(repo: Repo, docName: string, id: string, branch?: string): Promise<void> {

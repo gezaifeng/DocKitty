@@ -9,6 +9,7 @@ import { useUiStore } from '@renderer/store/uiStore'
 import { useRepoStore } from '@renderer/store/repoStore'
 import { StorageStats } from './StorageStats'
 import { QuarantineList } from './QuarantineList'
+import { RecycleBin } from './RecycleBin'
 import { Button } from '@renderer/components/ui/button'
 import { Card, CardContent } from '@renderer/components/ui/card'
 import type { ScrubResult } from '@wordgit/shared'
@@ -49,6 +50,7 @@ export function SettingsPage() {
   const selectDoc = useUiStore(s => s.selectDoc)
   const setRightPanel = useUiStore((s) => s.setRightPanel)
   const [scrubResult, setScrubResult] = useState<ScrubResult | null>(null)
+  const [recycleOpen, setRecycleOpen] = useState(false)
 
   const { data: stats } = useQuery({
     queryKey: keys.storageStats(),
@@ -168,10 +170,13 @@ export function SettingsPage() {
         </SectionCard>
 
         {/* Quarantine */}
-        <SectionCard icon={Trash2} title="回收区（已删除的分支）" index={3}>
+        <SectionCard icon={Trash2} title="回收区" index={3}>
+          <Button variant="outline" size="sm" onClick={() => setRecycleOpen(true)}>打开回收区</Button>
+          <p className="my-2 text-sm text-muted-foreground">文档、版本和分支均可在回收区还原。下方为分支快捷还原。</p>
           <QuarantineList entries={quarantineEntries ?? []} />
         </SectionCard>
       </div>
+      <RecycleBin open={recycleOpen} onClose={() => setRecycleOpen(false)}/>
     </div>
   )
 }

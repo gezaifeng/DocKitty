@@ -1,0 +1,13 @@
+.wordgit-workspace{position:relative}
+.wg-drop-overlay{position:absolute;inset:0;z-index:55;pointer-events:none;border:3px dashed var(--wg-accent);background:color-mix(in srgb,var(--wg-selected) 24%,transparent);display:flex;align-items:flex-end;justify-content:center;padding:40px}
+.wg-drop-overlay>span{background:var(--wg-surface);color:var(--wg-text);border:2px solid var(--wg-accent);border-radius:var(--wg-radius,10px);box-shadow:var(--wg-shadow);padding:18px 24px;font-size:15px;font-weight:600;max-width:80%;text-align:center}
+.wg-drop-target{outline:3px dashed var(--wg-accent)!important;outline-offset:4px}
+.wg-drop-items{display:flex;flex-direction:column;gap:14px;max-height:45vh;overflow:auto;padding:4px}
+.wg-drop-item{background:var(--wg-soft);color:var(--wg-text);border:1px solid var(--wg-line);border-radius:var(--wg-radius,8px);padding:14px;display:flex;flex-direction:column;gap:10px}
+.wg-drop-item>strong{overflow-wrap:anywhere}.wg-drop-item>small,.wg-drop-path{color:var(--wg-muted);overflow-wrap:anywhere;line-height:1.6}.wg-drop-item .wg-field{margin:0}
+.wg-drop-item .wg-drop-state{color:var(--wg-success)}.wg-drop-item [role=alert]{color:var(--wg-danger);margin:0;overflow-wrap:anywhere}
+.wg-drop-folder-choice{display:flex;gap:10px;align-items:flex-start;margin-bottom:14px}.wg-drop-folder-choice .wg-drop-path{flex:1;min-width:0}
+[data-theme=blockframe] .wg-drop-item,[data-theme=raw] .wg-drop-item{border:2px solid var(--wg-text);border-radius:0;box-shadow:3px 3px 0 var(--wg-text)}
+[data-theme=retro] .wg-drop-item{border-radius:0;box-shadow:inset 1px 1px 0 var(--wg-surface),inset -1px -1px 0 var(--wg-line)}
+[data-theme=capsule] .wg-drop-item{border-radius:18px}
+@media(max-height:700px){.wg-drop-items{max-height:32vh}.wg-drop-overlay{padding:20px}}

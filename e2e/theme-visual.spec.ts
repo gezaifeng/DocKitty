@@ -1,3 +1,4 @@
+import { auditPath } from './auditPath'
 import { test, expect, _electron as electron } from '@playwright/test'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
@@ -14,7 +15,7 @@ for(const system of ['light','dark'] as const)test(`visual theme matrix under sy
   await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].webContents.setBackgroundThrottling(false))
   await page.emulateMedia({colorScheme:system,reducedMotion:'reduce'})
   await expect(page.locator('.wg-startup')).toHaveCount(0)
-  const output=path.resolve('docs/visual-audit',system);await fs.mkdir(output,{recursive:true})
+  const output=path.join(auditPath('visual-audit'),system);await fs.mkdir(output,{recursive:true})
   const report:Array<unknown>=[]
   async function capture(theme:string,screen:string){
    await page.waitForTimeout(650)
@@ -32,8 +33,8 @@ for(const system of ['light','dark'] as const)test(`visual theme matrix under sy
    await captureGraph(app,path.join(output,theme+'-'+screen+'.png'))
    report.push({theme,screen,...audit})
   }
-  const themes=(process.env.WORDGIT_NEW_THEMES ? [['raw','粉绿方块'],['retro','经典视窗'],['capsule','胶囊文具']] : [['blockframe','BlockFrame'],['light','浅色办公'],['paper','纸张书房'],['dark','石墨暗色'],['system','跟随系统']])
-  async function pick(label:string){await page.getByLabel('主题风格').click();await page.getByRole('option',{name:new RegExp(label)}).click()}
+  const themes=(process.env.WORDGIT_NEW_THEMES ? [['raw','粉绿'],['retro','视窗'],['capsule','胶囊']] : [['blockframe','积木'],['light','素白'],['paper','暖纸'],['dark','石墨'],['system','系统']])
+  async function pick(label:string){await page.getByLabel('主题风格').click();await page.getByRole('option').filter({ has: page.getByText(label, { exact: true }) }).click()}
   for(const [id,label] of themes){
    await pick(label);await capture(id,'empty')
    for(const [name,filter] of [['文稿','docx'],['表格与数据','xlsx'],['演示资料','pptx'],['全部文档','all']]){
@@ -100,7 +101,7 @@ for(const system of ['light','dark'] as const)test(`visual theme matrix under sy
    await page.getByRole('button',{name:'新建文档',exact:true}).click();await capture(id,'new-dialog');await page.getByRole('button',{name:'取消',exact:true}).click()
    await page.getByText('文件',{exact:true}).click();await capture(id,'file-menu');await page.getByText('文件',{exact:true}).click()
   }
-  await pick(process.env.WORDGIT_NEW_THEMES ? '胶囊文具' : 'BlockFrame');await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setContentSize(900,650));await capture(process.env.WORDGIT_NEW_THEMES ? 'capsule' : 'blockframe','compact')
+  await pick(process.env.WORDGIT_NEW_THEMES ? '胶囊' : '积木');await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setContentSize(900,650));await capture(process.env.WORDGIT_NEW_THEMES ? 'capsule' : 'blockframe','compact')
   expect(await app.evaluate(({Menu})=>Menu.getApplicationMenu())).toBeNull()
   expect(errors).toEqual([])
   await fs.writeFile(path.join(output,'report.json'),JSON.stringify({screens:report,errors},null,2))

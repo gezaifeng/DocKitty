@@ -37,6 +37,7 @@ export interface ProjectRelation {
 }
 export interface ProjectLibrary {
   id: string
+  workingFolder?: string
   name: string
   createdAt: string
   nodes: ProjectNode[]

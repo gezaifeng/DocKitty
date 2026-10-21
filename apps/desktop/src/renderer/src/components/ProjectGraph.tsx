@@ -1,3 +1,5 @@
+import { useSessionState } from '../store/useSessionState'
+import { useRepoStore } from '../store/repoStore'
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { Folder, File, Minus, Plus, Maximize2 } from 'lucide-react'
 import type { ProjectCategory, ProjectNode, ProjectRelation } from '@wordgit/shared'
@@ -6,9 +8,12 @@ import type { EdgeDraft } from './EdgeEditor'
 import { GraphEdge } from './GraphEdge'
 import { projectEdge } from './projectEdge'
 import { useGraphConnection } from './useGraphConnection'
+import { GraphMenu } from './GraphMenu'
+import { AkCardArt } from './AkCardArt'
 
-export function ProjectGraph({ nodes, relations, categories = [], selectedId, focusRequest, onSelect, onOpen, onContext, onMove, onRelation, onConnect, onEdgeContext, edgePreview }: {
+export function ProjectGraph({ contextKey, nodes, relations, categories = [], selectedId, focusRequest, onSelect, onOpen, onContext, onMove, onRelation, onConnect, onEdgeContext, edgePreview, onRefresh, onImport, onImportFolder, onNewDocument, onNewFolder, canCreate = true, busy }: {
   nodes: ProjectNode[]; relations: ProjectRelation[]; selectedId: string | null
+  contextKey?: string
   categories?: ProjectCategory[]
   edgePreview?: { id: string; draft: EdgeDraft } | null
   focusRequest?: { id: string } | null
@@ -18,14 +23,22 @@ export function ProjectGraph({ nodes, relations, categories = [], selectedId, fo
   onRelation(relation: ProjectRelation, x?: number, y?: number): void
   onConnect?(from: string, to: string): void
   onEdgeContext?(edge: ProjectRelation, x: number, y: number): void
+  onRefresh?(): void; onImport?(): void; onImportFolder?(): void
+  onNewDocument?(): void; onNewFolder?(): void
+  canCreate?: boolean; busy?: boolean
 }) {
   const arrowId = `project-arrow-${useId().replace(/:/g, '')}`
-  const [zoom, setZoom] = useState(1), [pan, setPan] = useState({ x: 20, y: 100 })
+  const maskId = `project-mask-${useId().replace(/:/g, '')}`
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
+  const repoRoot = useRepoStore(state => state.repoRoot), scope = contextKey ?? arrowId
+  const [zoom, setZoom] = useSessionState(repoRoot, 'projectGraph.' + scope + '.zoom', 1), [pan, setPan] = useSessionState(repoRoot, 'projectGraph.' + scope + '.pan', { x: 20, y: 100 })
   const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>({})
   const drag = useRef<{ id?: string; x: number; y: number; origin: { x: number; y: number }; moved: boolean } | null>(null)
   const viewport = useRef<HTMLDivElement>(null), moved = useRef(false)
   const world = useRef<HTMLDivElement>(null)
   const nodePosition = (n: ProjectNode) => positions[n.id] ?? n.position
+  const left = Math.min(0, ...nodes.map(n => nodePosition(n).x)) - 64, top = Math.min(0, ...nodes.map(n => nodePosition(n).y)) - 64
+  const maskWidth = Math.max(0, ...nodes.map(n => nodePosition(n).x + 225)) - left + 64, maskHeight = Math.max(0, ...nodes.map(n => nodePosition(n).y + 112)) - top + 64
   const wire = useGraphConnection({ canvas: viewport, world, zoom, selectedId, ids: nodes.map(n => n.id), onConnect })
   const source = nodes.find(n => n.id === wire.preview?.from)
   useEffect(() => { const reset = () => { drag.current = null; setPositions({}); wire.cancel() }; window.addEventListener('wordgit:history-applied', reset); return () => window.removeEventListener('wordgit:history-applied', reset) }, [])
@@ -63,10 +76,17 @@ export function ProjectGraph({ nodes, relations, categories = [], selectedId, fo
     setZoom(next); setPan({ x: 40 - minX * next, y: 120 - minY * next })
   }
   return <div className="wg-graph wg-project-graph">
+    {menu && <GraphMenu {...menu} onClose={() => setMenu(null)} actions={[
+      ...(onRefresh ? [{ label: '刷新项目文件与关系', run: onRefresh, disabled: busy }] : []),
+      ...(onImport ? [{ label: '导入文件', run: onImport, disabled: busy || !canCreate }] : []),
+      ...(onImportFolder ? [{ label: '导入文件夹', run: onImportFolder, disabled: busy || !canCreate }] : []),
+      ...(onNewDocument ? [{ label: '新建文档', run: onNewDocument, disabled: busy || !canCreate }] : []),
+      ...(onNewFolder ? [{ label: '新建文件夹', run: onNewFolder, disabled: busy || !canCreate }] : []),
+    ]}/>}
     <div className="wg-graph-legend">左键选中后右键拖动拉线 · 双击连线命名或反转箭头</div>
     {wire.preview && <div className="wg-graph-connect-status" data-graph-connecting="true" role="status">{wire.preview.target ? '松开右键即可连接' : '拖到另一张卡片上，松开右键连接'}<button className="wg-button" onClick={wire.cancel}>取消连线</button><small>Esc / Ctrl+Z</small></div>}
     <div className="wg-graph-controls"><button aria-label="缩小关系图" onClick={() => zoomAt(zoom - .1, 250, 150)}><Minus size={15}/></button><span>{Math.round(zoom * 100)}%</span><button aria-label="放大关系图" onClick={() => zoomAt(zoom + .1, 250, 150)}><Plus size={15}/></button><button aria-label="适应项目关系图" onClick={fit}><Maximize2 size={15}/></button></div>
-    <div ref={viewport} className="wg-graph-canvas" onWheel={e => { const rect = e.currentTarget.getBoundingClientRect(); zoomAt(zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1), e.clientX - rect.left, e.clientY - rect.top) }} onPointerDown={e => {
+    <div ref={viewport} className="wg-graph-canvas" onContextMenu={e => { if (wire.suppressContext()) { e.preventDefault(); return } if ((e.target as Element).closest('.wg-graph-node,.wg-edges g')) return; e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY }) }} onWheel={e => { const rect = e.currentTarget.getBoundingClientRect(); zoomAt(zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1), e.clientX - rect.left, e.clientY - rect.top) }} onPointerDown={e => {
       if (e.button !== 0 || e.target !== e.currentTarget) return
       e.currentTarget.setPointerCapture(e.pointerId); drag.current = { x: e.clientX, y: e.clientY, origin: pan, moved: false }; moved.current = false
     }} onPointerMove={e => {
@@ -78,7 +98,7 @@ export function ProjectGraph({ nodes, relations, categories = [], selectedId, fo
       else setPan({ x: active.origin.x + dx, y: active.origin.y + dy })
     }} onPointerUp={e => { if (!wire.finish(e)) finish() }} onPointerCancel={() => { wire.cancel(); finish() }}>
       <div ref={world} className="wg-graph-world" style={{ transform: `translate(${pan.x}px,${pan.y}px) scale(${zoom})` }}>
-        <svg className="wg-edges wg-project-edges" width="1" height="1"><defs><marker id={arrowId} markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0 L8 4 L0 8 Z" className="wg-edge-arrow"/></marker></defs>{relations.map(edge => {
+        <svg className="wg-edges wg-project-edges" width="1" height="1"><defs><marker id={arrowId} markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0 L8 4 L0 8 Z" className="wg-edge-arrow"/></marker><mask id={maskId} maskUnits="userSpaceOnUse" x={left} y={top} width={maskWidth} height={maskHeight} style={{ maskType: 'luminance' }}><rect x={left} y={top} width={maskWidth} height={maskHeight} fill="white"/>{nodes.map(n => <rect key={n.id} className="wg-edge-card-mask" data-occlusion-node={n.id} x={nodePosition(n).x} y={nodePosition(n).y} width="225" height="112" fill="black"/>)}</mask></defs><g data-project-occlusion="true" mask={`url(#${maskId})`}>{relations.map(edge => {
           const from = nodes.find(n => n.id === edge.from), to = nodes.find(n => n.id === edge.to); if (!from || !to) return null
           const draft = edgePreview?.id === edge.id ? edgePreview.draft : undefined
           const { d, labelX, labelY } = projectEdge(nodePosition(draft?.reverse ? to : from), nodePosition(draft?.reverse ? from : to))
@@ -88,13 +108,13 @@ export function ProjectGraph({ nodes, relations, categories = [], selectedId, fo
             <path className="wg-edge-hit" d={d}/>
             {label && <text x={labelX} y={labelY} textAnchor="middle">{label}</text>}<title>{draft?.note ?? edge.note}</title>
           </g>
-        })}{wire.preview && source && <path className="wg-connection-preview" d={`M${nodePosition(source).x + 112.5},${nodePosition(source).y + 56} L${wire.preview.x},${wire.preview.y}`} markerEnd={`url(#${arrowId})`}/>}</svg>
-        {nodes.map(node => <div key={node.id} data-graph-node={node.id} role="button" tabIndex={0} aria-label={`项目节点 ${node.title}`} className={`wg-graph-node ${node.id === selectedId ? 'selected' : ''} ${wire.preview?.target === node.id ? 'wg-connect-target' : ''}`} style={nodePosition(node) && { left: nodePosition(node).x, top: nodePosition(node).y }} onClick={() => { if (!moved.current) onSelect(node.id) }} onDoubleClick={() => onOpen(node.id)} onKeyDown={e => { if (e.key === 'Enter') onOpen(node.id) }} onContextMenu={e => { e.preventDefault(); if (wire.suppressContext()) return; onContext(node, e.clientX, e.clientY) }} onPointerDown={e => {
+        })}{wire.preview && source && <path className="wg-connection-preview" d={`M${nodePosition(source).x + 112.5},${nodePosition(source).y + 56} L${wire.preview.x},${wire.preview.y}`} markerEnd={`url(#${arrowId})`}/>}</g><g aria-hidden="true">{nodes.map(n => <rect key={n.id} className="wg-edge-card-shield" x={nodePosition(n).x} y={nodePosition(n).y} width="225" height="112" fill="transparent" pointerEvents="all"/>)}</g></svg>
+        {nodes.map(node => <div key={node.id} data-graph-node={node.id} data-drop-folder={node.kind === 'folder' ? node.id : undefined} role="button" tabIndex={0} aria-label={`项目节点 ${node.title}`} className={`wg-graph-node ${node.id === selectedId ? 'selected' : ''} ${wire.preview?.target === node.id ? 'wg-connect-target' : ''}`} style={nodePosition(node) && { left: nodePosition(node).x, top: nodePosition(node).y }} onClick={() => { if (!moved.current) onSelect(node.id) }} onDoubleClick={() => onOpen(node.id)} onKeyDown={e => { if (e.key === 'Enter') onOpen(node.id) }} onContextMenu={e => { e.preventDefault(); if (wire.suppressContext()) return; onContext(node, e.clientX, e.clientY) }} onPointerDown={e => {
           if (wire.start(e, node.id)) return
           if (e.button !== 0) return
           e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); moved.current = false
           drag.current = { id: node.id, x: e.clientX, y: e.clientY, origin: nodePosition(node), moved: false }
-        }}>{categories.find(c => c.id === node.categoryId) && <div className="wg-branch-tags"><span className="wg-category-tag" title={categories.find(c => c.id === node.categoryId)!.name}>{categories.find(c => c.id === node.categoryId)!.name}</span></div>}<div className="wg-node-body"><span className="wg-node-code">{node.kind === 'folder' ? <Folder size={16}/> : <File size={16}/>} {node.kind === 'folder' ? '文件夹' : node.name.split('.').pop()?.toUpperCase()} {node.snapshot ? '· 历史快照' : ''}</span><strong>{node.title}</strong><small>{node.note || '独立资料 · 可连接与整理'}</small></div></div>)}
+        }}>{categories.find(c => c.id === node.categoryId) && <div className="wg-branch-tags"><span className="wg-category-tag" title={categories.find(c => c.id === node.categoryId)!.name}>{categories.find(c => c.id === node.categoryId)!.name}</span></div>}<div className="wg-node-body"><AkCardArt kind={node.kind === 'folder' ? 'folder' : node.name.split('.').pop()}/><span className="wg-node-code">{node.kind === 'folder' ? <Folder size={16}/> : <File size={16}/>} {node.kind === 'folder' ? '文件夹' : node.name.split('.').pop()?.toUpperCase()} {node.snapshot ? '· 历史快照' : ''}</span><strong>{node.title}</strong><small>{node.note || '独立资料 · 可连接与整理'}</small></div></div>)}
       </div>
     </div>
     <GraphRiffle/>

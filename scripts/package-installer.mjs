@@ -23,4 +23,8 @@ await fs.writeFile(path.join(portable,'resources/app/resources/installer-mode.js
 const require=createRequire(path.join(desktop,'package.json'))
 const cli=require.resolve('electron-builder/out/cli/cli.js')
 await run(process.execPath,[cli,'--win','nsis','--x64','--prepackaged',portable,'--config','electron-builder.yml','--publish','never'],desktop)
+// The embedded installer keeps the marker; the portable delivery uses its own directory.
+const portableRoot=path.resolve(portable),distRoot=path.join(root,'dist')
+if(path.dirname(portableRoot)!==distRoot||!path.basename(portableRoot).startsWith('gaomiao-windows-'))throw new Error('Unexpected portable output directory')
+await fs.rm(path.join(portableRoot,'resources/app/resources/installer-mode.json'))
 console.log('Installer generated from clean application: '+portable)

@@ -1,18 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Check, ChevronDown } from 'lucide-react'
 import { useUiStore, type Theme } from '../store/uiStore'
-export const themeOptions: Array<{id:Theme;label:string;detail:string}> = [
- {id:'liquid',label:'液态玻璃',detail:'流动曲面 · 通透磨砂与边缘高光'},
- {id:'liquid-dark',label:'液态玻璃 · 深色',detail:'深色玻璃 · 柔和亮字与流动光影'},
- {id:'blockframe',label:'BlockFrame 黑框积木',detail:'暖纸底色 · 黑框与硬投影'},
- {id:'raw',label:'粉绿方块',detail:'粉绿色块 · 直角黑框与硬投影'},
- {id:'retro',label:'经典视窗',detail:'桌面窗口 · 凸凹边框与标题栏'},
- {id:'capsule',label:'胶囊文具',detail:'圆角容器 · 胶囊按钮与文具标签'},
- {id:'light',label:'浅色办公',detail:'白色纸面 · 克制细边框'},
- {id:'paper',label:'纸张书房',detail:'暖纸与墨绿 · 宋体标题'},
- {id:'dark',label:'石墨暗色',detail:'中性炭灰 · 柔和亮字'},
- {id:'system',label:'跟随系统',detail:'随系统切换浅色与石墨'},
-]
+import { themeOptions } from '../lib/themes'
 export function ThemePicker(){
  const {theme,setTheme}=useUiStore(),[open,setOpen]=useState(false),[focus,setFocus]=useState(0),root=useRef<HTMLDivElement>(null),trigger=useRef<HTMLButtonElement>(null)
  useEffect(()=>{if(!open)return;const close=(e:PointerEvent)=>{if(!root.current?.contains(e.target as Node))setOpen(false)};document.addEventListener('pointerdown',close);return()=>document.removeEventListener('pointerdown',close)},[open])

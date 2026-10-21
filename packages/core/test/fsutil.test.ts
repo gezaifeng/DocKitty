@@ -20,3 +20,14 @@ it('短暂文件占用后可替换；持续占用保留原文件且不遗留临�
     expect(await fs.readdir(dir)).toEqual(['当前稿.txt'])
   } finally { rename.mockRestore(); await cleanup(dir) }
 })
+
+it('failed streaming input preserves the old file and removes its partial temporary file', async () => {
+  const dir = await tmpDir(), target = path.join(dir, 'current.txt')
+  await fs.writeFile(target, 'original')
+  async function* broken() { yield Buffer.from('partial'); throw new Error('source read failed') }
+  try {
+    await expect(writeFileAtomic(target, broken())).rejects.toThrow('source read failed')
+    expect(await fs.readFile(target, 'utf8')).toBe('original')
+    expect(await fs.readdir(dir)).toEqual(['current.txt'])
+  } finally { await cleanup(dir) }
+})

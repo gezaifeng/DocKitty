@@ -1,3 +1,4 @@
+import { auditPath } from './auditPath'
 import { test, expect, _electron as electron } from '@playwright/test'
 import { promises as fs } from 'node:fs'
 import os from 'node:os'
@@ -42,6 +43,7 @@ test('project UI: batch/folder imports, hierarchy, cross-folder links, static HT
     await page.getByRole('listitem', { name: '资料 main.py', exact: true }).click()
     p = await read(); const reference = p.nodes.find(n => n.name === '说明.md')!
     await page.evaluate(({ projectId, from, to }) => window.wordgit.projects!.request({ action: 'setRelation', projectId, relation: { from, to, label: '参考算法', note: '' } }), { projectId: p.id, from: p.nodes.find(n => n.name === 'main.py')!.id, to: reference.id })
+    await page.locator('.wg-inspector-organized').getByRole('tab', { name: '关系', exact: true }).click()
     await expect(page.locator('.wg-project-relation')).toContainText('参考算法')
     await page.getByLabel('筛选项目文件类型').click(); await page.getByRole('group', { name: '项目文件类型' }).getByLabel('脚本与代码', { exact: true }).check(); await page.keyboard.press('Escape')
     await page.locator('.wg-project-relation > button').first().click()
@@ -78,7 +80,7 @@ test('project UI: batch/folder imports, hierarchy, cross-folder links, static HT
     await app.evaluate(({ dialog }, source) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [source] }) }, extra)
     await page.getByRole('button', { name: '批量导入文件', exact: true }).click(); await page.getByLabel('导入目标文档库').selectOption(p.id); await page.getByRole('button', { name: '开始导入', exact: true }).click()
     await expect.poll(async () => (await read()).nodes.some(n => n.name === '附加.py')).toBe(true)
-    const output = path.resolve('docs/project-audit'); await fs.mkdir(output, { recursive: true })
+    const output = auditPath('project-audit'); await fs.mkdir(output, { recursive: true })
     await page.screenshot({ path: path.join(output, 'project-workflow.png'), scale: 'css', animations: 'disabled' })
     await page.getByLabel('管理模式').click(); await page.getByRole('option', { name: /版本管理/ }).click(); await expect(page.getByRole('button', { name: '总览工作台', exact: true })).toBeVisible()
     expect(errors).toEqual([])
@@ -173,10 +175,10 @@ test('actual bundled MCP runtime shares data with desktop, startup refreshes, an
     await page.reload(); await expect(page.getByRole('listitem', { name: '文档库 Agent 联动示例', exact: true })).toBeVisible()
     await page.getByRole('listitem', { name: '文档库 Agent 联动示例', exact: true }).click(); await page.getByRole('listitem', { name: '资料 任务.md', exact: true }).click()
     await expect(page.locator('.wg-project-preview')).toContainText('# 重新打开自动同步')
-    const output = path.resolve('docs/project-audit'); await fs.mkdir(output, { recursive: true })
+    const output = auditPath('project-audit'); await fs.mkdir(output, { recursive: true })
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setContentSize(1440, 950))
-    for (const [theme, label] of [['blockframe', 'BlockFrame'], ['raw', '粉绿方块'], ['retro', '经典视窗'], ['capsule', '胶囊文具'], ['light', '浅色办公'], ['paper', '纸张书房'], ['dark', '石墨暗色']]) {
-      await page.getByLabel('主题风格').click(); await page.getByRole('option', { name: new RegExp(label) }).click()
+    for (const [theme, label] of [['blockframe', '积木'], ['raw', '粉绿'], ['retro', '视窗'], ['capsule', '胶囊'], ['light', '素白'], ['paper', '暖纸'], ['dark', '石墨']]) {
+      await page.getByLabel('主题风格').click(); await page.getByRole('option').filter({ has: page.getByText(label, { exact: true }) }).click()
       expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false)
       expect(await page.evaluate(() => Array.from(document.querySelectorAll('body *')).filter(e => e.getClientRects().length && Array.from(e.childNodes).some(n => n.nodeType === 3 && n.textContent?.trim())).filter(e => { const rgb = getComputedStyle(e).color.match(/[\d.]+/g)?.map(Number); return rgb && rgb[2] > rgb[0] + 25 && rgb[2] > rgb[1] + 15 }).map(e => e.textContent?.slice(0, 35)))).toEqual([])
       await expect(page.getByRole('listitem', { name: '资料 任务.md', exact: true })).toBeVisible()
@@ -185,7 +187,7 @@ test('actual bundled MCP runtime shares data with desktop, startup refreshes, an
       await page.screenshot({ path: path.join(output, theme + '-graph.png'), scale: 'css', animations: 'disabled' })
       await page.getByRole('button', { name: '项目节点 任务.md', exact: true }).click({ button: 'right' })
       await expect(page.getByRole('menu', { name: '项目资料操作' })).toBeVisible(); await page.screenshot({ path: path.join(output, theme + '-menu.png'), scale: 'css', animations: 'disabled' })
-      await page.getByRole('menuitem', { name: '编辑名称与备注', exact: true }).click()
+      await page.getByRole('menuitem', { name: '编辑显示名称与备注', exact: true }).click()
       await expect(page.getByRole('dialog').getByRole('button', { name: '保存', exact: true })).toBeInViewport()
       const field = await page.getByLabel('资料备注').boundingBox(); expect(field!.width).toBeGreaterThan(350)
       await page.screenshot({ path: path.join(output, theme + '-dialog.png'), scale: 'css', animations: 'disabled' }); await page.getByRole('button', { name: '取消', exact: true }).click()

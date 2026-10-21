@@ -3,7 +3,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { GlassPalette } from '../lib/glassPalettes'
 
-export type Theme = 'light' | 'dark' | 'paper' | 'system' | 'blockframe' | 'raw' | 'retro' | 'capsule' | 'liquid' | 'liquid-dark'
+export type Theme = 'light' | 'dark' | 'paper' | 'system' | 'blockframe' | 'raw' | 'retro' | 'capsule' | 'liquid' | 'liquid-dark' | 'redline' | 'arknights'
 export type Feature = 'showGraphWidget' | 'glassBackgroundMotion' | 'glassPointerLight' | 'reduceMotion' | 'reduceTransparency'
 
 export interface ThemeButtonPos {

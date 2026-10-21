@@ -1,3 +1,4 @@
+import { auditPath } from './auditPath'
 import { test, expect, _electron as electron } from '@playwright/test'
 import { promises as fs } from 'node:fs'
 import os from 'node:os'
@@ -48,10 +49,10 @@ test('project categories, center connections, directed labels and MCP synchroniz
     await page.getByRole('button', { name: '文件关系图', exact: true }).click(); await expect(page.getByRole('button', { name: '项目节点 主稿', exact: true }).locator('.wg-category-tag')).toHaveText('投稿材料')
     await page.getByRole('button', { name: '项目节点 主稿', exact: true }).dblclick(); await page.getByRole('button', { name: '分类看板', exact: true }).click()
     await expect(page.getByRole('button', { name: '看板资料 演示', exact: true })).toHaveCount(0)
-    await page.getByRole('button', { name: '看板资料 正文.md', exact: true }).click(); await page.getByLabel('资料分类', { exact: true }).selectOption((await read()).categories![0].id)
+    await page.getByRole('button', { name: '看板资料 正文.md', exact: true }).click(); await page.locator('.wg-inspector-organized').getByRole('tab', { name: '信息', exact: true }).click(); await page.getByLabel('资料分类', { exact: true }).selectOption((await read()).categories![0].id)
     await page.getByLabel('重命名项目分类 投稿材料').click(); await page.getByLabel('项目分类名称').fill('送审材料'); await page.getByRole('dialog').getByRole('button', { name: '保存', exact: true }).click()
     await page.getByRole('button', { name: '文件关系图', exact: true }).click(); await expect(page.getByRole('button', { name: '项目节点 正文.md', exact: true }).locator('.wg-category-tag')).toHaveText('送审材料')
-    await fs.writeFile(manuscript, '# 刷新内容'); await page.getByRole('button', { name: '刷新', exact: true }).click(); await expect(page.locator('.wg-project-preview')).toContainText('# 刷新内容')
+    await fs.writeFile(manuscript, '# 刷新内容'); await page.getByRole('button', { name: '刷新', exact: true }).click(); await page.locator('.wg-inspector-organized').getByRole('tab', { name: '预览', exact: true }).click(); await expect(page.locator('.wg-project-preview')).toContainText('# 刷新内容')
     await expect(page.getByRole('button', { name: '项目节点 正文.md', exact: true }).locator('.wg-category-tag')).toHaveText('送审材料')
     await page.getByRole('button', { name: '返回上一级', exact: true }).click()
     await client.connect(new StdioClientTransport({ command: runtime, args: [path.resolve('apps/desktop/out/mcp/server.cjs'), '--repo', root], env: { ELECTRON_RUN_AS_NODE: '1' }, stderr: 'pipe' }))
@@ -59,10 +60,10 @@ test('project categories, center connections, directed labels and MCP synchroniz
     const categoryId = (await read()).categories![0].id
     const mcpResult = await client.callTool({ name: 'dockitty_update_item', arguments: { projectId, nodeId: to.id, categoryId } }); expect(mcpResult.isError).not.toBe(true)
     await expect(page.getByRole('button', { name: '项目节点 演示', exact: true }).locator('.wg-category-tag')).toHaveText('送审材料')
-    const output = path.resolve('docs/project-categories-audit'); await fs.mkdir(output, { recursive: true })
+    const output = auditPath('project-categories-audit'); await fs.mkdir(output, { recursive: true })
     const screenshots: string[] = []
-    for (const [theme, label] of [['blockframe', 'BlockFrame 黑框积木'], ['light', '浅色办公'], ['paper', '纸张书房'], ['dark', '石墨暗色'], ['raw', '粉绿方块'], ['retro', '经典视窗'], ['capsule', '胶囊文具']]) {
-      await page.getByLabel('主题风格').click(); await page.getByRole('option', { name: new RegExp(label) }).click()
+    for (const [theme, label] of [['blockframe', '积木'], ['light', '素白'], ['paper', '暖纸'], ['dark', '石墨'], ['raw', '粉绿'], ['retro', '视窗'], ['capsule', '胶囊']]) {
+      await page.getByLabel('主题风格').click(); await page.getByRole('option').filter({ has: page.getByText(label, { exact: true }) }).click()
       for (const view of ['graph', 'board', 'dialog', 'browse']) {
         if (view === 'graph') await page.getByRole('button', { name: '文件关系图', exact: true }).click()
         if (view === 'board') await page.getByRole('button', { name: '分类看板', exact: true }).click()

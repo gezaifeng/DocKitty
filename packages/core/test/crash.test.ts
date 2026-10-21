@@ -4,6 +4,7 @@ import path from 'node:path'
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { Repo } from '../src/repo.js'
+import { readLibraryMeta } from '../src/libraryMeta.js'
 import { commitDoc } from '../src/ops.js'
 import { StorageContext } from '../src/storageContext.js'
 import { readHead, docIdOf } from '../src/refs.js'
@@ -76,6 +77,39 @@ function killTree(child: ChildProcess): void {
 }
 
 describe('崩溃注入', () => {
+  it.each(['old-moved', 'new-published'])('real process kill at checkout %s restores the complete previous folder', async phase => {
+    const tsxCli = await findTsxCli()
+    expect(tsxCli, 'this acceptance check needs the installed tsx runtime').toBeTruthy()
+    const folder = path.join(repo.root, 'workspace', 'folder'); await fs.mkdir(folder)
+    await fs.writeFile(path.join(folder, 'a.txt'), 'historical A'); await fs.writeFile(path.join(folder, 'b.txt'), 'historical B')
+    const first = (await commitDoc(repo, 'folder', { message: 'v1', author: 'test' })).commitId!
+    await fs.writeFile(path.join(folder, 'a.txt'), 'current A'); await fs.rm(path.join(folder, 'b.txt')); await fs.writeFile(path.join(folder, 'c.txt'), 'current C')
+    const current = (await commitDoc(repo, 'folder', { message: 'v2', author: 'test' })).commitId!
+    const worker = fileURLToPath(new URL('./helpers/checkout-crash-worker.ts', import.meta.url))
+    const child = spawn(process.execPath, [tsxCli!, worker, repo.root, first, phase], { stdio: 'pipe', shell: false })
+    const closed = new Promise<void>(resolve => child.once('close', () => resolve()))
+    let stderr = ''; child.stderr!.on('data', chunk => { stderr += chunk })
+    try {
+      await new Promise<void>((resolve, reject) => {
+        let output = ''
+        const timeout = setTimeout(() => reject(new Error('checkout did not reach crash point: ' + stderr)), 20000)
+        child.stdout!.on('data', chunk => { output += chunk; if (output.includes('CHECKOUT_CRASH_POINT')) { clearTimeout(timeout); resolve() } })
+        child.once('error', error => { clearTimeout(timeout); reject(error) })
+        child.once('exit', code => { clearTimeout(timeout); reject(new Error('worker exited before kill: ' + code + ' ' + stderr)) })
+      })
+    } finally { killTree(child); await closed }
+    await assertConsistent(repo.root)
+    expect(await fs.readdir(folder)).toEqual(['a.txt', 'c.txt'])
+    expect(await fs.readFile(path.join(folder, 'a.txt'), 'utf8')).toBe('current A')
+    expect(await fs.readFile(path.join(folder, 'c.txt'), 'utf8')).toBe('current C')
+    expect((await readLibraryMeta(repo, 'folder')).workingVersionId).toBe(current)
+    expect((await fs.readdir(path.join(repo.root, 'workspace'))).filter(name => name.startsWith('.checkout-'))).toEqual([])
+    if (phase === 'new-published') {
+      const recovery = path.join(repo.root, 'recovery'), stages = await fs.readdir(recovery)
+      expect(await fs.readFile(path.join(recovery, stages[0], 'folder', 'b.txt'), 'utf8')).toBe('historical B')
+    }
+  }, 30000)
+
   it('模拟崩溃：注入 journal 条目 + .tmp 文件 → Repo.open() 自动清理', async () => {
     await fs.writeFile(path.join(repo.root, 'workspace', '论文.docx'), makeDocxBuf(['第一章']))
     await commitDoc(repo, '论文.docx', { message: 'v1', author: 'test' })

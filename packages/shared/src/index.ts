@@ -4,6 +4,7 @@ export type { DocInfo, CommitNode, CommitResult, QuarantineEntry, StorageStats, 
 export type { WatcherChangeEvent } from './types.js'
 export * from './library.js'
 export * from './edgeStyle.js'
+export * from './fileDrop.js'
 export * from './versionStats.js'
 export type { ProjectLibrary, ProjectCategory, ProjectNode, ProjectRelation, RelationKind, ProjectImport, ProjectImportResult, ProjectSource, ProjectRefreshResult } from './projects.js'
 export { ProjectRequest } from './projectRequests.js'

@@ -1,0 +1,9 @@
+{
+  "source": "https://registry.npmjs.org/@yunyoujun/ak-ui/-/ak-ui-1.1.0.tgz",
+  "integrity": "sha512-Xh8oTcSEgwNcgYY3A4OQdiH7W/F6yBMD0OqiP0z+pRZsQ54+dV2K4dVV2MLdmgp6xGAJDJMKejc5kOouxCuRUg==",
+  "license": "MIT",
+  "cssSha256": "AF2BEF98D8FFF20992C4DD05C4D0864A0A9EB226AC65321D2FAC7DD3C2730CB7",
+  "version": "1.1.0",
+  "package": "@yunyoujun/ak-ui",
+  "verifiedAt": "2026-10-15"
+}

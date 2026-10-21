@@ -16,6 +16,13 @@ export type WatcherChangeEvent = z.infer<typeof WatcherChangeEvent>
 export type DiffResult = z.infer<typeof DiffResultSchema>
 
 export interface IpcApi {
+  drop?: {
+    paths(files: File[]): string[]
+    inspect(paths: string[]): Promise<import('./fileDrop.js').DroppedFile[]>
+    prepare(paths: string[], projectId?: string, parentId?: string | null, workingFolder?: string): Promise<import('./fileDrop.js').ProjectDropPlan>
+    importProject(request: import('./fileDrop.js').ProjectDropRequest): Promise<{ projectId: string; nodeIds: string[] }>
+    createProjects(paths: string[]): Promise<{ projectIds: string[] }>
+  }
   history?: {
     status(): Promise<{ canUndo: boolean; canRedo: boolean; undoLabel: string | null; redoLabel: string | null }>
     undo(): Promise<unknown>

@@ -11,6 +11,8 @@ export const ProjectRequest = z.discriminatedUnion('action', [
   z.object({ action: z.literal('create'), name: label }),
   z.object({ action: z.literal('import'), projectId: id, paths: z.array(z.string().min(1)).min(1), parentId: id.nullable().optional(), unpackFolder: z.boolean().optional(), previousNodeId: id.optional(), requestId: label.optional(), snapshot: z.boolean().optional(), title: label.optional() }),
   z.object({ action: z.literal('refresh'), projectId: id }),
+  z.object({ action: z.literal('creationTarget'), projectId: id, parentId: id.nullable().optional() }),
+  z.object({ action: z.literal('createEntry'), projectId: id, parentId: id.nullable().optional(), workingFolder: label.optional(), name: label, kind: z.enum(['file', 'folder']), format: z.enum(['txt', 'docx', 'xlsx', 'md']).default('txt') }),
   z.object({ action: z.literal('recordIteration'), projectId: id, nodeId: id, title: label, requestId: label.optional() }),
   z.object({ action: z.literal('updateNode'), projectId: id, nodeId: id, title: label.optional(), note: note.optional(), categoryId: z.union([id, z.literal('')]).nullable().optional(), position: z.object({ x: z.number().finite(), y: z.number().finite() }).optional() }),
   z.object({ action: z.literal('setCategory'), projectId: id, category: z.object({ id: id.optional(), name: label }) }),

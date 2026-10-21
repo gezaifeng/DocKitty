@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import path from 'node:path'
+import { promises as fs } from 'node:fs'
+import { deflateSync } from 'fflate'
 import { ObjectStore } from '../src/objectStore.js'
 import { tmpDir, cleanup } from './helpers.js'
 
@@ -8,6 +10,13 @@ beforeEach(async () => { dir = await tmpDir() })
 afterEach(async () => { await cleanup(dir) })
 
 describe('ObjectStore', () => {
+  it('rejects corrupted stored bytes and invalid object paths before they can become an exported document', async () => {
+    const store = new ObjectStore(path.join(dir, 'chunks')), data = Buffer.from('original'), id = await store.put(data)
+    await fs.writeFile(path.join(store.dir, id.slice(0, 2), id.slice(2, 4), id.slice(4)), deflateSync(Buffer.from('corrupted')))
+    await expect(store.get(id)).rejects.toThrow('校验失败')
+    await expect(store.put(data)).rejects.toThrow('校验失败')
+    await expect(store.get('../outside')).rejects.toThrow('标识无效')
+  })
   it('put/get 往返，id 等于内容 sha256', async () => {
     const store = new ObjectStore(path.join(dir, 'chunks'))
     const data = new TextEncoder().encode('hello')

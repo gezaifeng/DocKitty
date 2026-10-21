@@ -1,3 +1,4 @@
+import { auditPath } from './auditPath'
 import { test, expect, _electron as electron } from '@playwright/test'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
@@ -6,7 +7,7 @@ import { captureGraph } from './graphHelpers.js'
 
 test('six background colors preserve layout, motion state and persisted selection', async () => {
   test.setTimeout(120000)
-  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'dockitty-palettes-')), output = path.resolve('docs/glass-zoom-palette-audit')
+  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'dockitty-palettes-')), output = auditPath('glass-zoom-palette-audit')
   const env = { ...process.env, WORDGIT_LIBRARY_HOME: temporary }; delete env.ELECTRON_RUN_AS_NODE
   let app: Awaited<ReturnType<typeof electron.launch>> | undefined
   const choices = [['jade', '玉绿珍珠'], ['blue-white', '蓝白'], ['pink-green', '粉绿'], ['yellow-black', '黄黑'], ['lavender', '紫白'], ['peach', '橙米']]
@@ -19,7 +20,7 @@ test('six background colors preserve layout, motion state and persisted selectio
     const source = path.join(temporary, '版本文稿.txt'); await fs.writeFile(source, '测试配色和缩放，不修改原文件')
     await page.evaluate(source => window.wordgit.doc.import(source), source); await page.locator('.wg-document-card').click()
     await page.getByRole('button', { name: '版本关系图', exact: true }).click(); await expect(page.locator('.wg-main-view')).toHaveCSS('transform', 'none')
-    for (const label of ['液态玻璃', '液态玻璃 · 深色']) {
+    for (const label of ['琉璃', '夜璃']) {
       await page.getByLabel('主题风格').click(); await page.getByRole('option').filter({ has: page.getByText(label, { exact: true }) }).click()
       await page.waitForTimeout(450)
       await page.locator('.wg-features-menu summary').click()
@@ -31,8 +32,8 @@ test('six background colors preserve layout, motion state and persisted selectio
         expect(await page.locator('.wg-graph-node').boundingBox()).toEqual(geometry)
         expect(await page.locator('.wg-liquid-background svg').evaluate(el => (window as any).paletteSvg === el)).toBe(true)
         const typography = await page.locator('.wg-menubar').evaluate(el => getComputedStyle(el).getPropertyValue('--wg-text'))
-        expect(typography.trim()).toBe(label.includes('深色') ? '#f2f7ea' : '#192620')
-        await page.waitForTimeout(150); await captureGraph(app!, path.join(output, (label.includes('深色') ? 'dark-' : 'light-') + id + '.png'))
+        expect(typography.trim()).toBe(label === '夜璃' ? '#f2f7ea' : '#192620')
+        await page.waitForTimeout(150); await captureGraph(app!, path.join(output, (label === '夜璃' ? 'dark-' : 'light-') + id + '.png'))
       }
       await page.keyboard.press('Escape')
     }

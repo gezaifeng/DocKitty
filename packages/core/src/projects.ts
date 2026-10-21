@@ -59,6 +59,15 @@ function updateFolderSizes(project: ProjectLibrary) {
 }
 export async function listProjects(repo: Repo): Promise<ProjectLibrary[]> { return (await readIndex(repo)).projects }
 export async function getProject(repo: Repo, id: string): Promise<ProjectLibrary> { return findProject(await readIndex(repo), id) }
+export async function setProjectWorkingFolder(repo: Repo, id: string, folder: string) {
+  return withRepoWrite(repo, async () => {
+    const resolved = await fs.realpath(folder)
+    if (!(await fs.lstat(resolved)).isDirectory()) throw new Error('请选择普通工作文件夹')
+    const data = await readIndex(repo)
+    findProject(data, id).workingFolder = resolved
+    await saveIndex(repo, data)
+  })
+}
 export async function createProject(repo: Repo, name: string): Promise<ProjectLibrary> {
   name = text(name, '文档库名称')
   return withRepoWrite(repo, async () => {
