@@ -1,6 +1,13 @@
 "use strict";
 const electron = require("electron");
 const api = {
+  drop: {
+    paths: (files) => [...new Set(files.map((file) => electron.webUtils.getPathForFile(file)).filter(Boolean))],
+    inspect: (paths) => electron.ipcRenderer.invoke("drop.inspect", paths),
+    prepare: (paths, projectId, parentId, workingFolder) => electron.ipcRenderer.invoke("drop.prepare", { paths, projectId, parentId, workingFolder }),
+    importProject: (request) => electron.ipcRenderer.invoke("drop.project", request),
+    createProjects: (paths) => electron.ipcRenderer.invoke("drop.projects", paths)
+  },
   history: { status: () => electron.ipcRenderer.invoke("history.status"), undo: () => electron.ipcRenderer.invoke("history.undo"), redo: () => electron.ipcRenderer.invoke("history.redo") },
   projects: { request: (request) => electron.ipcRenderer.invoke("projects.request", request) },
   appearance: { setTheme: (theme) => electron.ipcRenderer.invoke("appearance.theme", { theme }) },

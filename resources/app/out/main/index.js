@@ -1,6 +1,6 @@
 import { ipcMain, app, shell, dialog, nativeTheme, BrowserWindow, Menu } from "electron";
 import path$1, { resolve, join as join$1, relative, sep } from "node:path";
-import { promises } from "node:fs";
+import { promises, constants as constants$2 } from "node:fs";
 import { createHash, randomUUID, randomBytes } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createRequire } from "module";
@@ -1593,12 +1593,12 @@ async function commitDocUnlocked(repo, docName2, opts) {
     if (headId) {
       prevTree = await readTree(ctx, (await readCommit(ctx, await resolveVersion(repo, docName2, headId))).tree);
     }
-    const paths = [];
-    await collectDocPaths(docAbs, "", paths);
-    if (paths.length === 0 && !headId) throw new Error(`workspace 中文档为空：${docName2}`);
+    const paths2 = [];
+    await collectDocPaths(docAbs, "", paths2);
+    if (paths2.length === 0 && !headId) throw new Error(`workspace 中文档为空：${docName2}`);
     const entries = {};
     const changed = [];
-    for (const rel of paths.sort()) {
+    for (const rel of paths2.sort()) {
       const abs = path$1.join(docAbs, rel);
       const fileSha = await sha256File(abs);
       const prevManifestId = prevTree.entries[rel];
@@ -1651,23 +1651,23 @@ async function workspaceStatus(repo, docName2) {
   const meta = await readLibraryMeta(repo, docName2);
   const versionId2 = meta.workingVersionId ?? await readHead(repo, docIdOf(docName2), await readCurrentBranch(repo, docIdOf(docName2)));
   const docAbs = path$1.join(repo.root, "workspace", docName2);
-  const exists = await promises.stat(docAbs).then(() => true, () => false);
-  if (!exists || !versionId2) return { dirty: exists, versionId: versionId2, exists };
+  const exists2 = await promises.stat(docAbs).then(() => true, () => false);
+  if (!exists2 || !versionId2) return { dirty: exists2, versionId: versionId2, exists: exists2 };
   const ctx = StorageContext.forRepo(repo);
   const contentId = meta.workingContentId ?? await resolveVersion(repo, docName2, versionId2);
   const tree = await readTree(ctx, (await readCommit(ctx, contentId)).tree);
-  const paths = [];
-  await collectDocPaths(docAbs, "", paths);
-  if (paths.length !== Object.keys(tree.entries).length) return { dirty: true, versionId: versionId2, exists };
-  for (const rel of paths) {
-    if (!tree.entries[rel]) return { dirty: true, versionId: versionId2, exists };
+  const paths2 = [];
+  await collectDocPaths(docAbs, "", paths2);
+  if (paths2.length !== Object.keys(tree.entries).length) return { dirty: true, versionId: versionId2, exists: exists2 };
+  for (const rel of paths2) {
+    if (!tree.entries[rel]) return { dirty: true, versionId: versionId2, exists: exists2 };
     const m = await getManifest(ctx, tree.entries[rel]);
     const hash = await sha256File(containedPath(docAbs, rel));
     if (hash !== m.sha256) {
-      if (m.encoding !== "ooxml" || m.original || hash !== await sha256(await materializeFile(ctx, m))) return { dirty: true, versionId: versionId2, exists };
+      if (m.encoding !== "ooxml" || m.original || hash !== await sha256(await materializeFile(ctx, m))) return { dirty: true, versionId: versionId2, exists: exists2 };
     }
   }
-  return { dirty: false, versionId: versionId2, exists };
+  return { dirty: false, versionId: versionId2, exists: exists2 };
 }
 async function checkoutDocUnlocked(repo, docName2, opts) {
   validateDocName(docName2);
@@ -1706,8 +1706,8 @@ async function importDocUnlocked(repo, sourcePath, name) {
   const existing = await docIds(repo);
   if (existing.some((n) => n.toLocaleLowerCase() === docName2.toLocaleLowerCase())) throw new Error("该文档已存在，请使用“导入为已有文档的版本”");
   const dest = path$1.join(repo.root, "workspace", docName2);
-  const exists = await promises.stat(dest).then(() => true, () => false);
-  if (exists) throw new Error(`workspace 中已存在文档：${docName2}`);
+  const exists2 = await promises.stat(dest).then(() => true, () => false);
+  if (exists2) throw new Error(`workspace 中已存在文档：${docName2}`);
   await promises.mkdir(path$1.dirname(dest), { recursive: true });
   const st = await promises.stat(sourcePath);
   if (st.isDirectory()) {
@@ -1924,9 +1924,9 @@ async function importBackup(srcPath, destRoot) {
   for (const entry of manifest.files) {
     if (typeof entry.path !== "string" || !entry.path || entry.path.includes("\\") || entry.path.split("/").some((p) => !p || p === "." || p === ".." || /[<>:"|?*\x00-\x1f]/.test(p))) throw new Error("备份包含无效路径");
     containedPath(destRoot, entry.path);
-    const key = entry.path.toLowerCase();
-    if (listed.has(key)) throw new Error("备份包含重复路径");
-    listed.add(key);
+    const key2 = entry.path.toLowerCase();
+    if (listed.has(key2)) throw new Error("备份包含重复路径");
+    listed.add(key2);
     const data = all[entry.path];
     if (!data) throw new Error(`备份包缺少文件：${entry.path}`);
     const actual = await sha256(data);
@@ -2420,13 +2420,13 @@ async function arrangeVersions(repo, docName2, categoryId, versionIds) {
 async function snapshotSource(repo, sourcePath, parents, message) {
   const ctx = StorageContext.forRepo(repo);
   const entries = {};
-  async function visit(absolute, relative2) {
-    const st = await promises.lstat(absolute);
+  async function visit(absolute2, relative2) {
+    const st = await promises.lstat(absolute2);
     if (st.isSymbolicLink()) throw new Error("请导入实际文件或目录，不支持符号链接");
     if (st.isDirectory()) {
-      for (const name of (await promises.readdir(absolute)).sort()) await visit(path$1.join(absolute, name), relative2 ? relative2 + "/" + name : name);
+      for (const name of (await promises.readdir(absolute2)).sort()) await visit(path$1.join(absolute2, name), relative2 ? relative2 + "/" + name : name);
     } else {
-      entries[relative2] = await putManifest(ctx, await encodeFile(ctx, absolute));
+      entries[relative2] = await putManifest(ctx, await encodeFile(ctx, absolute2));
     }
   }
   await visit(sourcePath, "");
@@ -2583,7 +2583,7 @@ async function capture(repo, workspaceName) {
   }
   return { files, directories, hash: hash.digest("hex") };
 }
-async function withUndoableAction(repo, label2, action, workspaceName) {
+async function withUndoableAction(repo, label2, action, workspaceName, external2) {
   return withRepoWrite(repo, async () => {
     const before = await capture(repo, workspaceName);
     let result, failure, failed = false;
@@ -2609,7 +2609,7 @@ async function withUndoableAction(repo, label2, action, workspaceName) {
       if (failed) throw failure;
       return result;
     }
-    state2.undo.push({ label: label2, changes, addedDirectories: after.directories.filter((d) => !before.directories.includes(d)), removedDirectories: before.directories.filter((d) => !after.directories.includes(d)), beforeHash: before.hash, afterHash: after.hash });
+    state2.undo.push({ label: label2, changes, addedDirectories: after.directories.filter((d) => !before.directories.includes(d)), removedDirectories: before.directories.filter((d) => !after.directories.includes(d)), beforeHash: before.hash, afterHash: after.hash, external: external2 });
     if (state2.undo.length > 100) state2.undo.shift();
     state2.redo = [];
     if (failed) throw failure;
@@ -2625,6 +2625,7 @@ async function replay(repo, direction) {
       clearEditHistory(repo);
       throw new Error("资料已被其他操作更新，旧撤回记录已清除，以免覆盖新内容");
     }
+    await entry.external?.validate(direction);
     const applied = [], target = direction === "undo" ? "before" : "after", original = direction === "undo" ? "after" : "before";
     let workspaceEditsPreserved = false;
     async function write(change, side) {
@@ -2654,6 +2655,7 @@ async function replay(repo, direction) {
       });
       const create = direction === "undo" ? entry.removedDirectories : entry.addedDirectories;
       for (const dir2 of create) await promises.mkdir(path$1.join(repo.root, dir2), { recursive: true });
+      await entry.external?.apply(direction);
     } catch (error2) {
       for (const change of applied.reverse()) await write(change, original);
       throw error2;
@@ -2665,108 +2667,6 @@ async function replay(repo, direction) {
 }
 const undoEdit = (repo) => replay(repo, "undo");
 const redoEdit = (repo) => replay(repo, "redo");
-const digest$1 = (bytes) => createHash("sha256").update(bytes).digest("hex");
-function draftPath(repo, relative2) {
-  if (!relative2.startsWith("drafts/")) throw new Error("编辑副本必须位于稿喵文档库内");
-  return containedPath(repo.root, relative2);
-}
-async function startDraft(repo, docName2, versionId2, branch, mode = "new", title) {
-  return withRepoWrite(repo, async () => {
-    validateBranchName(branch);
-    const detail = await documentDetail(repo, docName2), base = detail.versions.find((v) => v.id === versionId2);
-    if (!base || base.deletedAt || detail.deletedAt) throw new Error("请先还原文档和版本");
-    if (detail.workspace.dirty && detail.currentBranch === branch) throw new Error("当前工作区有未记录修改，请先保存工作区，再创建独立新稿");
-    const newBranch = !detail.branchHeads[branch];
-    if (newBranch) await createBranchUnlocked(repo, docName2, branch, { commitId: versionId2 });
-    else if (detail.branchHeads[branch] !== versionId2) throw new Error("所选版本不是目标分支末端，请从此版本新建分支");
-    if (detail.currentBranch !== branch || detail.workspace.versionId !== versionId2) await switchBranchUnlocked(repo, docName2, branch);
-    const bytes = await versionBytes(repo, docName2, versionId2), meta = await readLibraryMeta(repo, docName2);
-    for (const draft2 of meta.drafts ?? []) if (draft2.branch === branch) draft2.closed = true;
-    const id2 = randomUUID(), ext = path$1.extname(docName2), stem = path$1.basename(docName2, ext).slice(0, 24);
-    const filename = `${stem}_${branch.replace(/[\\/:*?"<>|]/g, "_").slice(0, 18)}_v${detail.versions.length + (mode === "new" ? 1 : 0)}_${id2.slice(0, 6)}${ext}`;
-    const relative2 = `drafts/${digest$1(Buffer.from(docName2)).slice(0, 12)}/${id2}/${filename}`;
-    await writeFileAtomic(draftPath(repo, relative2), bytes);
-    const draft = {
-      id: id2,
-      path: relative2,
-      branch,
-      baseVersionId: versionId2,
-      versionId: mode === "replace" ? versionId2 : void 0,
-      title: title?.trim() || (mode === "replace" ? base.title : `${branch} · 第${detail.versions.filter((v) => v.branches.includes(branch)).length + 1}稿`),
-      mode,
-      sha256: digest$1(bytes),
-      position: base.position ? { x: base.position.x + (mode === "new" ? 265 : 0), y: base.position.y + (newBranch ? 170 : 0) } : void 0
-    };
-    (meta.drafts ??= []).push(draft);
-    await writeLibraryMeta(repo, docName2, meta);
-    return { workspacePath: draftPath(repo, relative2), branch, draftId: id2 };
-  });
-}
-async function activeDraftFiles(repo) {
-  const files = [];
-  for (const docName2 of await docIds(repo)) {
-    const meta = await readLibraryMeta(repo, docName2);
-    if (!meta.deletedAt) {
-      for (const draft of meta.drafts ?? []) if (!draft.closed) files.push({ docName: docName2, path: draftPath(repo, draft.path) });
-    }
-  }
-  return files;
-}
-async function recordDraftSave(repo, file2) {
-  const relative2 = path$1.relative(repo.root, path$1.resolve(file2)).split(path$1.sep).join("/");
-  draftPath(repo, relative2);
-  return withRepoWrite(repo, async () => {
-    for (const docName2 of await docIds(repo)) {
-      const meta = await readLibraryMeta(repo, docName2), draft = meta.drafts?.find((d) => d.path === relative2 && !d.closed);
-      if (!draft || meta.deletedAt) continue;
-      if (draft.pendingHead && draft.versionId) {
-        const head = (await documentDetail(repo, docName2)).branchHeads[draft.branch];
-        if (head === draft.baseVersionId) await writeHead(repo, docIdOf(docName2), draft.branch, draft.versionId);
-        else if (head !== draft.versionId) throw new Error("分支在记录期间发生变化，编辑副本仍保留，请核对分支");
-        draft.pendingHead = false;
-        await writeLibraryMeta(repo, docName2, meta);
-      }
-      const detail = await documentDetail(repo, docName2), base = detail.versions.find((v) => v.id === (draft.versionId ?? draft.baseVersionId));
-      if (!base || base.deletedAt) return;
-      if (!detail.branchHeads[draft.branch]) throw new Error("编辑副本对应的分支已删除，文件仍保留，未重新创建分支");
-      const bytes = await promises.readFile(draftPath(repo, relative2)).catch((error2) => {
-        if (error2.code === "ENOENT") return null;
-        throw error2;
-      });
-      if (!bytes) return;
-      const sha = digest$1(bytes);
-      if (sha === draft.sha256) return;
-      if (detail.branchHeads[draft.branch] !== (draft.versionId ?? draft.baseVersionId)) throw new Error("分支已经向后发展，请从这份副本新建分支；已有历史未改动");
-      const parents = draft.versionId ? base.parents : [draft.baseVersionId];
-      const contentId = await snapshotSource(repo, draftPath(repo, relative2), parents, draft.title);
-      const ctx = StorageContext.forRepo(repo), tree = await readTree(ctx, (await readCommit(ctx, contentId)).tree);
-      if ((await getManifest(ctx, tree.entries[""])).sha256 !== sha) throw new Error("文件仍在写入，等待下一次保存后记录");
-      const created = !draft.versionId;
-      if (created) {
-        draft.versionId = contentId;
-        meta.versions[contentId] = { branchMembership: [draft.branch], title: draft.title, categoryId: base.categoryId, position: draft.position, sourcePath: relative2 };
-        draft.pendingHead = true;
-      } else {
-        const version2 = meta.versions[draft.versionId] ??= {};
-        version2.revisions = [...version2.revisions ?? [], version2.contentId ?? draft.versionId];
-        version2.contentId = contentId;
-      }
-      draft.sha256 = sha;
-      if (!detail.workspace.dirty && detail.currentBranch === draft.branch && [draft.baseVersionId, draft.versionId].includes(meta.workingVersionId)) {
-        await writeFileAtomic(path$1.join(repo.root, "workspace", docName2), bytes);
-        meta.workingVersionId = draft.versionId;
-        meta.workingContentId = contentId;
-      }
-      await writeLibraryMeta(repo, docName2, meta);
-      if (created) {
-        await writeHead(repo, docIdOf(docName2), draft.branch, draft.versionId);
-        draft.pendingHead = false;
-        await writeLibraryMeta(repo, docName2, meta);
-      }
-      return { docName: docName2, branch: draft.branch, workspacePath: draftPath(repo, relative2), versionId: draft.versionId, status: created ? "created" : "updated" };
-    }
-  });
-}
 var util$4;
 (function(util2) {
   util2.assertEqual = (_2) => {
@@ -2800,9 +2700,9 @@ var util$4;
   };
   util2.objectKeys = typeof Object.keys === "function" ? (obj) => Object.keys(obj) : (object2) => {
     const keys = [];
-    for (const key in object2) {
-      if (Object.prototype.hasOwnProperty.call(object2, key)) {
-        keys.push(key);
+    for (const key2 in object2) {
+      if (Object.prototype.hasOwnProperty.call(object2, key2)) {
+        keys.push(key2);
       }
     }
     return keys;
@@ -3185,10 +3085,10 @@ class ParseStatus {
   static async mergeObjectAsync(status2, pairs) {
     const syncPairs = [];
     for (const pair of pairs) {
-      const key = await pair.key;
+      const key2 = await pair.key;
       const value = await pair.value;
       syncPairs.push({
-        key,
+        key: key2,
         value
       });
     }
@@ -3197,17 +3097,17 @@ class ParseStatus {
   static mergeObjectSync(status2, pairs) {
     const finalObject = {};
     for (const pair of pairs) {
-      const { key, value } = pair;
-      if (key.status === "aborted")
+      const { key: key2, value } = pair;
+      if (key2.status === "aborted")
         return INVALID;
       if (value.status === "aborted")
         return INVALID;
-      if (key.status === "dirty")
+      if (key2.status === "dirty")
         status2.dirty();
       if (value.status === "dirty")
         status2.dirty();
-      if (key.value !== "__proto__" && (typeof value.value !== "undefined" || pair.alwaysSet)) {
-        finalObject[key.value] = value.value;
+      if (key2.value !== "__proto__" && (typeof value.value !== "undefined" || pair.alwaysSet)) {
+        finalObject[key2.value] = value.value;
       }
     }
     return { status: status2.value, value: finalObject };
@@ -3228,12 +3128,12 @@ var errorUtil;
   errorUtil2.toString = (message) => typeof message === "string" ? message : message?.message;
 })(errorUtil || (errorUtil = {}));
 class ParseInputLazyPath {
-  constructor(parent2, value, path2, key) {
+  constructor(parent2, value, path2, key2) {
     this._cachedPath = [];
     this.parent = parent2;
     this.data = value;
     this._path = path2;
-    this._key = key;
+    this._key = key2;
   }
   get path() {
     if (!this._cachedPath.length) {
@@ -4978,9 +4878,9 @@ ZodArray.create = (schema, params) => {
 function deepPartialify(schema) {
   if (schema instanceof ZodObject) {
     const newShape = {};
-    for (const key in schema.shape) {
-      const fieldSchema = schema.shape[key];
-      newShape[key] = ZodOptional.create(deepPartialify(fieldSchema));
+    for (const key2 in schema.shape) {
+      const fieldSchema = schema.shape[key2];
+      newShape[key2] = ZodOptional.create(deepPartialify(fieldSchema));
     }
     return new ZodObject({
       ...schema._def,
@@ -5031,29 +4931,29 @@ class ZodObject extends ZodType {
     const { shape, keys: shapeKeys } = this._getCached();
     const extraKeys = [];
     if (!(this._def.catchall instanceof ZodNever && this._def.unknownKeys === "strip")) {
-      for (const key in ctx.data) {
-        if (!shapeKeys.includes(key)) {
-          extraKeys.push(key);
+      for (const key2 in ctx.data) {
+        if (!shapeKeys.includes(key2)) {
+          extraKeys.push(key2);
         }
       }
     }
     const pairs = [];
-    for (const key of shapeKeys) {
-      const keyValidator = shape[key];
-      const value = ctx.data[key];
+    for (const key2 of shapeKeys) {
+      const keyValidator = shape[key2];
+      const value = ctx.data[key2];
       pairs.push({
-        key: { status: "valid", value: key },
-        value: keyValidator._parse(new ParseInputLazyPath(ctx, value, ctx.path, key)),
-        alwaysSet: key in ctx.data
+        key: { status: "valid", value: key2 },
+        value: keyValidator._parse(new ParseInputLazyPath(ctx, value, ctx.path, key2)),
+        alwaysSet: key2 in ctx.data
       });
     }
     if (this._def.catchall instanceof ZodNever) {
       const unknownKeys = this._def.unknownKeys;
       if (unknownKeys === "passthrough") {
-        for (const key of extraKeys) {
+        for (const key2 of extraKeys) {
           pairs.push({
-            key: { status: "valid", value: key },
-            value: { status: "valid", value: ctx.data[key] }
+            key: { status: "valid", value: key2 },
+            value: { status: "valid", value: ctx.data[key2] }
           });
         }
       } else if (unknownKeys === "strict") {
@@ -5070,15 +4970,15 @@ class ZodObject extends ZodType {
       }
     } else {
       const catchall = this._def.catchall;
-      for (const key of extraKeys) {
-        const value = ctx.data[key];
+      for (const key2 of extraKeys) {
+        const value = ctx.data[key2];
         pairs.push({
-          key: { status: "valid", value: key },
+          key: { status: "valid", value: key2 },
           value: catchall._parse(
-            new ParseInputLazyPath(ctx, value, ctx.path, key)
+            new ParseInputLazyPath(ctx, value, ctx.path, key2)
             //, ctx.child(key), value, getParsedType(value)
           ),
-          alwaysSet: key in ctx.data
+          alwaysSet: key2 in ctx.data
         });
       }
     }
@@ -5086,10 +4986,10 @@ class ZodObject extends ZodType {
       return Promise.resolve().then(async () => {
         const syncPairs = [];
         for (const pair of pairs) {
-          const key = await pair.key;
+          const key2 = await pair.key;
           const value = await pair.value;
           syncPairs.push({
-            key,
+            key: key2,
             value,
             alwaysSet: pair.alwaysSet
           });
@@ -5214,8 +5114,8 @@ class ZodObject extends ZodType {
   //   }) as any;
   //   return merged;
   // }
-  setKey(key, schema) {
-    return this.augment({ [key]: schema });
+  setKey(key2, schema) {
+    return this.augment({ [key2]: schema });
   }
   // merge<Incoming extends AnyZodObject>(
   //   merging: Incoming
@@ -5246,9 +5146,9 @@ class ZodObject extends ZodType {
   }
   pick(mask) {
     const shape = {};
-    for (const key of util$4.objectKeys(mask)) {
-      if (mask[key] && this.shape[key]) {
-        shape[key] = this.shape[key];
+    for (const key2 of util$4.objectKeys(mask)) {
+      if (mask[key2] && this.shape[key2]) {
+        shape[key2] = this.shape[key2];
       }
     }
     return new ZodObject({
@@ -5258,9 +5158,9 @@ class ZodObject extends ZodType {
   }
   omit(mask) {
     const shape = {};
-    for (const key of util$4.objectKeys(this.shape)) {
-      if (!mask[key]) {
-        shape[key] = this.shape[key];
+    for (const key2 of util$4.objectKeys(this.shape)) {
+      if (!mask[key2]) {
+        shape[key2] = this.shape[key2];
       }
     }
     return new ZodObject({
@@ -5276,12 +5176,12 @@ class ZodObject extends ZodType {
   }
   partial(mask) {
     const newShape = {};
-    for (const key of util$4.objectKeys(this.shape)) {
-      const fieldSchema = this.shape[key];
-      if (mask && !mask[key]) {
-        newShape[key] = fieldSchema;
+    for (const key2 of util$4.objectKeys(this.shape)) {
+      const fieldSchema = this.shape[key2];
+      if (mask && !mask[key2]) {
+        newShape[key2] = fieldSchema;
       } else {
-        newShape[key] = fieldSchema.optional();
+        newShape[key2] = fieldSchema.optional();
       }
     }
     return new ZodObject({
@@ -5291,16 +5191,16 @@ class ZodObject extends ZodType {
   }
   required(mask) {
     const newShape = {};
-    for (const key of util$4.objectKeys(this.shape)) {
-      if (mask && !mask[key]) {
-        newShape[key] = this.shape[key];
+    for (const key2 of util$4.objectKeys(this.shape)) {
+      if (mask && !mask[key2]) {
+        newShape[key2] = this.shape[key2];
       } else {
-        const fieldSchema = this.shape[key];
+        const fieldSchema = this.shape[key2];
         let newField = fieldSchema;
         while (newField instanceof ZodOptional) {
           newField = newField._def.innerType;
         }
-        newShape[key] = newField;
+        newShape[key2] = newField;
       }
     }
     return new ZodObject({
@@ -5544,14 +5444,14 @@ function mergeValues(a, b) {
     return { valid: true, data: a };
   } else if (aType === ZodParsedType.object && bType === ZodParsedType.object) {
     const bKeys = util$4.objectKeys(b);
-    const sharedKeys = util$4.objectKeys(a).filter((key) => bKeys.indexOf(key) !== -1);
+    const sharedKeys = util$4.objectKeys(a).filter((key2) => bKeys.indexOf(key2) !== -1);
     const newObj = { ...a, ...b };
-    for (const key of sharedKeys) {
-      const sharedValue = mergeValues(a[key], b[key]);
+    for (const key2 of sharedKeys) {
+      const sharedValue = mergeValues(a[key2], b[key2]);
       if (!sharedValue.valid) {
         return { valid: false };
       }
-      newObj[key] = sharedValue.data;
+      newObj[key2] = sharedValue.data;
     }
     return { valid: true, data: newObj };
   } else if (aType === ZodParsedType.array && bType === ZodParsedType.array) {
@@ -5714,9 +5614,9 @@ class ZodMap extends ZodType {
     }
     const keyType = this._def.keyType;
     const valueType = this._def.valueType;
-    const pairs = [...ctx.data.entries()].map(([key, value], index2) => {
+    const pairs = [...ctx.data.entries()].map(([key2, value], index2) => {
       return {
-        key: keyType._parse(new ParseInputLazyPath(ctx, key, ctx.path, [index2, "key"])),
+        key: keyType._parse(new ParseInputLazyPath(ctx, key2, ctx.path, [index2, "key"])),
         value: valueType._parse(new ParseInputLazyPath(ctx, value, ctx.path, [index2, "value"]))
       };
     });
@@ -5724,30 +5624,30 @@ class ZodMap extends ZodType {
       const finalMap = /* @__PURE__ */ new Map();
       return Promise.resolve().then(async () => {
         for (const pair of pairs) {
-          const key = await pair.key;
+          const key2 = await pair.key;
           const value = await pair.value;
-          if (key.status === "aborted" || value.status === "aborted") {
+          if (key2.status === "aborted" || value.status === "aborted") {
             return INVALID;
           }
-          if (key.status === "dirty" || value.status === "dirty") {
+          if (key2.status === "dirty" || value.status === "dirty") {
             status2.dirty();
           }
-          finalMap.set(key.value, value.value);
+          finalMap.set(key2.value, value.value);
         }
         return { status: status2.value, value: finalMap };
       });
     } else {
       const finalMap = /* @__PURE__ */ new Map();
       for (const pair of pairs) {
-        const key = pair.key;
+        const key2 = pair.key;
         const value = pair.value;
-        if (key.status === "aborted" || value.status === "aborted") {
+        if (key2.status === "aborted" || value.status === "aborted") {
           return INVALID;
         }
-        if (key.status === "dirty" || value.status === "dirty") {
+        if (key2.status === "dirty" || value.status === "dirty") {
           status2.dirty();
         }
-        finalMap.set(key.value, value.value);
+        finalMap.set(key2.value, value.value);
       }
       return { status: status2.value, value: finalMap };
     }
@@ -6454,6 +6354,774 @@ const EdgeStyleSchema = objectType({
   line: enumType(["solid", "dashed", "double"]).optional(),
   width: numberType().finite().min(1).max(6).optional()
 });
+const kinds = ["iteration", "reference", "example", "dependency", "custom"];
+const indexPath = (repo) => path$1.join(repo.root, "projects", "catalog.json");
+const objectPath = (repo, hash) => {
+  if (!/^[a-f0-9]{64}$/.test(hash)) throw new Error("无效文件快照标识");
+  return path$1.join(repo.root, "objects", "project-files", hash);
+};
+function text(value, label2, empty = false) {
+  if (typeof value !== "string" || !empty && !value.trim() || value.length > 1e4) throw new Error(`${label2}无效`);
+  return value.trim();
+}
+async function readIndex(repo) {
+  try {
+    const data = JSON.parse(await promises.readFile(indexPath(repo), "utf8"));
+    if (data.format !== 1 || !Array.isArray(data.projects) || !data.requests) throw new Error("项目索引格式不支持");
+    return data;
+  } catch (e) {
+    if (e.code === "ENOENT") return { format: 1, projects: [], requests: {} };
+    throw e;
+  }
+}
+async function saveIndex(repo, data) {
+  await writeFileAtomic(indexPath(repo), Buffer.from(JSON.stringify(data, null, 2)));
+}
+function findProject(data, id2) {
+  const project = data.projects.find((p) => p.id === id2);
+  if (!project) throw new Error("文档库不存在");
+  return project;
+}
+function findNode(project, id2) {
+  const node2 = project.nodes.find((n) => n.id === id2);
+  if (!node2) throw new Error("文件或文件夹不存在");
+  return node2;
+}
+function updateFolderSizes(project) {
+  const children = /* @__PURE__ */ new Map();
+  for (const node2 of project.nodes) {
+    const list = children.get(node2.parentId);
+    if (list) list.push(node2);
+    else children.set(node2.parentId, [node2]);
+  }
+  const size = (node2) => {
+    if (node2.kind === "folder") node2.size = (children.get(node2.id) ?? []).reduce((sum, child2) => sum + size(child2), 0);
+    return node2.size;
+  };
+  project.nodes.filter((n) => !n.parentId).forEach(size);
+}
+async function listProjects(repo) {
+  return (await readIndex(repo)).projects;
+}
+async function getProject(repo, id2) {
+  return findProject(await readIndex(repo), id2);
+}
+async function setProjectWorkingFolder(repo, id2, folder) {
+  return withRepoWrite(repo, async () => {
+    const resolved = await promises.realpath(folder);
+    if (!(await promises.lstat(resolved)).isDirectory()) throw new Error("请选择普通工作文件夹");
+    const data = await readIndex(repo);
+    findProject(data, id2).workingFolder = resolved;
+    await saveIndex(repo, data);
+  });
+}
+async function createProject(repo, name) {
+  name = text(name, "文档库名称");
+  return withRepoWrite(repo, async () => {
+    const data = await readIndex(repo);
+    const project = { id: randomUUID(), name, createdAt: (/* @__PURE__ */ new Date()).toISOString(), nodes: [], relations: [], categories: [] };
+    data.projects.push(project);
+    await saveIndex(repo, data);
+    return project;
+  });
+}
+async function digest$1(file2) {
+  const hash = createHash("sha256");
+  for await (const chunk of readFileBlocks(file2)) hash.update(chunk);
+  return hash.digest("hex");
+}
+function inside$1(root, target) {
+  const relative2 = path$1.relative(root, target);
+  return relative2 === "" || !path$1.isAbsolute(relative2) && relative2 !== ".." && !relative2.startsWith(".." + path$1.sep);
+}
+async function collectSource(repo, source, stage, previous, start2 = 0) {
+  const nodes = [], repoRoot = await promises.realpath(repo.root);
+  const key2 = (file2, kind) => (process.platform === "win32" ? file2.toLowerCase() : file2) + ":" + kind;
+  const existingByPath = new Map(previous.filter((n) => n.sourceId === source.id && n.sourcePath).map((n) => [key2(n.sourcePath, n.kind), n]));
+  async function copy(file2, parentId, ordinal) {
+    if (source.excludedPaths.some((excluded) => inside$1(excluded, file2))) return;
+    const stat22 = await promises.lstat(file2);
+    const link = stat22.isSymbolicLink();
+    if (!link && !stat22.isFile() && !stat22.isDirectory()) throw new Error("不支持特殊设备文件");
+    if (!link) {
+      const real = await promises.realpath(file2);
+      if (inside$1(repoRoot, real) || inside$1(real, repoRoot)) throw new Error("不能导入稿喵文档库或包含它的目录");
+    }
+    const kind = stat22.isDirectory() ? "folder" : "file";
+    const existing = existingByPath.get(key2(file2, kind));
+    const node2 = existing ? { ...existing, parentId } : { id: randomUUID(), parentId, name: path$1.basename(file2), title: path$1.basename(file2), kind, size: 0, note: "", createdAt: (/* @__PURE__ */ new Date()).toISOString(), position: { x: 40 + ordinal % 3 * 290, y: 40 + Math.floor(ordinal / 3) * 190 } };
+    node2.sourceId = source.id;
+    node2.sourcePath = file2;
+    node2.size = 0;
+    nodes.push(node2);
+    if (link) {
+      node2.linkTarget = path$1.resolve(path$1.dirname(file2), await promises.readlink(file2));
+      delete node2.contentHash;
+    } else if (kind === "file") {
+      delete node2.linkTarget;
+      const temp = path$1.join(stage, node2.id);
+      await promises.copyFile(file2, temp);
+      node2.contentHash = await digest$1(temp);
+      node2.size = (await promises.stat(temp)).size;
+      const target = objectPath(repo, node2.contentHash);
+      await promises.mkdir(path$1.dirname(target), { recursive: true });
+      if (await promises.access(target).then(() => true, (error2) => {
+        if (error2.code !== "ENOENT") throw error2;
+        return false;
+      })) {
+        if (await digest$1(target) !== node2.contentHash) throw new Error("已有文件快照损坏，请恢复备份后再导入");
+      } else {
+        const handle = await promises.open(temp, "r+");
+        try {
+          await handle.sync();
+        } finally {
+          await handle.close();
+        }
+        await promises.rename(temp, target);
+      }
+    } else {
+      delete node2.linkTarget;
+      delete node2.contentHash;
+      const entries = (await promises.readdir(file2)).sort();
+      for (let i2 = 0; i2 < entries.length; i2++) await copy(path$1.join(file2, entries[i2]), node2.id, i2);
+    }
+  }
+  let stat2;
+  try {
+    stat2 = await promises.lstat(source.path);
+  } catch (error2) {
+    if (["ENOENT", "ENOTDIR"].includes(error2.code ?? "")) return [];
+    throw error2;
+  }
+  if (source.unpackFolder) {
+    if (stat2.isSymbolicLink()) throw new Error("链接入口只保留卡片，不展开目标目录");
+    if (!stat2.isDirectory()) throw new Error("来源父文件夹已变成文件，请重新导入");
+    const children = (await promises.readdir(source.path)).sort();
+    for (let i2 = 0; i2 < children.length; i2++) await copy(path$1.join(source.path, children[i2]), source.parentId, start2 + i2);
+  } else await copy(source.path, source.parentId, start2);
+  return nodes;
+}
+function subtree(project, nodeId) {
+  const ids = /* @__PURE__ */ new Set([nodeId]);
+  for (let size = 0; size !== ids.size; ) {
+    size = ids.size;
+    project.nodes.filter((n) => n.parentId && ids.has(n.parentId)).forEach((n) => ids.add(n.id));
+  }
+  return ids;
+}
+function freezeNode(project, nodeId) {
+  const root = findNode(project, nodeId), ids = subtree(project, nodeId);
+  if (root.sourcePath && root.sourceId) project.sources?.find((s) => s.id === root.sourceId)?.excludedPaths.push(root.sourcePath);
+  for (const node2 of project.nodes) if (ids.has(node2.id) && !node2.snapshot) {
+    delete node2.sourceId;
+    node2.snapshot = true;
+    node2.snapshotRootId = nodeId;
+  }
+}
+function checkRelation(project, relation, excludeId) {
+  findNode(project, relation.from);
+  findNode(project, relation.to);
+  if (relation.from === relation.to) throw new Error("不能连接到自身");
+  if (!kinds.includes(relation.kind)) throw new Error("关系类型无效");
+  text(relation.label, "关系标签", true);
+  text(relation.note, "关系备注", true);
+  if (relation.kind !== "iteration") return;
+  const seen = /* @__PURE__ */ new Set(), visit = [relation.to];
+  while (visit.length) {
+    const id2 = visit.pop();
+    if (id2 === relation.from) throw new Error("迭代关系不能形成循环");
+    if (seen.has(id2)) continue;
+    seen.add(id2);
+    visit.push(...project.relations.filter((e) => e.id !== excludeId && e.kind === "iteration" && e.from === id2).map((e) => e.to));
+  }
+}
+async function importProjectItems(repo, request2) {
+  if (!Array.isArray(request2.paths) || !request2.paths.length || request2.paths.some((p) => typeof p !== "string" || !path$1.isAbsolute(p))) throw new Error("请选择文件或文件夹的绝对路径");
+  if (request2.unpackFolder && request2.paths.length !== 1) throw new Error("展开导入只支持一个父文件夹");
+  if (request2.title !== void 0) text(request2.title, "迭代名称");
+  const signature2 = createHash("sha256").update(JSON.stringify({ projectId: request2.projectId, paths: request2.paths.map((p) => path$1.resolve(p)), parentId: request2.parentId ?? null, unpackFolder: request2.unpackFolder ?? false, previousNodeId: request2.previousNodeId, snapshot: request2.snapshot ?? false, title: request2.title })).digest("hex");
+  if (request2.requestId !== void 0) text(request2.requestId, "请求标识");
+  return withRepoWrite(repo, async () => {
+    const data = await readIndex(repo), project = findProject(data, request2.projectId);
+    const requestKey = request2.requestId ? `${project.id}:${request2.requestId}` : null;
+    if (requestKey && Object.hasOwn(data.requests, requestKey)) {
+      const previous = data.requests[requestKey];
+      if (previous.signature !== signature2) throw new Error("请求标识已用于不同的导入参数");
+      return previous.result;
+    }
+    const parentId = request2.parentId ?? null;
+    if (parentId && findNode(project, parentId).kind !== "folder") throw new Error("导入目标必须是文件夹");
+    if (parentId && findNode(project, parentId).snapshot) throw new Error("历史文件夹为快照，请返回当前文件夹或文档库根目录导入");
+    if (request2.previousNodeId) findNode(project, request2.previousNodeId);
+    const repoRoot = await promises.realpath(repo.root);
+    const sources = [];
+    for (const input of request2.paths) {
+      if ((await promises.lstat(input)).isSymbolicLink()) {
+        sources.push(path$1.resolve(input));
+        continue;
+      }
+      const source = await promises.realpath(input);
+      if (inside$1(repoRoot, source) || inside$1(source, repoRoot)) throw new Error("不能导入稿喵文档库或包含它的目录");
+      sources.push(source);
+    }
+    if (request2.unpackFolder && !(await promises.lstat(sources[0])).isDirectory()) throw new Error("展开导入需要普通文件夹；链接入口只保留卡片");
+    const stage = await promises.mkdtemp(path$1.join(repo.root, ".project-import-"));
+    const nodes = [], nodeIds = [];
+    try {
+      const existing = project.nodes.filter((n) => n.parentId === parentId).length;
+      project.sources ??= [];
+      for (let i2 = 0; i2 < sources.length; i2++) {
+        const source = { id: randomUUID(), path: sources[i2], parentId, unpackFolder: request2.unpackFolder ?? false, excludedPaths: [] };
+        const copied = await collectSource(repo, source, stage, [], existing + i2);
+        nodeIds.push(...copied.filter((n) => n.parentId === parentId).map((n) => n.id));
+        if (request2.snapshot) {
+          const groups = /* @__PURE__ */ new Map();
+          for (const n of copied) {
+            n.snapshotRootId = n.parentId === parentId ? n.id : groups.get(n.parentId);
+            groups.set(n.id, n.snapshotRootId ?? n.id);
+            delete n.sourceId;
+            n.snapshot = true;
+          }
+        } else project.sources.push(source);
+        nodes.push(...copied);
+      }
+      if (request2.previousNodeId) {
+        freezeNode(project, request2.previousNodeId);
+        for (const source of project.sources) {
+          if (nodes.some((n) => n.sourceId === source.id)) continue;
+          for (const imported of sources) if (inside$1(source.path, imported) && source.unpackFolder) source.excludedPaths.push(imported);
+        }
+      }
+      project.nodes.push(...nodes);
+      if (request2.previousNodeId) {
+        const previous = findNode(project, request2.previousNodeId);
+        for (const node2 of nodes.filter((n) => nodeIds.includes(n.id))) {
+          const position2 = { x: previous.position.x + 290, y: previous.position.y };
+          while (project.nodes.some((n) => n.id !== node2.id && n.parentId === parentId && Math.abs(n.position.x - position2.x) < 250 && Math.abs(n.position.y - position2.y) < 150)) position2.y += 190;
+          node2.position = position2;
+        }
+      }
+      if (request2.title) project.nodes.filter((n) => nodeIds.includes(n.id)).forEach((n) => {
+        n.title = request2.title;
+      });
+      updateFolderSizes(project);
+      const relationIds = [];
+      if (request2.previousNodeId) for (const id2 of nodeIds) {
+        const edge = { id: randomUUID(), from: request2.previousNodeId, to: id2, kind: "iteration", label: "下一轮迭代", note: "" };
+        checkRelation(project, edge);
+        project.relations.push(edge);
+        relationIds.push(edge.id);
+      }
+      const result = { nodeIds, relationIds };
+      if (requestKey) data.requests[requestKey] = { signature: signature2, result };
+      await saveIndex(repo, data);
+      return result;
+    } finally {
+      if (path$1.dirname(stage) !== repo.root || !path$1.basename(stage).startsWith(".project-import-")) throw new Error("导入暂存位置无效");
+      await promises.rm(stage, { recursive: true, force: true });
+    }
+  });
+}
+async function recordProjectIteration(repo, projectId, nodeId, title, requestId) {
+  const project = await getProject(repo, projectId), node2 = findNode(project, nodeId);
+  if (node2.linkTarget) throw new Error("链接入口只记录目标路径，不记录目标内容迭代");
+  if (!node2.sourcePath) throw new Error("此节点没有来源路径，请导入新文件或文件夹创建下一轮");
+  if (node2.snapshot && (!requestId || !Object.hasOwn((await readIndex(repo)).requests, `${projectId}:${requestId}`))) throw new Error("历史快照不能同步原路径；请通过导入新文件或文件夹创建下一轮");
+  return importProjectItems(repo, { projectId, paths: [node2.sourcePath], parentId: node2.parentId, previousNodeId: nodeId, requestId, title: text(title, "迭代名称") });
+}
+async function updateProjectNode(repo, projectId, nodeId, patch) {
+  return withRepoWrite(repo, async () => {
+    const data = await readIndex(repo), project = findProject(data, projectId), node2 = findNode(project, nodeId);
+    if (patch.title !== void 0) node2.title = text(patch.title, "名称");
+    if (patch.note !== void 0) node2.note = text(patch.note, "备注", true);
+    if (patch.categoryId !== void 0) {
+      if (patch.categoryId && !project.categories?.some((c) => c.id === patch.categoryId)) throw new Error("分类不存在");
+      node2.categoryId = patch.categoryId ?? "";
+    }
+    if (patch.position !== void 0) {
+      if (!Number.isFinite(patch.position.x) || !Number.isFinite(patch.position.y)) throw new Error("位置无效");
+      node2.position = patch.position;
+    }
+    await saveIndex(repo, data);
+    return node2;
+  });
+}
+async function setProjectCategory(repo, projectId, category) {
+  return withRepoWrite(repo, async () => {
+    const data = await readIndex(repo), project = findProject(data, projectId), name = text(category.name, "分类名称");
+    project.categories ??= [];
+    if (category.id && !project.categories.some((c) => c.id === category.id)) throw new Error("分类不存在");
+    if (project.categories.some((c) => c.id !== category.id && c.name.toLowerCase() === name.toLowerCase())) throw new Error("分类名称已存在");
+    const saved = { id: category.id ?? randomUUID(), name };
+    if (category.id) project.categories = project.categories.map((c) => c.id === category.id ? saved : c);
+    else project.categories.push(saved);
+    await saveIndex(repo, data);
+    return saved;
+  });
+}
+async function deleteProjectCategory(repo, projectId, categoryId) {
+  return withRepoWrite(repo, async () => {
+    const data = await readIndex(repo), project = findProject(data, projectId);
+    if (!project.categories?.some((c) => c.id === categoryId)) throw new Error("分类不存在");
+    project.categories = project.categories.filter((c) => c.id !== categoryId);
+    for (const node2 of project.nodes) if (node2.categoryId === categoryId) node2.categoryId = "";
+    await saveIndex(repo, data);
+  });
+}
+async function setProjectRelation(repo, projectId, input) {
+  return withRepoWrite(repo, async () => {
+    const data = await readIndex(repo), project = findProject(data, projectId);
+    const previous = project.relations.find((e) => e.id === input.id);
+    const relation = { ...input, kind: input.kind ?? previous?.kind ?? "custom", style: input.style ? { ...previous?.style, ...EdgeStyleSchema.parse(input.style) } : previous?.style };
+    if (relation.id && !project.relations.some((e) => e.id === relation.id)) throw new Error("关系不存在");
+    checkRelation(project, relation, relation.id);
+    const edge = { ...relation, id: relation.id ?? randomUUID(), label: text(relation.label, "标签", true), note: text(relation.note, "备注", true) };
+    project.relations = project.relations.filter((e) => e.id !== edge.id);
+    project.relations.push(edge);
+    await saveIndex(repo, data);
+    return edge;
+  });
+}
+async function deleteProjectRelation(repo, projectId, relationId) {
+  await withRepoWrite(repo, async () => {
+    const data = await readIndex(repo), project = findProject(data, projectId);
+    if (!project.relations.some((e) => e.id === relationId)) throw new Error("关系不存在");
+    project.relations = project.relations.filter((e) => e.id !== relationId);
+    await saveIndex(repo, data);
+  });
+}
+async function deleteProjectNode(repo, projectId, nodeId) {
+  await withRepoWrite(repo, async () => {
+    const data = await readIndex(repo), project = findProject(data, projectId);
+    findNode(project, nodeId);
+    const removed = subtree(project, nodeId), root = findNode(project, nodeId);
+    if (root.sourceId && root.sourcePath) project.sources?.find((s) => s.id === root.sourceId)?.excludedPaths.push(root.sourcePath);
+    project.sources = project.sources?.filter((s) => !s.parentId || !removed.has(s.parentId));
+    project.nodes = project.nodes.filter((n) => !removed.has(n.id));
+    project.relations = project.relations.filter((e) => !removed.has(e.from) && !removed.has(e.to));
+    updateFolderSizes(project);
+    await saveIndex(repo, data);
+  });
+}
+async function refreshProject(repo, projectId) {
+  return withRepoWrite(repo, async () => {
+    const data = await readIndex(repo), project = findProject(data, projectId), previous = project.nodes;
+    const stage = await promises.mkdtemp(path$1.join(repo.root, ".project-import-"));
+    try {
+      const bindings = project.sources ?? [], current = [];
+      for (const node2 of previous.filter((n) => !n.sourceId)) {
+        if (node2.sourcePath) {
+          try {
+            await promises.lstat(node2.sourcePath);
+          } catch (error2) {
+            if (["ENOENT", "ENOTDIR"].includes(error2.code ?? "")) continue;
+            throw error2;
+          }
+        }
+        current.push({ ...node2 });
+      }
+      for (const source of bindings) {
+        if (source.parentId && !previous.some((n) => n.id === source.parentId)) continue;
+        const start2 = previous.filter((n) => n.parentId === source.parentId).length;
+        current.push(...await collectSource(repo, source, stage, previous, start2));
+      }
+      const ids = new Set(current.map((n) => n.id));
+      for (let count = -1; count !== ids.size; ) {
+        count = ids.size;
+        for (const n of current) if (n.parentId && !ids.has(n.parentId)) ids.delete(n.id);
+      }
+      project.nodes = current.filter((n) => ids.has(n.id));
+      project.sources = bindings.filter((s) => !s.parentId || ids.has(s.parentId));
+      project.relations = project.relations.filter((e) => ids.has(e.from) && ids.has(e.to));
+      updateFolderSizes(project);
+      project.refreshedAt = (/* @__PURE__ */ new Date()).toISOString();
+      const old2 = new Map(previous.map((n) => [n.id, n]));
+      const result = {
+        added: project.nodes.filter((n) => !old2.has(n.id)).length,
+        updated: project.nodes.filter((n) => {
+          const p = old2.get(n.id);
+          return p && (p.contentHash !== n.contentHash || p.size !== n.size || p.linkTarget !== n.linkTarget);
+        }).length,
+        removed: previous.filter((n) => !ids.has(n.id)).length
+      };
+      await saveIndex(repo, data);
+      return result;
+    } finally {
+      if (path$1.dirname(stage) === repo.root && path$1.basename(stage).startsWith(".project-import-")) await promises.rm(stage, { recursive: true, force: true });
+    }
+  });
+}
+async function readProjectFile(repo, projectId, nodeId) {
+  const node2 = findNode(await getProject(repo, projectId), nodeId);
+  if (node2.linkTarget) throw new Error("链接入口只记录目标路径，不复制目标内容");
+  if (node2.kind !== "file" || !node2.contentHash) throw new Error("请选择文件");
+  const file2 = objectPath(repo, node2.contentHash);
+  if (await digest$1(file2) !== node2.contentHash) throw new Error("文件快照校验失败");
+  return promises.readFile(file2);
+}
+async function exportProjectNode(repo, projectId, nodeId, destination) {
+  const project = await getProject(repo, projectId), node2 = findNode(project, nodeId);
+  if (!path$1.isAbsolute(destination)) throw new Error("导出需要绝对路径");
+  const resolved = path$1.resolve(destination), ancestor = await promises.realpath(path$1.dirname(resolved));
+  if (inside$1(await promises.realpath(repo.root), ancestor)) throw new Error("请导出到文档库之外");
+  if (await promises.lstat(resolved).then(() => true, (e) => {
+    if (e.code !== "ENOENT") throw e;
+    return false;
+  })) throw new Error("导出目标已存在，请使用新位置");
+  const stage = await promises.mkdtemp(path$1.join(ancestor, ".稿喵导出-"));
+  async function write(item, target) {
+    if (item.linkTarget) throw new Error("链接入口只记录目标路径，不能导出目标内容；请选择不包含链接的资料导出");
+    if (item.kind === "file") await promises.writeFile(target, await readProjectFile(repo, projectId, item.id), { flag: "wx" });
+    else {
+      await promises.mkdir(target);
+      const names = /* @__PURE__ */ new Set();
+      for (const child2 of project.nodes.filter((n) => n.parentId === item.id && (item.snapshot ? !n.snapshotRootId || n.snapshotRootId === item.snapshotRootId : !n.snapshot))) {
+        if (child2.name === "." || child2.name === ".." || path$1.basename(child2.name) !== child2.name || names.has(child2.name.toLowerCase())) throw new Error("文件夹存在不安全或重复文件名，请整理后导出");
+        names.add(child2.name.toLowerCase());
+        await write(child2, path$1.join(target, child2.name));
+      }
+    }
+  }
+  try {
+    const target = path$1.join(stage, "item");
+    await write(node2, target);
+    await promises.rename(target, resolved);
+  } finally {
+    if (path$1.dirname(stage) === ancestor && path$1.basename(stage).startsWith(".稿喵导出-")) await promises.rm(stage, { recursive: true, force: true });
+  }
+}
+const key = (file2) => process.platform === "win32" ? path$1.resolve(file2).toLowerCase() : path$1.resolve(file2);
+const inside = (folder, file2) => {
+  const relative2 = path$1.relative(folder, file2);
+  return relative2 === "" || !path$1.isAbsolute(relative2) && relative2 !== ".." && !relative2.startsWith(".." + path$1.sep);
+};
+async function exists(file2) {
+  return promises.lstat(file2).then(() => true, (error2) => {
+    if (error2.code !== "ENOENT") throw error2;
+    return false;
+  });
+}
+async function inspectDroppedFiles(paths2) {
+  if (!Array.isArray(paths2) || !paths2.length || paths2.some((p) => typeof p !== "string" || !path$1.isAbsolute(p))) throw new Error("请从文件资源管理器拖入文件或文件夹");
+  const files = [];
+  for (const input of paths2) {
+    const file2 = path$1.resolve(input);
+    if (files.some((p) => key(p.path) === key(file2))) continue;
+    const stat2 = await promises.lstat(file2).catch(() => {
+      throw new Error("拖入来源无法访问：" + file2);
+    });
+    if (!stat2.isSymbolicLink() && !stat2.isDirectory() && !stat2.isFile()) throw new Error("不支持特殊设备文件");
+    files.push({ path: file2, name: path$1.basename(file2), kind: stat2.isSymbolicLink() ? "link" : stat2.isDirectory() ? "folder" : "file" });
+  }
+  return files.filter((file2) => !files.some((parent2) => parent2 !== file2 && parent2.kind === "folder" && inside(parent2.path, file2.path)));
+}
+async function safeFolder(repo, folder) {
+  if (!path$1.isAbsolute(folder)) throw new Error("工作文件夹必须是绝对路径");
+  const stat2 = await promises.lstat(folder);
+  if (!stat2.isDirectory() || stat2.isSymbolicLink()) throw new Error("请选择普通工作文件夹，链接入口不可作为复制或剪切目标");
+  const resolved = await promises.realpath(folder), root = await promises.realpath(repo.root);
+  if (inside(root, resolved) || inside(resolved, root)) throw new Error("工作文件夹不能是稿喵文档库或包含文档库的目录");
+  return resolved;
+}
+async function prepareProjectDrop(repo, paths2, projectId, parentId, folder) {
+  const files = await inspectDroppedFiles(paths2);
+  let workingFolder = folder ?? null;
+  if (projectId) {
+    const project = await getProject(repo, projectId), parent2 = parentId ? project.nodes.find((n) => n.id === parentId) : null;
+    if (parentId && (!parent2 || parent2.kind !== "folder" || parent2.snapshot || parent2.linkTarget)) throw new Error("请选择当前普通文件夹；历史快照和链接不接受拖入");
+    if (parent2?.sourcePath) workingFolder = parent2.sourcePath;
+    else if (!workingFolder) {
+      workingFolder = project.workingFolder ?? null;
+      if (!workingFolder) {
+        const roots = [];
+        for (const source of project.sources ?? []) if (!source.parentId) {
+          const stat2 = await promises.lstat(source.path).catch(() => null);
+          if (stat2 && !stat2.isSymbolicLink()) roots.push(stat2.isDirectory() ? source.path : path$1.dirname(source.path));
+        }
+        const unique = [...new Set(roots.map(key))];
+        if (unique.length === 1) workingFolder = roots[0];
+      }
+    }
+  }
+  if (workingFolder) workingFolder = await safeFolder(repo, workingFolder);
+  const names = /* @__PURE__ */ new Set(), planned = [];
+  for (const file2 of files) {
+    const sourcePath = file2.kind === "link" ? file2.path : await promises.realpath(file2.path);
+    const contained = !!workingFolder && inside(workingFolder, sourcePath);
+    const conflict = !contained && !!workingFolder && (await exists(path$1.join(workingFolder, file2.name)) || names.has(file2.name.toLowerCase()));
+    let name = file2.name, number = 2;
+    const ext = file2.kind === "folder" ? "" : path$1.extname(name), stem = name.slice(0, name.length - ext.length);
+    if (workingFolder && !contained) while (await exists(path$1.join(workingFolder, name)) || names.has(name.toLowerCase())) name = `${stem} (${number++})${ext}`;
+    names.add(name.toLowerCase());
+    planned.push({ ...file2, inside: contained, suggestedName: name, conflict });
+  }
+  return { files: planned, workingFolder };
+}
+async function fingerprint(file2) {
+  const hash = createHash("sha256");
+  async function visit(current, relative2) {
+    const stat2 = await promises.lstat(current);
+    if (stat2.isSymbolicLink()) throw new Error("含链接的资料只支持保留原位置导入，不复制或剪切目标内容");
+    hash.update(relative2 + "\0");
+    if (stat2.isDirectory()) {
+      hash.update("folder\0");
+      for (const name of (await promises.readdir(current)).sort()) await visit(path$1.join(current, name), path$1.join(relative2, name));
+    } else if (stat2.isFile()) {
+      hash.update("file\0" + stat2.size + "\0");
+      for await (const block of readFileBlocks(current)) hash.update(block);
+    } else throw new Error("不支持特殊设备文件");
+  }
+  await visit(file2, "");
+  return hash.digest("hex");
+}
+async function copyExclusive(source, target) {
+  let created = false;
+  try {
+    if ((await promises.lstat(source)).isDirectory()) {
+      await promises.mkdir(target);
+      created = true;
+      for (const name of await promises.readdir(source)) await copyExclusive(path$1.join(source, name), path$1.join(target, name));
+    } else {
+      await promises.copyFile(source, target, constants$2.COPYFILE_EXCL);
+      created = true;
+    }
+  } catch (error2) {
+    if (created) await promises.rm(target, { recursive: true, force: true });
+    throw error2;
+  }
+}
+async function checkLocation(file2) {
+  if (key(await promises.realpath(path$1.dirname(file2))) !== key(path$1.dirname(file2))) throw new Error("文件所在目录已被替换为链接，已停止操作：" + file2);
+}
+async function removeUnchanged(file2, hash) {
+  await checkLocation(file2);
+  if (!path$1.isAbsolute(file2) || await fingerprint(file2) !== hash) throw new Error("文件已被修改，未删除：" + file2);
+  await promises.rm(file2, { recursive: true });
+}
+async function transfer(source, target, hash, move) {
+  await checkLocation(source);
+  await checkLocation(target);
+  if (await fingerprint(source) !== hash) throw new Error("来源已发生变化，请重新确认：" + source);
+  await copyExclusive(source, target);
+  try {
+    if (await fingerprint(target) !== hash || await fingerprint(source) !== hash) throw new Error("复制期间来源发生变化，已停止操作");
+    if (move) await removeUnchanged(source, hash);
+  } catch (error2) {
+    await removeUnchanged(target, hash);
+    throw error2;
+  }
+}
+function transferHistory(changes) {
+  async function applyOne(change, direction) {
+    if (direction === "redo") await transfer(change.source, change.target, change.hash, change.move);
+    else if (change.move) await transfer(change.target, change.source, change.hash, true);
+    else await removeUnchanged(change.target, change.hash);
+  }
+  return {
+    async validate(direction) {
+      for (const change of changes) {
+        const present = direction === "undo" ? change.target : change.source;
+        await checkLocation(present);
+        if (!await exists(present) || await fingerprint(present) !== change.hash) throw new Error("文件已被外部修改或移除，不能撤回／重做：" + present);
+        if ((direction === "undo" && change.move || direction === "redo") && await exists(direction === "undo" ? change.source : change.target)) throw new Error("目标位置已被占用，不能撤回／重做：" + (direction === "undo" ? change.source : change.target));
+      }
+    },
+    async apply(direction) {
+      const applied = [], ordered = direction === "undo" ? [...changes].reverse() : changes;
+      try {
+        for (const change of ordered) {
+          await applyOne(change, direction);
+          applied.push(change);
+        }
+      } catch (error2) {
+        for (const change of applied.reverse()) await applyOne(change, direction === "undo" ? "redo" : "undo");
+        throw error2;
+      }
+    }
+  };
+}
+async function restoreCatalog(repo, bytes) {
+  const file2 = path$1.join(repo.root, "projects", "catalog.json");
+  if (bytes) await writeFileAtomic(file2, bytes);
+  else await promises.rm(file2, { force: true });
+}
+async function importDroppedProject(repo, request2) {
+  const changes = [], external2 = transferHistory(changes);
+  return withUndoableAction(repo, "拖入项目资料（含文件复制／剪切）", async () => {
+    const selected = request2.items.filter((i2) => i2.action !== "skip");
+    if (!selected.length) throw new Error("请选择至少一项需要导入的资料");
+    const plan = await prepareProjectDrop(repo, selected.map((i2) => i2.path), request2.projectId, request2.parentId, request2.workingFolder);
+    const before = await promises.readFile(path$1.join(repo.root, "projects", "catalog.json")).catch((error2) => {
+      if (error2.code !== "ENOENT") throw error2;
+      return void 0;
+    });
+    const root = await promises.realpath(repo.root), reserved = /* @__PURE__ */ new Set();
+    try {
+      const projectId = request2.projectId ?? (await createProject(repo, request2.newProjectName?.trim() || "新文档库")).id;
+      const paths2 = [];
+      for (const file2 of plan.files) {
+        const item = selected.find((i2) => key(i2.path) === key(file2.path));
+        if (file2.kind !== "link") {
+          const real = await promises.realpath(file2.path);
+          if (inside(root, real) || inside(real, root)) throw new Error("不能导入稿喵文档库或包含它的目录");
+        }
+        if (item.action === "reference" || file2.inside) {
+          paths2.push(file2.path);
+          continue;
+        }
+        if (!plan.workingFolder) throw new Error("请先选择工作文件夹");
+        if (file2.kind === "link") throw new Error("链接入口只能保留原位置导入");
+        const name = item.name ?? file2.name;
+        validateDocName(name);
+        const destination = path$1.join(plan.workingFolder, name), source = await promises.realpath(file2.path);
+        if (inside(source, destination) || inside(destination, source)) throw new Error("不能复制或剪切文件夹到自身或父目录");
+        if (reserved.has(key(destination)) || await exists(destination)) throw new Error("目标已存在，请改名或跳过：" + destination);
+        reserved.add(key(destination));
+        const change = { source, target: destination, hash: await fingerprint(source), move: item.action === "move" };
+        await transfer(change.source, change.target, change.hash, change.move);
+        changes.push(change);
+        paths2.push(destination);
+      }
+      await refreshProject(repo, projectId);
+      const project = await getProject(repo, projectId), parentId = request2.parentId ?? null;
+      const nodeIds = project.nodes.filter((n) => !n.snapshot && n.parentId === parentId && n.sourcePath && paths2.some((p) => key(p) === key(n.sourcePath))).map((n) => n.id);
+      const missing = paths2.filter((p) => !project.nodes.some((n) => !n.snapshot && n.parentId === parentId && n.sourcePath && key(n.sourcePath) === key(p)));
+      if (missing.length) nodeIds.push(...(await importProjectItems(repo, { projectId, parentId, paths: missing })).nodeIds);
+      if (request2.workingFolder && !request2.parentId) await setProjectWorkingFolder(repo, projectId, plan.workingFolder);
+      return { projectId, nodeIds };
+    } catch (error2) {
+      await external2.validate("undo");
+      await external2.apply("undo");
+      await restoreCatalog(repo, before);
+      throw error2;
+    }
+  }, void 0, external2);
+}
+async function createDroppedProjects(repo, paths2) {
+  return withUndoableAction(repo, "拖入文件夹创建项目", async () => {
+    const files = await inspectDroppedFiles(paths2);
+    if (files.some((f) => f.kind !== "folder")) throw new Error("请拖入普通文件夹；散文件可在导入窗口选择项目");
+    const before = await promises.readFile(path$1.join(repo.root, "projects", "catalog.json")).catch((error2) => {
+      if (error2.code !== "ENOENT") throw error2;
+      return void 0;
+    });
+    try {
+      const projectIds = [];
+      for (const file2 of files) {
+        const project = await createProject(repo, file2.name);
+        await importProjectItems(repo, { projectId: project.id, paths: [file2.path], unpackFolder: true });
+        await setProjectWorkingFolder(repo, project.id, file2.path);
+        projectIds.push(project.id);
+      }
+      return { projectIds };
+    } catch (error2) {
+      await restoreCatalog(repo, before);
+      throw error2;
+    }
+  });
+}
+const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
+function draftPath(repo, relative2) {
+  if (!relative2.startsWith("drafts/")) throw new Error("编辑副本必须位于稿喵文档库内");
+  return containedPath(repo.root, relative2);
+}
+async function startDraft(repo, docName2, versionId2, branch, mode = "new", title) {
+  return withRepoWrite(repo, async () => {
+    validateBranchName(branch);
+    const detail = await documentDetail(repo, docName2), base = detail.versions.find((v) => v.id === versionId2);
+    if (!base || base.deletedAt || detail.deletedAt) throw new Error("请先还原文档和版本");
+    if (detail.workspace.dirty && detail.currentBranch === branch) throw new Error("当前工作区有未记录修改，请先保存工作区，再创建独立新稿");
+    const newBranch = !detail.branchHeads[branch];
+    if (newBranch) await createBranchUnlocked(repo, docName2, branch, { commitId: versionId2 });
+    else if (detail.branchHeads[branch] !== versionId2) throw new Error("所选版本不是目标分支末端，请从此版本新建分支");
+    if (detail.currentBranch !== branch || detail.workspace.versionId !== versionId2) await switchBranchUnlocked(repo, docName2, branch);
+    const bytes = await versionBytes(repo, docName2, versionId2), meta = await readLibraryMeta(repo, docName2);
+    for (const draft2 of meta.drafts ?? []) if (draft2.branch === branch) draft2.closed = true;
+    const id2 = randomUUID(), ext = path$1.extname(docName2), stem = path$1.basename(docName2, ext).slice(0, 24);
+    const filename = `${stem}_${branch.replace(/[\\/:*?"<>|]/g, "_").slice(0, 18)}_v${detail.versions.length + (mode === "new" ? 1 : 0)}_${id2.slice(0, 6)}${ext}`;
+    const relative2 = `drafts/${digest(Buffer.from(docName2)).slice(0, 12)}/${id2}/${filename}`;
+    await writeFileAtomic(draftPath(repo, relative2), bytes);
+    const draft = {
+      id: id2,
+      path: relative2,
+      branch,
+      baseVersionId: versionId2,
+      versionId: mode === "replace" ? versionId2 : void 0,
+      title: title?.trim() || (mode === "replace" ? base.title : `${branch} · 第${detail.versions.filter((v) => v.branches.includes(branch)).length + 1}稿`),
+      mode,
+      sha256: digest(bytes),
+      position: base.position ? { x: base.position.x + (mode === "new" ? 265 : 0), y: base.position.y + (newBranch ? 170 : 0) } : void 0
+    };
+    (meta.drafts ??= []).push(draft);
+    await writeLibraryMeta(repo, docName2, meta);
+    return { workspacePath: draftPath(repo, relative2), branch, draftId: id2 };
+  });
+}
+async function activeDraftFiles(repo) {
+  const files = [];
+  for (const docName2 of await docIds(repo)) {
+    const meta = await readLibraryMeta(repo, docName2);
+    if (!meta.deletedAt) {
+      for (const draft of meta.drafts ?? []) if (!draft.closed) files.push({ docName: docName2, path: draftPath(repo, draft.path) });
+    }
+  }
+  return files;
+}
+async function recordDraftSave(repo, file2) {
+  const relative2 = path$1.relative(repo.root, path$1.resolve(file2)).split(path$1.sep).join("/");
+  draftPath(repo, relative2);
+  return withRepoWrite(repo, async () => {
+    for (const docName2 of await docIds(repo)) {
+      const meta = await readLibraryMeta(repo, docName2), draft = meta.drafts?.find((d) => d.path === relative2 && !d.closed);
+      if (!draft || meta.deletedAt) continue;
+      if (draft.pendingHead && draft.versionId) {
+        const head = (await documentDetail(repo, docName2)).branchHeads[draft.branch];
+        if (head === draft.baseVersionId) await writeHead(repo, docIdOf(docName2), draft.branch, draft.versionId);
+        else if (head !== draft.versionId) throw new Error("分支在记录期间发生变化，编辑副本仍保留，请核对分支");
+        draft.pendingHead = false;
+        await writeLibraryMeta(repo, docName2, meta);
+      }
+      const detail = await documentDetail(repo, docName2), base = detail.versions.find((v) => v.id === (draft.versionId ?? draft.baseVersionId));
+      if (!base || base.deletedAt) return;
+      if (!detail.branchHeads[draft.branch]) throw new Error("编辑副本对应的分支已删除，文件仍保留，未重新创建分支");
+      const bytes = await promises.readFile(draftPath(repo, relative2)).catch((error2) => {
+        if (error2.code === "ENOENT") return null;
+        throw error2;
+      });
+      if (!bytes) return;
+      const sha = digest(bytes);
+      if (sha === draft.sha256) return;
+      if (detail.branchHeads[draft.branch] !== (draft.versionId ?? draft.baseVersionId)) throw new Error("分支已经向后发展，请从这份副本新建分支；已有历史未改动");
+      const parents = draft.versionId ? base.parents : [draft.baseVersionId];
+      const contentId = await snapshotSource(repo, draftPath(repo, relative2), parents, draft.title);
+      const ctx = StorageContext.forRepo(repo), tree = await readTree(ctx, (await readCommit(ctx, contentId)).tree);
+      if ((await getManifest(ctx, tree.entries[""])).sha256 !== sha) throw new Error("文件仍在写入，等待下一次保存后记录");
+      const created = !draft.versionId;
+      if (created) {
+        draft.versionId = contentId;
+        meta.versions[contentId] = { branchMembership: [draft.branch], title: draft.title, categoryId: base.categoryId, position: draft.position, sourcePath: relative2 };
+        draft.pendingHead = true;
+      } else {
+        const version2 = meta.versions[draft.versionId] ??= {};
+        version2.revisions = [...version2.revisions ?? [], version2.contentId ?? draft.versionId];
+        version2.contentId = contentId;
+      }
+      draft.sha256 = sha;
+      if (!detail.workspace.dirty && detail.currentBranch === draft.branch && [draft.baseVersionId, draft.versionId].includes(meta.workingVersionId)) {
+        await writeFileAtomic(path$1.join(repo.root, "workspace", docName2), bytes);
+        meta.workingVersionId = draft.versionId;
+        meta.workingContentId = contentId;
+      }
+      await writeLibraryMeta(repo, docName2, meta);
+      if (created) {
+        await writeHead(repo, docIdOf(docName2), draft.branch, draft.versionId);
+        draft.pendingHead = false;
+        await writeLibraryMeta(repo, docName2, meta);
+      }
+      return { docName: docName2, branch: draft.branch, workspacePath: draftPath(repo, relative2), versionId: draft.versionId, status: created ? "created" : "updated" };
+    }
+  });
+}
 async function editVersionRelations(repo, docName2, id2, request2) {
   return withRepoWrite(repo, async () => {
     const detail = await documentDetail(repo, docName2), meta = await readLibraryMeta(repo, docName2);
@@ -6667,433 +7335,6 @@ async function purgeVersion(repo, docName2, id2, opts) {
     return { changed: true };
   });
 }
-const kinds = ["iteration", "reference", "example", "dependency", "custom"];
-const indexPath = (repo) => path$1.join(repo.root, "projects", "catalog.json");
-const objectPath = (repo, hash) => {
-  if (!/^[a-f0-9]{64}$/.test(hash)) throw new Error("无效文件快照标识");
-  return path$1.join(repo.root, "objects", "project-files", hash);
-};
-function text(value, label2, empty = false) {
-  if (typeof value !== "string" || !empty && !value.trim() || value.length > 1e4) throw new Error(`${label2}无效`);
-  return value.trim();
-}
-async function readIndex(repo) {
-  try {
-    const data = JSON.parse(await promises.readFile(indexPath(repo), "utf8"));
-    if (data.format !== 1 || !Array.isArray(data.projects) || !data.requests) throw new Error("项目索引格式不支持");
-    return data;
-  } catch (e) {
-    if (e.code === "ENOENT") return { format: 1, projects: [], requests: {} };
-    throw e;
-  }
-}
-async function saveIndex(repo, data) {
-  await writeFileAtomic(indexPath(repo), Buffer.from(JSON.stringify(data, null, 2)));
-}
-function findProject(data, id2) {
-  const project = data.projects.find((p) => p.id === id2);
-  if (!project) throw new Error("文档库不存在");
-  return project;
-}
-function findNode(project, id2) {
-  const node2 = project.nodes.find((n) => n.id === id2);
-  if (!node2) throw new Error("文件或文件夹不存在");
-  return node2;
-}
-function updateFolderSizes(project) {
-  const children = /* @__PURE__ */ new Map();
-  for (const node2 of project.nodes) {
-    const list = children.get(node2.parentId);
-    if (list) list.push(node2);
-    else children.set(node2.parentId, [node2]);
-  }
-  const size = (node2) => {
-    if (node2.kind === "folder") node2.size = (children.get(node2.id) ?? []).reduce((sum, child2) => sum + size(child2), 0);
-    return node2.size;
-  };
-  project.nodes.filter((n) => !n.parentId).forEach(size);
-}
-async function listProjects(repo) {
-  return (await readIndex(repo)).projects;
-}
-async function getProject(repo, id2) {
-  return findProject(await readIndex(repo), id2);
-}
-async function createProject(repo, name) {
-  name = text(name, "文档库名称");
-  return withRepoWrite(repo, async () => {
-    const data = await readIndex(repo);
-    const project = { id: randomUUID(), name, createdAt: (/* @__PURE__ */ new Date()).toISOString(), nodes: [], relations: [], categories: [] };
-    data.projects.push(project);
-    await saveIndex(repo, data);
-    return project;
-  });
-}
-async function digest(file2) {
-  const hash = createHash("sha256");
-  for await (const chunk of readFileBlocks(file2)) hash.update(chunk);
-  return hash.digest("hex");
-}
-function inside(root, target) {
-  const relative2 = path$1.relative(root, target);
-  return relative2 === "" || !path$1.isAbsolute(relative2) && relative2 !== ".." && !relative2.startsWith(".." + path$1.sep);
-}
-async function collectSource(repo, source, stage, previous, start2 = 0) {
-  const nodes = [], repoRoot = await promises.realpath(repo.root);
-  const key = (file2, kind) => (process.platform === "win32" ? file2.toLowerCase() : file2) + ":" + kind;
-  const existingByPath = new Map(previous.filter((n) => n.sourceId === source.id && n.sourcePath).map((n) => [key(n.sourcePath, n.kind), n]));
-  async function copy(file2, parentId, ordinal) {
-    if (source.excludedPaths.some((excluded) => inside(excluded, file2))) return;
-    const stat22 = await promises.lstat(file2);
-    const link = stat22.isSymbolicLink();
-    if (!link && !stat22.isFile() && !stat22.isDirectory()) throw new Error("不支持特殊设备文件");
-    if (!link) {
-      const real = await promises.realpath(file2);
-      if (inside(repoRoot, real) || inside(real, repoRoot)) throw new Error("不能导入稿喵文档库或包含它的目录");
-    }
-    const kind = stat22.isDirectory() ? "folder" : "file";
-    const existing = existingByPath.get(key(file2, kind));
-    const node2 = existing ? { ...existing, parentId } : { id: randomUUID(), parentId, name: path$1.basename(file2), title: path$1.basename(file2), kind, size: 0, note: "", createdAt: (/* @__PURE__ */ new Date()).toISOString(), position: { x: 40 + ordinal % 3 * 290, y: 40 + Math.floor(ordinal / 3) * 190 } };
-    node2.sourceId = source.id;
-    node2.sourcePath = file2;
-    node2.size = 0;
-    nodes.push(node2);
-    if (link) {
-      node2.linkTarget = path$1.resolve(path$1.dirname(file2), await promises.readlink(file2));
-      delete node2.contentHash;
-    } else if (kind === "file") {
-      delete node2.linkTarget;
-      const temp = path$1.join(stage, node2.id);
-      await promises.copyFile(file2, temp);
-      node2.contentHash = await digest(temp);
-      node2.size = (await promises.stat(temp)).size;
-      const target = objectPath(repo, node2.contentHash);
-      await promises.mkdir(path$1.dirname(target), { recursive: true });
-      if (await promises.access(target).then(() => true, (error2) => {
-        if (error2.code !== "ENOENT") throw error2;
-        return false;
-      })) {
-        if (await digest(target) !== node2.contentHash) throw new Error("已有文件快照损坏，请恢复备份后再导入");
-      } else {
-        const handle = await promises.open(temp, "r+");
-        try {
-          await handle.sync();
-        } finally {
-          await handle.close();
-        }
-        await promises.rename(temp, target);
-      }
-    } else {
-      delete node2.linkTarget;
-      delete node2.contentHash;
-      const entries = (await promises.readdir(file2)).sort();
-      for (let i2 = 0; i2 < entries.length; i2++) await copy(path$1.join(file2, entries[i2]), node2.id, i2);
-    }
-  }
-  let stat2;
-  try {
-    stat2 = await promises.lstat(source.path);
-  } catch (error2) {
-    if (["ENOENT", "ENOTDIR"].includes(error2.code ?? "")) return [];
-    throw error2;
-  }
-  if (source.unpackFolder) {
-    if (stat2.isSymbolicLink()) throw new Error("链接入口只保留卡片，不展开目标目录");
-    if (!stat2.isDirectory()) throw new Error("来源父文件夹已变成文件，请重新导入");
-    const children = (await promises.readdir(source.path)).sort();
-    for (let i2 = 0; i2 < children.length; i2++) await copy(path$1.join(source.path, children[i2]), source.parentId, start2 + i2);
-  } else await copy(source.path, source.parentId, start2);
-  return nodes;
-}
-function subtree(project, nodeId) {
-  const ids = /* @__PURE__ */ new Set([nodeId]);
-  for (let size = 0; size !== ids.size; ) {
-    size = ids.size;
-    project.nodes.filter((n) => n.parentId && ids.has(n.parentId)).forEach((n) => ids.add(n.id));
-  }
-  return ids;
-}
-function freezeNode(project, nodeId) {
-  const root = findNode(project, nodeId), ids = subtree(project, nodeId);
-  if (root.sourcePath && root.sourceId) project.sources?.find((s) => s.id === root.sourceId)?.excludedPaths.push(root.sourcePath);
-  for (const node2 of project.nodes) if (ids.has(node2.id) && !node2.snapshot) {
-    delete node2.sourceId;
-    node2.snapshot = true;
-    node2.snapshotRootId = nodeId;
-  }
-}
-function checkRelation(project, relation, excludeId) {
-  findNode(project, relation.from);
-  findNode(project, relation.to);
-  if (relation.from === relation.to) throw new Error("不能连接到自身");
-  if (!kinds.includes(relation.kind)) throw new Error("关系类型无效");
-  text(relation.label, "关系标签", true);
-  text(relation.note, "关系备注", true);
-  if (relation.kind !== "iteration") return;
-  const seen = /* @__PURE__ */ new Set(), visit = [relation.to];
-  while (visit.length) {
-    const id2 = visit.pop();
-    if (id2 === relation.from) throw new Error("迭代关系不能形成循环");
-    if (seen.has(id2)) continue;
-    seen.add(id2);
-    visit.push(...project.relations.filter((e) => e.id !== excludeId && e.kind === "iteration" && e.from === id2).map((e) => e.to));
-  }
-}
-async function importProjectItems(repo, request2) {
-  if (!Array.isArray(request2.paths) || !request2.paths.length || request2.paths.some((p) => typeof p !== "string" || !path$1.isAbsolute(p))) throw new Error("请选择文件或文件夹的绝对路径");
-  if (request2.unpackFolder && request2.paths.length !== 1) throw new Error("展开导入只支持一个父文件夹");
-  if (request2.title !== void 0) text(request2.title, "迭代名称");
-  const signature2 = createHash("sha256").update(JSON.stringify({ projectId: request2.projectId, paths: request2.paths.map((p) => path$1.resolve(p)), parentId: request2.parentId ?? null, unpackFolder: request2.unpackFolder ?? false, previousNodeId: request2.previousNodeId, snapshot: request2.snapshot ?? false, title: request2.title })).digest("hex");
-  if (request2.requestId !== void 0) text(request2.requestId, "请求标识");
-  return withRepoWrite(repo, async () => {
-    const data = await readIndex(repo), project = findProject(data, request2.projectId);
-    const requestKey = request2.requestId ? `${project.id}:${request2.requestId}` : null;
-    if (requestKey && Object.hasOwn(data.requests, requestKey)) {
-      const previous = data.requests[requestKey];
-      if (previous.signature !== signature2) throw new Error("请求标识已用于不同的导入参数");
-      return previous.result;
-    }
-    const parentId = request2.parentId ?? null;
-    if (parentId && findNode(project, parentId).kind !== "folder") throw new Error("导入目标必须是文件夹");
-    if (parentId && findNode(project, parentId).snapshot) throw new Error("历史文件夹为快照，请返回当前文件夹或文档库根目录导入");
-    if (request2.previousNodeId) findNode(project, request2.previousNodeId);
-    const repoRoot = await promises.realpath(repo.root);
-    const sources = [];
-    for (const input of request2.paths) {
-      if ((await promises.lstat(input)).isSymbolicLink()) {
-        sources.push(path$1.resolve(input));
-        continue;
-      }
-      const source = await promises.realpath(input);
-      if (inside(repoRoot, source) || inside(source, repoRoot)) throw new Error("不能导入稿喵文档库或包含它的目录");
-      sources.push(source);
-    }
-    if (request2.unpackFolder && !(await promises.lstat(sources[0])).isDirectory()) throw new Error("展开导入需要普通文件夹；链接入口只保留卡片");
-    const stage = await promises.mkdtemp(path$1.join(repo.root, ".project-import-"));
-    const nodes = [], nodeIds = [];
-    try {
-      const existing = project.nodes.filter((n) => n.parentId === parentId).length;
-      project.sources ??= [];
-      for (let i2 = 0; i2 < sources.length; i2++) {
-        const source = { id: randomUUID(), path: sources[i2], parentId, unpackFolder: request2.unpackFolder ?? false, excludedPaths: [] };
-        const copied = await collectSource(repo, source, stage, [], existing + i2);
-        nodeIds.push(...copied.filter((n) => n.parentId === parentId).map((n) => n.id));
-        if (request2.snapshot) {
-          const groups = /* @__PURE__ */ new Map();
-          for (const n of copied) {
-            n.snapshotRootId = n.parentId === parentId ? n.id : groups.get(n.parentId);
-            groups.set(n.id, n.snapshotRootId ?? n.id);
-            delete n.sourceId;
-            n.snapshot = true;
-          }
-        } else project.sources.push(source);
-        nodes.push(...copied);
-      }
-      if (request2.previousNodeId) {
-        freezeNode(project, request2.previousNodeId);
-        for (const source of project.sources) {
-          if (nodes.some((n) => n.sourceId === source.id)) continue;
-          for (const imported of sources) if (inside(source.path, imported) && source.unpackFolder) source.excludedPaths.push(imported);
-        }
-      }
-      project.nodes.push(...nodes);
-      if (request2.previousNodeId) {
-        const previous = findNode(project, request2.previousNodeId);
-        for (const node2 of nodes.filter((n) => nodeIds.includes(n.id))) {
-          const position2 = { x: previous.position.x + 290, y: previous.position.y };
-          while (project.nodes.some((n) => n.id !== node2.id && n.parentId === parentId && Math.abs(n.position.x - position2.x) < 250 && Math.abs(n.position.y - position2.y) < 150)) position2.y += 190;
-          node2.position = position2;
-        }
-      }
-      if (request2.title) project.nodes.filter((n) => nodeIds.includes(n.id)).forEach((n) => {
-        n.title = request2.title;
-      });
-      updateFolderSizes(project);
-      const relationIds = [];
-      if (request2.previousNodeId) for (const id2 of nodeIds) {
-        const edge = { id: randomUUID(), from: request2.previousNodeId, to: id2, kind: "iteration", label: "下一轮迭代", note: "" };
-        checkRelation(project, edge);
-        project.relations.push(edge);
-        relationIds.push(edge.id);
-      }
-      const result = { nodeIds, relationIds };
-      if (requestKey) data.requests[requestKey] = { signature: signature2, result };
-      await saveIndex(repo, data);
-      return result;
-    } finally {
-      if (path$1.dirname(stage) !== repo.root || !path$1.basename(stage).startsWith(".project-import-")) throw new Error("导入暂存位置无效");
-      await promises.rm(stage, { recursive: true, force: true });
-    }
-  });
-}
-async function recordProjectIteration(repo, projectId, nodeId, title, requestId) {
-  const project = await getProject(repo, projectId), node2 = findNode(project, nodeId);
-  if (node2.linkTarget) throw new Error("链接入口只记录目标路径，不记录目标内容迭代");
-  if (!node2.sourcePath) throw new Error("此节点没有来源路径，请导入新文件或文件夹创建下一轮");
-  if (node2.snapshot && (!requestId || !Object.hasOwn((await readIndex(repo)).requests, `${projectId}:${requestId}`))) throw new Error("历史快照不能同步原路径；请通过导入新文件或文件夹创建下一轮");
-  return importProjectItems(repo, { projectId, paths: [node2.sourcePath], parentId: node2.parentId, previousNodeId: nodeId, requestId, title: text(title, "迭代名称") });
-}
-async function updateProjectNode(repo, projectId, nodeId, patch) {
-  return withRepoWrite(repo, async () => {
-    const data = await readIndex(repo), project = findProject(data, projectId), node2 = findNode(project, nodeId);
-    if (patch.title !== void 0) node2.title = text(patch.title, "名称");
-    if (patch.note !== void 0) node2.note = text(patch.note, "备注", true);
-    if (patch.categoryId !== void 0) {
-      if (patch.categoryId && !project.categories?.some((c) => c.id === patch.categoryId)) throw new Error("分类不存在");
-      node2.categoryId = patch.categoryId ?? "";
-    }
-    if (patch.position !== void 0) {
-      if (!Number.isFinite(patch.position.x) || !Number.isFinite(patch.position.y)) throw new Error("位置无效");
-      node2.position = patch.position;
-    }
-    await saveIndex(repo, data);
-    return node2;
-  });
-}
-async function setProjectCategory(repo, projectId, category) {
-  return withRepoWrite(repo, async () => {
-    const data = await readIndex(repo), project = findProject(data, projectId), name = text(category.name, "分类名称");
-    project.categories ??= [];
-    if (category.id && !project.categories.some((c) => c.id === category.id)) throw new Error("分类不存在");
-    if (project.categories.some((c) => c.id !== category.id && c.name.toLowerCase() === name.toLowerCase())) throw new Error("分类名称已存在");
-    const saved = { id: category.id ?? randomUUID(), name };
-    if (category.id) project.categories = project.categories.map((c) => c.id === category.id ? saved : c);
-    else project.categories.push(saved);
-    await saveIndex(repo, data);
-    return saved;
-  });
-}
-async function deleteProjectCategory(repo, projectId, categoryId) {
-  return withRepoWrite(repo, async () => {
-    const data = await readIndex(repo), project = findProject(data, projectId);
-    if (!project.categories?.some((c) => c.id === categoryId)) throw new Error("分类不存在");
-    project.categories = project.categories.filter((c) => c.id !== categoryId);
-    for (const node2 of project.nodes) if (node2.categoryId === categoryId) node2.categoryId = "";
-    await saveIndex(repo, data);
-  });
-}
-async function setProjectRelation(repo, projectId, input) {
-  return withRepoWrite(repo, async () => {
-    const data = await readIndex(repo), project = findProject(data, projectId);
-    const previous = project.relations.find((e) => e.id === input.id);
-    const relation = { ...input, kind: input.kind ?? previous?.kind ?? "custom", style: input.style ? { ...previous?.style, ...EdgeStyleSchema.parse(input.style) } : previous?.style };
-    if (relation.id && !project.relations.some((e) => e.id === relation.id)) throw new Error("关系不存在");
-    checkRelation(project, relation, relation.id);
-    const edge = { ...relation, id: relation.id ?? randomUUID(), label: text(relation.label, "标签", true), note: text(relation.note, "备注", true) };
-    project.relations = project.relations.filter((e) => e.id !== edge.id);
-    project.relations.push(edge);
-    await saveIndex(repo, data);
-    return edge;
-  });
-}
-async function deleteProjectRelation(repo, projectId, relationId) {
-  await withRepoWrite(repo, async () => {
-    const data = await readIndex(repo), project = findProject(data, projectId);
-    if (!project.relations.some((e) => e.id === relationId)) throw new Error("关系不存在");
-    project.relations = project.relations.filter((e) => e.id !== relationId);
-    await saveIndex(repo, data);
-  });
-}
-async function deleteProjectNode(repo, projectId, nodeId) {
-  await withRepoWrite(repo, async () => {
-    const data = await readIndex(repo), project = findProject(data, projectId);
-    findNode(project, nodeId);
-    const removed = subtree(project, nodeId), root = findNode(project, nodeId);
-    if (root.sourceId && root.sourcePath) project.sources?.find((s) => s.id === root.sourceId)?.excludedPaths.push(root.sourcePath);
-    project.sources = project.sources?.filter((s) => !s.parentId || !removed.has(s.parentId));
-    project.nodes = project.nodes.filter((n) => !removed.has(n.id));
-    project.relations = project.relations.filter((e) => !removed.has(e.from) && !removed.has(e.to));
-    updateFolderSizes(project);
-    await saveIndex(repo, data);
-  });
-}
-async function refreshProject(repo, projectId) {
-  return withRepoWrite(repo, async () => {
-    const data = await readIndex(repo), project = findProject(data, projectId), previous = project.nodes;
-    const stage = await promises.mkdtemp(path$1.join(repo.root, ".project-import-"));
-    try {
-      const bindings = project.sources ?? [], current = [];
-      for (const node2 of previous.filter((n) => !n.sourceId)) {
-        if (node2.sourcePath) {
-          try {
-            await promises.lstat(node2.sourcePath);
-          } catch (error2) {
-            if (["ENOENT", "ENOTDIR"].includes(error2.code ?? "")) continue;
-            throw error2;
-          }
-        }
-        current.push({ ...node2 });
-      }
-      for (const source of bindings) {
-        if (source.parentId && !previous.some((n) => n.id === source.parentId)) continue;
-        const start2 = previous.filter((n) => n.parentId === source.parentId).length;
-        current.push(...await collectSource(repo, source, stage, previous, start2));
-      }
-      const ids = new Set(current.map((n) => n.id));
-      for (let count = -1; count !== ids.size; ) {
-        count = ids.size;
-        for (const n of current) if (n.parentId && !ids.has(n.parentId)) ids.delete(n.id);
-      }
-      project.nodes = current.filter((n) => ids.has(n.id));
-      project.sources = bindings.filter((s) => !s.parentId || ids.has(s.parentId));
-      project.relations = project.relations.filter((e) => ids.has(e.from) && ids.has(e.to));
-      updateFolderSizes(project);
-      project.refreshedAt = (/* @__PURE__ */ new Date()).toISOString();
-      const old2 = new Map(previous.map((n) => [n.id, n]));
-      const result = {
-        added: project.nodes.filter((n) => !old2.has(n.id)).length,
-        updated: project.nodes.filter((n) => {
-          const p = old2.get(n.id);
-          return p && (p.contentHash !== n.contentHash || p.size !== n.size || p.linkTarget !== n.linkTarget);
-        }).length,
-        removed: previous.filter((n) => !ids.has(n.id)).length
-      };
-      await saveIndex(repo, data);
-      return result;
-    } finally {
-      if (path$1.dirname(stage) === repo.root && path$1.basename(stage).startsWith(".project-import-")) await promises.rm(stage, { recursive: true, force: true });
-    }
-  });
-}
-async function readProjectFile(repo, projectId, nodeId) {
-  const node2 = findNode(await getProject(repo, projectId), nodeId);
-  if (node2.linkTarget) throw new Error("链接入口只记录目标路径，不复制目标内容");
-  if (node2.kind !== "file" || !node2.contentHash) throw new Error("请选择文件");
-  const file2 = objectPath(repo, node2.contentHash);
-  if (await digest(file2) !== node2.contentHash) throw new Error("文件快照校验失败");
-  return promises.readFile(file2);
-}
-async function exportProjectNode(repo, projectId, nodeId, destination) {
-  const project = await getProject(repo, projectId), node2 = findNode(project, nodeId);
-  if (!path$1.isAbsolute(destination)) throw new Error("导出需要绝对路径");
-  const resolved = path$1.resolve(destination), ancestor = await promises.realpath(path$1.dirname(resolved));
-  if (inside(await promises.realpath(repo.root), ancestor)) throw new Error("请导出到文档库之外");
-  if (await promises.lstat(resolved).then(() => true, (e) => {
-    if (e.code !== "ENOENT") throw e;
-    return false;
-  })) throw new Error("导出目标已存在，请使用新位置");
-  const stage = await promises.mkdtemp(path$1.join(ancestor, ".稿喵导出-"));
-  async function write(item, target) {
-    if (item.linkTarget) throw new Error("链接入口只记录目标路径，不能导出目标内容；请选择不包含链接的资料导出");
-    if (item.kind === "file") await promises.writeFile(target, await readProjectFile(repo, projectId, item.id), { flag: "wx" });
-    else {
-      await promises.mkdir(target);
-      const names = /* @__PURE__ */ new Set();
-      for (const child2 of project.nodes.filter((n) => n.parentId === item.id && (item.snapshot ? !n.snapshotRootId || n.snapshotRootId === item.snapshotRootId : !n.snapshot))) {
-        if (child2.name === "." || child2.name === ".." || path$1.basename(child2.name) !== child2.name || names.has(child2.name.toLowerCase())) throw new Error("文件夹存在不安全或重复文件名，请整理后导出");
-        names.add(child2.name.toLowerCase());
-        await write(child2, path$1.join(target, child2.name));
-      }
-    }
-  }
-  try {
-    const target = path$1.join(stage, "item");
-    await write(node2, target);
-    await promises.rename(target, resolved);
-  } finally {
-    if (path$1.dirname(stage) === ancestor && path$1.basename(stage).startsWith(".稿喵导出-")) await promises.rm(stage, { recursive: true, force: true });
-  }
-}
 const CH = {
   LIBRARY_LIST: "library.list",
   LIBRARY_DETAIL: "library.detail",
@@ -7258,6 +7499,14 @@ const LibraryMutationSchema = discriminatedUnionType("type", [
   objectType({ type: literalType("moveBranch"), docName, versionId, branch: stringType().min(1) }),
   objectType({ type: literalType("createDocument"), name: stringType().min(1), format: enumType(["docx", "xlsx", "txt"]) })
 ]);
+const absolute = stringType().min(1);
+const ProjectDropRequestSchema = objectType({
+  projectId: stringType().uuid().optional(),
+  newProjectName: stringType().min(1).optional(),
+  parentId: stringType().uuid().nullable().optional(),
+  workingFolder: absolute.optional(),
+  items: arrayType(objectType({ path: absolute, action: enumType(["reference", "copy", "move", "skip"]), name: stringType().min(1).optional() })).min(1)
+});
 const id = stringType().uuid();
 const label = stringType().min(1).max(1e4);
 const note$1 = stringType().max(1e4);
@@ -7924,12 +8173,12 @@ const addAndConvert = (main, prop, item) => {
   }
   container.add(item);
 };
-const clearItem = (cont) => (key) => {
-  const set = cont[key];
+const clearItem = (cont) => (key2) => {
+  const set = cont[key2];
   if (set instanceof Set) {
     set.clear();
   } else {
-    delete cont[key];
+    delete cont[key2];
   }
 };
 const delFromSet = (main, prop, item) => {
@@ -8441,11 +8690,11 @@ function anymatch(matchers, testString) {
   }
 }
 const unifyPaths = (paths_) => {
-  const paths = arrify(paths_).flat();
-  if (!paths.every((p) => typeof p === STRING_TYPE)) {
-    throw new TypeError(`Non-string provided as watch path: ${paths}`);
+  const paths2 = arrify(paths_).flat();
+  if (!paths2.every((p) => typeof p === STRING_TYPE)) {
+    throw new TypeError(`Non-string provided as watch path: ${paths2}`);
   }
-  return paths.map(normalizePathToUnix);
+  return paths2.map(normalizePathToUnix);
 };
 const toUnix = (string) => {
   let str = string.replace(BACK_SLASH_RE, SLASH);
@@ -8651,21 +8900,21 @@ class FSWatcher extends EventEmitter {
     const { cwd } = this.options;
     this.closed = false;
     this._closePromise = void 0;
-    let paths = unifyPaths(paths_);
+    let paths2 = unifyPaths(paths_);
     if (cwd) {
-      paths = paths.map((path2) => {
+      paths2 = paths2.map((path2) => {
         const absPath = getAbsolutePath(path2, cwd);
         return absPath;
       });
     }
-    paths.forEach((path2) => {
+    paths2.forEach((path2) => {
       this._removeIgnoredPath(path2);
     });
     this._userIgnored = void 0;
     if (!this._readyCount)
       this._readyCount = 0;
-    this._readyCount += paths.length;
-    Promise.all(paths.map(async (path2) => {
+    this._readyCount += paths2.length;
+    Promise.all(paths2.map(async (path2) => {
       const res = await this._nodeFsHandler._addToNodeFs(path2, !_internal, void 0, 0, _origAdd);
       if (res)
         this._emitReady();
@@ -8686,9 +8935,9 @@ class FSWatcher extends EventEmitter {
   unwatch(paths_) {
     if (this.closed)
       return this;
-    const paths = unifyPaths(paths_);
+    const paths2 = unifyPaths(paths_);
     const { cwd } = this.options;
-    paths.forEach((path2) => {
+    paths2.forEach((path2) => {
       if (!sysPath.isAbsolute(path2) && !this._closers.has(path2)) {
         if (cwd)
           path2 = sysPath.join(cwd, path2);
@@ -8741,8 +8990,8 @@ class FSWatcher extends EventEmitter {
   getWatched() {
     const watchList = {};
     this._watched.forEach((entry, dir2) => {
-      const key = this.options.cwd ? sysPath.relative(this.options.cwd, dir2) : dir2;
-      const index2 = key || ONE_DOT;
+      const key2 = this.options.cwd ? sysPath.relative(this.options.cwd, dir2) : dir2;
+      const index2 = key2 || ONE_DOT;
       watchList[index2] = entry.getChildren().sort();
     });
     return watchList;
@@ -9068,9 +9317,9 @@ class FSWatcher extends EventEmitter {
     return stream2;
   }
 }
-function watch(paths, options = {}) {
+function watch(paths2, options = {}) {
   const watcher = new FSWatcher(options);
-  watcher.add(paths);
+  watcher.add(paths2);
   return watcher;
 }
 let _watcher = null;
@@ -9230,8 +9479,8 @@ function requireUnderDash() {
         if (Array.isArray(obj)) {
           obj.forEach(cb);
         } else {
-          Object.keys(obj).forEach((key) => {
-            cb(obj[key], key);
+          Object.keys(obj).forEach((key2) => {
+            cb(obj[key2], key2);
           });
         }
       }
@@ -9241,7 +9490,7 @@ function requireUnderDash() {
         if (Array.isArray(obj)) {
           return obj.some(cb);
         }
-        return Object.keys(obj).some((key) => cb(obj[key], key));
+        return Object.keys(obj).some((key2) => cb(obj[key2], key2));
       }
       return false;
     },
@@ -9250,7 +9499,7 @@ function requireUnderDash() {
         if (Array.isArray(obj)) {
           return obj.every(cb);
         }
-        return Object.keys(obj).every((key) => cb(obj[key], key));
+        return Object.keys(obj).every((key2) => cb(obj[key2], key2));
       }
       return true;
     },
@@ -9259,7 +9508,7 @@ function requireUnderDash() {
         if (Array.isArray(obj)) {
           return obj.map(cb);
         }
-        return Object.keys(obj).map((key) => cb(obj[key], key));
+        return Object.keys(obj).map((key2) => cb(obj[key2], key2));
       }
       return [];
     },
@@ -9296,13 +9545,13 @@ function requireUnderDash() {
           if (Object.keys(b).length !== keys.length) {
             return false;
           }
-          for (const key of keys) {
-            if (!b.hasOwnProperty(key)) {
+          for (const key2 of keys) {
+            if (!b.hasOwnProperty(key2)) {
               return false;
             }
           }
-          return _2.every(a, (aValue, key) => {
-            const bValue = b[key];
+          return _2.every(a, (aValue, key2) => {
+            const bValue = b[key2];
             return _2.isEqual(aValue, bValue);
           });
         default:
@@ -9358,8 +9607,8 @@ function requireUnderDash() {
       const target = arguments[0] || {};
       const { length } = arguments;
       let src2, clone, copyIsArray;
-      function assignValue(val, key) {
-        src2 = target[key];
+      function assignValue(val, key2) {
+        src2 = target[key2];
         copyIsArray = Array.isArray(val);
         if (_2.isObject(val) || copyIsArray) {
           if (copyIsArray) {
@@ -9368,9 +9617,9 @@ function requireUnderDash() {
           } else {
             clone = src2 && _2.isObject(src2) ? src2 : {};
           }
-          target[key] = _2.deepMerge(clone, val);
+          target[key2] = _2.deepMerge(clone, val);
         } else if (!_2.isUndefined(val)) {
-          target[key] = val;
+          target[key2] = val;
         }
       }
       for (let i2 = 0; i2 < length; i2++) {
@@ -11099,13 +11348,13 @@ function requireRow() {
           }
         });
       } else {
-        this._worksheet.eachColumnKey((column2, key) => {
-          if (value[key] !== void 0) {
+        this._worksheet.eachColumnKey((column2, key2) => {
+          if (value[key2] !== void 0) {
             this.getCellEx({
               address: colCache.encodeAddress(this._number, column2.number),
               row: this._number,
               col: column2.number
-            }).value = value[key];
+            }).value = value[key2];
           }
         });
       }
@@ -11831,8 +12080,8 @@ function requireTable() {
     store() {
       const assignStyle = (cell2, style) => {
         if (style) {
-          Object.keys(style).forEach((key) => {
-            cell2[key] = style[key];
+          Object.keys(style).forEach((key2) => {
+            cell2[key2] = style[key2];
           });
         }
       };
@@ -12125,13 +12374,13 @@ function requireEncryptor() {
         throw new Error(`Hash algorithm '${hashAlgorithm}' not supported!`);
       }
       const passwordBuffer = Buffer.from(password, "utf16le");
-      let key = this.hash(hashAlgorithm, Buffer.from(saltValue, "base64"), passwordBuffer);
+      let key2 = this.hash(hashAlgorithm, Buffer.from(saltValue, "base64"), passwordBuffer);
       for (let i2 = 0; i2 < spinCount; i2++) {
         const iterator = Buffer.alloc(4);
         iterator.writeUInt32LE(i2, 0);
-        key = this.hash(hashAlgorithm, key, iterator);
+        key2 = this.hash(hashAlgorithm, key2, iterator);
       }
-      return key.toString("base64");
+      return key2.toString("base64");
     },
     /**
      * Generates cryptographically strong pseudo-random data.
@@ -12151,13 +12400,13 @@ function requireCopyStyle() {
   hasRequiredCopyStyle = 1;
   const oneDepthCopy = (obj, nestKeys) => ({
     ...obj,
-    ...nestKeys.reduce((memo, key) => {
-      if (obj[key]) memo[key] = { ...obj[key] };
+    ...nestKeys.reduce((memo, key2) => {
+      if (obj[key2]) memo[key2] = { ...obj[key2] };
       return memo;
     }, {})
   });
-  const setIfExists = (src2, dst, key, nestKeys = []) => {
-    if (src2[key]) dst[key] = oneDepthCopy(src2[key], nestKeys);
+  const setIfExists = (src2, dst, key2, nestKeys = []) => {
+    if (src2[key2]) dst[key2] = oneDepthCopy(src2[key2], nestKeys);
   };
   const isEmptyObj = (obj) => Object.keys(obj).length === 0;
   const copyStyle$1 = (style) => {
@@ -12347,14 +12596,14 @@ function requireWorksheet() {
         column2.defn = defn;
       });
     }
-    getColumnKey(key) {
-      return this._keys[key];
+    getColumnKey(key2) {
+      return this._keys[key2];
     }
-    setColumnKey(key, value) {
-      this._keys[key] = value;
+    setColumnKey(key2, value) {
+      this._keys[key2] = value;
     }
-    deleteColumnKey(key) {
-      delete this._keys[key];
+    deleteColumnKey(key2) {
+      delete this._keys[key2];
     }
     eachColumnKey(f) {
       _2.each(this._keys, f);
@@ -13311,8 +13560,8 @@ function requireSafeBuffer$1() {
     var buffer = require$$0$2;
     var Buffer2 = buffer.Buffer;
     function copyProps(src2, dst) {
-      for (var key in src2) {
-        dst[key] = src2[key];
+      for (var key2 in src2) {
+        dst[key2] = src2[key2];
       }
     }
     if (Buffer2.from && Buffer2.alloc && Buffer2.allocUnsafe && Buffer2.allocUnsafeSlow) {
@@ -14085,8 +14334,8 @@ function require_stream_duplex$1() {
   var pna = requireProcessNextickArgs();
   var objectKeys = Object.keys || function(obj) {
     var keys2 = [];
-    for (var key in obj) {
-      keys2.push(key);
+    for (var key2 in obj) {
+      keys2.push(key2);
     }
     return keys2;
   };
@@ -16409,8 +16658,8 @@ function requireGenericWorker() {
      * @param {Object} value the associated value
      * @return {Worker} the current worker for chainability
      */
-    withStreamInfo: function(key, value) {
-      this.extraStreamInfo[key] = value;
+    withStreamInfo: function(key2, value) {
+      this.extraStreamInfo[key2] = value;
       this.mergeStreamInfo();
       return this;
     },
@@ -16418,11 +16667,11 @@ function requireGenericWorker() {
      * Merge this worker's streamInfo into the chain's streamInfo.
      */
     mergeStreamInfo: function() {
-      for (var key in this.extraStreamInfo) {
-        if (!Object.prototype.hasOwnProperty.call(this.extraStreamInfo, key)) {
+      for (var key2 in this.extraStreamInfo) {
+        if (!Object.prototype.hasOwnProperty.call(this.extraStreamInfo, key2)) {
           continue;
         }
-        this.streamInfo[key] = this.extraStreamInfo[key];
+        this.streamInfo[key2] = this.extraStreamInfo[key2];
       }
     },
     /**
@@ -17222,8 +17471,8 @@ function requireCommon$1() {
   hasRequiredCommon$1 = 1;
   (function(exports) {
     var TYPED_OK = typeof Uint8Array !== "undefined" && typeof Uint16Array !== "undefined" && typeof Int32Array !== "undefined";
-    function _has(obj, key) {
-      return Object.prototype.hasOwnProperty.call(obj, key);
+    function _has(obj, key2) {
+      return Object.prototype.hasOwnProperty.call(obj, key2);
     }
     exports.assign = function(obj) {
       var sources = Array.prototype.slice.call(arguments, 1);
@@ -23001,20 +23250,20 @@ function requireBuffer_list() {
   function _objectSpread(target) {
     for (var i2 = 1; i2 < arguments.length; i2++) {
       var source = null != arguments[i2] ? arguments[i2] : {};
-      i2 % 2 ? ownKeys(Object(source), true).forEach(function(key) {
-        _defineProperty(target, key, source[key]);
-      }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)) : ownKeys(Object(source)).forEach(function(key) {
-        Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key));
+      i2 % 2 ? ownKeys(Object(source), true).forEach(function(key2) {
+        _defineProperty(target, key2, source[key2]);
+      }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)) : ownKeys(Object(source)).forEach(function(key2) {
+        Object.defineProperty(target, key2, Object.getOwnPropertyDescriptor(source, key2));
       });
     }
     return target;
   }
-  function _defineProperty(obj, key, value) {
-    key = _toPropertyKey(key);
-    if (key in obj) {
-      Object.defineProperty(obj, key, { value, enumerable: true, configurable: true, writable: true });
+  function _defineProperty(obj, key2, value) {
+    key2 = _toPropertyKey(key2);
+    if (key2 in obj) {
+      Object.defineProperty(obj, key2, { value, enumerable: true, configurable: true, writable: true });
     } else {
-      obj[key] = value;
+      obj[key2] = value;
     }
     return obj;
   }
@@ -23038,8 +23287,8 @@ function requireBuffer_list() {
     return Constructor;
   }
   function _toPropertyKey(arg) {
-    var key = _toPrimitive(arg, "string");
-    return typeof key === "symbol" ? key : String(key);
+    var key2 = _toPrimitive(arg, "string");
+    return typeof key2 === "symbol" ? key2 : String(key2);
   }
   function _toPrimitive(input, hint) {
     if (typeof input !== "object" || input === null) return input;
@@ -23905,7 +24154,7 @@ function require_stream_duplex() {
   hasRequired_stream_duplex = 1;
   var objectKeys = Object.keys || function(obj) {
     var keys2 = [];
-    for (var key in obj) keys2.push(key);
+    for (var key2 in obj) keys2.push(key2);
     return keys2;
   };
   _stream_duplex = Duplex;
@@ -23998,8 +24247,8 @@ function requireSafeBuffer() {
     var buffer = require$$0$2;
     var Buffer2 = buffer.Buffer;
     function copyProps(src2, dst) {
-      for (var key in src2) {
-        dst[key] = src2[key];
+      for (var key2 in src2) {
+        dst[key2] = src2[key2];
       }
     }
     if (Buffer2.from && Buffer2.alloc && Buffer2.allocUnsafe && Buffer2.allocUnsafeSlow) {
@@ -24382,18 +24631,18 @@ function requireAsync_iterator() {
   if (hasRequiredAsync_iterator) return async_iterator;
   hasRequiredAsync_iterator = 1;
   var _Object$setPrototypeO;
-  function _defineProperty(obj, key, value) {
-    key = _toPropertyKey(key);
-    if (key in obj) {
-      Object.defineProperty(obj, key, { value, enumerable: true, configurable: true, writable: true });
+  function _defineProperty(obj, key2, value) {
+    key2 = _toPropertyKey(key2);
+    if (key2 in obj) {
+      Object.defineProperty(obj, key2, { value, enumerable: true, configurable: true, writable: true });
     } else {
-      obj[key] = value;
+      obj[key2] = value;
     }
     return obj;
   }
   function _toPropertyKey(arg) {
-    var key = _toPrimitive(arg, "string");
-    return typeof key === "symbol" ? key : String(key);
+    var key2 = _toPrimitive(arg, "string");
+    return typeof key2 === "symbol" ? key2 : String(key2);
   }
   function _toPrimitive(input, hint) {
     if (typeof input !== "object" || input === null) return input;
@@ -24564,9 +24813,9 @@ var hasRequiredFrom;
 function requireFrom() {
   if (hasRequiredFrom) return from_1;
   hasRequiredFrom = 1;
-  function asyncGeneratorStep(gen, resolve2, reject2, _next, _throw, key, arg) {
+  function asyncGeneratorStep(gen, resolve2, reject2, _next, _throw, key2, arg) {
     try {
-      var info = gen[key](arg);
+      var info = gen[key2](arg);
       var value = info.value;
     } catch (error2) {
       reject2(error2);
@@ -24606,26 +24855,26 @@ function requireFrom() {
   function _objectSpread(target) {
     for (var i2 = 1; i2 < arguments.length; i2++) {
       var source = null != arguments[i2] ? arguments[i2] : {};
-      i2 % 2 ? ownKeys(Object(source), true).forEach(function(key) {
-        _defineProperty(target, key, source[key]);
-      }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)) : ownKeys(Object(source)).forEach(function(key) {
-        Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key));
+      i2 % 2 ? ownKeys(Object(source), true).forEach(function(key2) {
+        _defineProperty(target, key2, source[key2]);
+      }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)) : ownKeys(Object(source)).forEach(function(key2) {
+        Object.defineProperty(target, key2, Object.getOwnPropertyDescriptor(source, key2));
       });
     }
     return target;
   }
-  function _defineProperty(obj, key, value) {
-    key = _toPropertyKey(key);
-    if (key in obj) {
-      Object.defineProperty(obj, key, { value, enumerable: true, configurable: true, writable: true });
+  function _defineProperty(obj, key2, value) {
+    key2 = _toPropertyKey(key2);
+    if (key2 in obj) {
+      Object.defineProperty(obj, key2, { value, enumerable: true, configurable: true, writable: true });
     } else {
-      obj[key] = value;
+      obj[key2] = value;
     }
     return obj;
   }
   function _toPropertyKey(arg) {
-    var key = _toPrimitive(arg, "string");
-    return typeof key === "symbol" ? key : String(key);
+    var key2 = _toPrimitive(arg, "string");
+    return typeof key2 === "symbol" ? key2 : String(key2);
   }
   function _toPrimitive(input, hint) {
     if (typeof input !== "object" || input === null) return input;
@@ -29408,12 +29657,12 @@ function requireBorderXform() {
       }
       if (name === "border") {
         const model = this.model = {};
-        const add = function(key, edgeModel, extensions) {
+        const add = function(key2, edgeModel, extensions) {
           if (edgeModel) {
             if (extensions) {
               Object.assign(edgeModel, extensions);
             }
-            model[key] = edgeModel;
+            model[key2] = edgeModel;
           }
         };
         add("left", this.map.left.model);
@@ -35459,11 +35708,11 @@ function requireWorksheetXform() {
   const ConditionalFormattingsXform = requireConditionalFormattingsXform();
   const ExtListXform = requireExtLstXform$1();
   const mergeRule = (rule, extRule) => {
-    Object.keys(extRule).forEach((key) => {
-      const value = rule[key];
-      const extValue = extRule[key];
+    Object.keys(extRule).forEach((key2) => {
+      const value = rule[key2];
+      const extValue = extRule[key2];
       if (value === void 0 && extValue !== void 0) {
-        rule[key] = extValue;
+        rule[key2] = extValue;
       }
     });
   };
@@ -38576,16 +38825,16 @@ function requireLodash_isequal() {
         return func(value);
       };
     }
-    function cacheHas(cache2, key) {
-      return cache2.has(key);
+    function cacheHas(cache2, key2) {
+      return cache2.has(key2);
     }
-    function getValue(object2, key) {
-      return object2 == null ? void 0 : object2[key];
+    function getValue(object2, key2) {
+      return object2 == null ? void 0 : object2[key2];
     }
     function mapToArray(map2) {
       var index2 = -1, result = Array(map2.size);
-      map2.forEach(function(value, key) {
-        result[++index2] = [key, value];
+      map2.forEach(function(value, key2) {
+        result[++index2] = [key2, value];
       });
       return result;
     }
@@ -38630,27 +38879,27 @@ function requireLodash_isequal() {
       this.__data__ = nativeCreate ? nativeCreate(null) : {};
       this.size = 0;
     }
-    function hashDelete(key) {
-      var result = this.has(key) && delete this.__data__[key];
+    function hashDelete(key2) {
+      var result = this.has(key2) && delete this.__data__[key2];
       this.size -= result ? 1 : 0;
       return result;
     }
-    function hashGet(key) {
+    function hashGet(key2) {
       var data = this.__data__;
       if (nativeCreate) {
-        var result = data[key];
+        var result = data[key2];
         return result === HASH_UNDEFINED ? void 0 : result;
       }
-      return hasOwnProperty.call(data, key) ? data[key] : void 0;
+      return hasOwnProperty.call(data, key2) ? data[key2] : void 0;
     }
-    function hashHas(key) {
+    function hashHas(key2) {
       var data = this.__data__;
-      return nativeCreate ? data[key] !== void 0 : hasOwnProperty.call(data, key);
+      return nativeCreate ? data[key2] !== void 0 : hasOwnProperty.call(data, key2);
     }
-    function hashSet(key, value) {
+    function hashSet(key2, value) {
       var data = this.__data__;
-      this.size += this.has(key) ? 0 : 1;
-      data[key] = nativeCreate && value === void 0 ? HASH_UNDEFINED : value;
+      this.size += this.has(key2) ? 0 : 1;
+      data[key2] = nativeCreate && value === void 0 ? HASH_UNDEFINED : value;
       return this;
     }
     Hash.prototype.clear = hashClear;
@@ -38670,8 +38919,8 @@ function requireLodash_isequal() {
       this.__data__ = [];
       this.size = 0;
     }
-    function listCacheDelete(key) {
-      var data = this.__data__, index2 = assocIndexOf(data, key);
+    function listCacheDelete(key2) {
+      var data = this.__data__, index2 = assocIndexOf(data, key2);
       if (index2 < 0) {
         return false;
       }
@@ -38684,18 +38933,18 @@ function requireLodash_isequal() {
       --this.size;
       return true;
     }
-    function listCacheGet(key) {
-      var data = this.__data__, index2 = assocIndexOf(data, key);
+    function listCacheGet(key2) {
+      var data = this.__data__, index2 = assocIndexOf(data, key2);
       return index2 < 0 ? void 0 : data[index2][1];
     }
-    function listCacheHas(key) {
-      return assocIndexOf(this.__data__, key) > -1;
+    function listCacheHas(key2) {
+      return assocIndexOf(this.__data__, key2) > -1;
     }
-    function listCacheSet(key, value) {
-      var data = this.__data__, index2 = assocIndexOf(data, key);
+    function listCacheSet(key2, value) {
+      var data = this.__data__, index2 = assocIndexOf(data, key2);
       if (index2 < 0) {
         ++this.size;
-        data.push([key, value]);
+        data.push([key2, value]);
       } else {
         data[index2][1] = value;
       }
@@ -38722,20 +38971,20 @@ function requireLodash_isequal() {
         "string": new Hash()
       };
     }
-    function mapCacheDelete(key) {
-      var result = getMapData(this, key)["delete"](key);
+    function mapCacheDelete(key2) {
+      var result = getMapData(this, key2)["delete"](key2);
       this.size -= result ? 1 : 0;
       return result;
     }
-    function mapCacheGet(key) {
-      return getMapData(this, key).get(key);
+    function mapCacheGet(key2) {
+      return getMapData(this, key2).get(key2);
     }
-    function mapCacheHas(key) {
-      return getMapData(this, key).has(key);
+    function mapCacheHas(key2) {
+      return getMapData(this, key2).has(key2);
     }
-    function mapCacheSet(key, value) {
-      var data = getMapData(this, key), size = data.size;
-      data.set(key, value);
+    function mapCacheSet(key2, value) {
+      var data = getMapData(this, key2), size = data.size;
+      data.set(key2, value);
       this.size += data.size == size ? 0 : 1;
       return this;
     }
@@ -38768,29 +39017,29 @@ function requireLodash_isequal() {
       this.__data__ = new ListCache();
       this.size = 0;
     }
-    function stackDelete(key) {
-      var data = this.__data__, result = data["delete"](key);
+    function stackDelete(key2) {
+      var data = this.__data__, result = data["delete"](key2);
       this.size = data.size;
       return result;
     }
-    function stackGet(key) {
-      return this.__data__.get(key);
+    function stackGet(key2) {
+      return this.__data__.get(key2);
     }
-    function stackHas(key) {
-      return this.__data__.has(key);
+    function stackHas(key2) {
+      return this.__data__.has(key2);
     }
-    function stackSet(key, value) {
+    function stackSet(key2, value) {
       var data = this.__data__;
       if (data instanceof ListCache) {
         var pairs = data.__data__;
         if (!Map2 || pairs.length < LARGE_ARRAY_SIZE - 1) {
-          pairs.push([key, value]);
+          pairs.push([key2, value]);
           this.size = ++data.size;
           return this;
         }
         data = this.__data__ = new MapCache(pairs);
       }
-      data.set(key, value);
+      data.set(key2, value);
       this.size = data.size;
       return this;
     }
@@ -38801,21 +39050,21 @@ function requireLodash_isequal() {
     Stack.prototype.set = stackSet;
     function arrayLikeKeys(value, inherited) {
       var isArr = isArray(value), isArg = !isArr && isArguments(value), isBuff = !isArr && !isArg && isBuffer(value), isType = !isArr && !isArg && !isBuff && isTypedArray(value), skipIndexes = isArr || isArg || isBuff || isType, result = skipIndexes ? baseTimes(value.length, String) : [], length = result.length;
-      for (var key in value) {
-        if (hasOwnProperty.call(value, key) && !(skipIndexes && // Safari 9 has enumerable `arguments.length` in strict mode.
-        (key == "length" || // Node.js 0.10 has enumerable non-index properties on buffers.
-        isBuff && (key == "offset" || key == "parent") || // PhantomJS 2 has enumerable non-index properties on typed arrays.
-        isType && (key == "buffer" || key == "byteLength" || key == "byteOffset") || // Skip index properties.
-        isIndex(key, length)))) {
-          result.push(key);
+      for (var key2 in value) {
+        if (hasOwnProperty.call(value, key2) && !(skipIndexes && // Safari 9 has enumerable `arguments.length` in strict mode.
+        (key2 == "length" || // Node.js 0.10 has enumerable non-index properties on buffers.
+        isBuff && (key2 == "offset" || key2 == "parent") || // PhantomJS 2 has enumerable non-index properties on typed arrays.
+        isType && (key2 == "buffer" || key2 == "byteLength" || key2 == "byteOffset") || // Skip index properties.
+        isIndex(key2, length)))) {
+          result.push(key2);
         }
       }
       return result;
     }
-    function assocIndexOf(array, key) {
+    function assocIndexOf(array, key2) {
       var length = array.length;
       while (length--) {
-        if (eq(array[length][0], key)) {
+        if (eq(array[length][0], key2)) {
           return length;
         }
       }
@@ -38888,9 +39137,9 @@ function requireLodash_isequal() {
         return nativeKeys(object2);
       }
       var result = [];
-      for (var key in Object(object2)) {
-        if (hasOwnProperty.call(object2, key) && key != "constructor") {
-          result.push(key);
+      for (var key2 in Object(object2)) {
+        if (hasOwnProperty.call(object2, key2) && key2 != "constructor") {
+          result.push(key2);
         }
       }
       return result;
@@ -38990,8 +39239,8 @@ function requireLodash_isequal() {
       }
       var index2 = objLength;
       while (index2--) {
-        var key = objProps[index2];
-        if (!(isPartial ? key in other : hasOwnProperty.call(other, key))) {
+        var key2 = objProps[index2];
+        if (!(isPartial ? key2 in other : hasOwnProperty.call(other, key2))) {
           return false;
         }
       }
@@ -39004,16 +39253,16 @@ function requireLodash_isequal() {
       stack.set(other, object2);
       var skipCtor = isPartial;
       while (++index2 < objLength) {
-        key = objProps[index2];
-        var objValue = object2[key], othValue = other[key];
+        key2 = objProps[index2];
+        var objValue = object2[key2], othValue = other[key2];
         if (customizer) {
-          var compared = isPartial ? customizer(othValue, objValue, key, other, object2, stack) : customizer(objValue, othValue, key, object2, other, stack);
+          var compared = isPartial ? customizer(othValue, objValue, key2, other, object2, stack) : customizer(objValue, othValue, key2, object2, other, stack);
         }
         if (!(compared === void 0 ? objValue === othValue || equalFunc(objValue, othValue, bitmask, customizer, stack) : compared)) {
           result = false;
           break;
         }
-        skipCtor || (skipCtor = key == "constructor");
+        skipCtor || (skipCtor = key2 == "constructor");
       }
       if (result && !skipCtor) {
         var objCtor = object2.constructor, othCtor = other.constructor;
@@ -39028,12 +39277,12 @@ function requireLodash_isequal() {
     function getAllKeys(object2) {
       return baseGetAllKeys(object2, keys, getSymbols);
     }
-    function getMapData(map2, key) {
+    function getMapData(map2, key2) {
       var data = map2.__data__;
-      return isKeyable(key) ? data[typeof key == "string" ? "string" : "hash"] : data.map;
+      return isKeyable(key2) ? data[typeof key2 == "string" ? "string" : "hash"] : data.map;
     }
-    function getNative(object2, key) {
-      var value = getValue(object2, key);
+    function getNative(object2, key2) {
+      var value = getValue(object2, key2);
       return baseIsNative(value) ? value : void 0;
     }
     function getRawTag(value) {
@@ -39843,11 +40092,11 @@ function requireLodash_uniq() {
   function baseIsNaN(value) {
     return value !== value;
   }
-  function cacheHas(cache2, key) {
-    return cache2.has(key);
+  function cacheHas(cache2, key2) {
+    return cache2.has(key2);
   }
-  function getValue(object2, key) {
-    return object2 == null ? void 0 : object2[key];
+  function getValue(object2, key2) {
+    return object2 == null ? void 0 : object2[key2];
   }
   function isHostObject(value) {
     var result = false;
@@ -39891,24 +40140,24 @@ function requireLodash_uniq() {
   function hashClear() {
     this.__data__ = nativeCreate ? nativeCreate(null) : {};
   }
-  function hashDelete(key) {
-    return this.has(key) && delete this.__data__[key];
+  function hashDelete(key2) {
+    return this.has(key2) && delete this.__data__[key2];
   }
-  function hashGet(key) {
+  function hashGet(key2) {
     var data = this.__data__;
     if (nativeCreate) {
-      var result = data[key];
+      var result = data[key2];
       return result === HASH_UNDEFINED ? void 0 : result;
     }
-    return hasOwnProperty.call(data, key) ? data[key] : void 0;
+    return hasOwnProperty.call(data, key2) ? data[key2] : void 0;
   }
-  function hashHas(key) {
+  function hashHas(key2) {
     var data = this.__data__;
-    return nativeCreate ? data[key] !== void 0 : hasOwnProperty.call(data, key);
+    return nativeCreate ? data[key2] !== void 0 : hasOwnProperty.call(data, key2);
   }
-  function hashSet(key, value) {
+  function hashSet(key2, value) {
     var data = this.__data__;
-    data[key] = nativeCreate && value === void 0 ? HASH_UNDEFINED : value;
+    data[key2] = nativeCreate && value === void 0 ? HASH_UNDEFINED : value;
     return this;
   }
   Hash.prototype.clear = hashClear;
@@ -39927,8 +40176,8 @@ function requireLodash_uniq() {
   function listCacheClear() {
     this.__data__ = [];
   }
-  function listCacheDelete(key) {
-    var data = this.__data__, index2 = assocIndexOf(data, key);
+  function listCacheDelete(key2) {
+    var data = this.__data__, index2 = assocIndexOf(data, key2);
     if (index2 < 0) {
       return false;
     }
@@ -39940,17 +40189,17 @@ function requireLodash_uniq() {
     }
     return true;
   }
-  function listCacheGet(key) {
-    var data = this.__data__, index2 = assocIndexOf(data, key);
+  function listCacheGet(key2) {
+    var data = this.__data__, index2 = assocIndexOf(data, key2);
     return index2 < 0 ? void 0 : data[index2][1];
   }
-  function listCacheHas(key) {
-    return assocIndexOf(this.__data__, key) > -1;
+  function listCacheHas(key2) {
+    return assocIndexOf(this.__data__, key2) > -1;
   }
-  function listCacheSet(key, value) {
-    var data = this.__data__, index2 = assocIndexOf(data, key);
+  function listCacheSet(key2, value) {
+    var data = this.__data__, index2 = assocIndexOf(data, key2);
     if (index2 < 0) {
-      data.push([key, value]);
+      data.push([key2, value]);
     } else {
       data[index2][1] = value;
     }
@@ -39976,17 +40225,17 @@ function requireLodash_uniq() {
       "string": new Hash()
     };
   }
-  function mapCacheDelete(key) {
-    return getMapData(this, key)["delete"](key);
+  function mapCacheDelete(key2) {
+    return getMapData(this, key2)["delete"](key2);
   }
-  function mapCacheGet(key) {
-    return getMapData(this, key).get(key);
+  function mapCacheGet(key2) {
+    return getMapData(this, key2).get(key2);
   }
-  function mapCacheHas(key) {
-    return getMapData(this, key).has(key);
+  function mapCacheHas(key2) {
+    return getMapData(this, key2).has(key2);
   }
-  function mapCacheSet(key, value) {
-    getMapData(this, key).set(key, value);
+  function mapCacheSet(key2, value) {
+    getMapData(this, key2).set(key2, value);
     return this;
   }
   MapCache.prototype.clear = mapCacheClear;
@@ -40010,10 +40259,10 @@ function requireLodash_uniq() {
   }
   SetCache.prototype.add = SetCache.prototype.push = setCacheAdd;
   SetCache.prototype.has = setCacheHas;
-  function assocIndexOf(array, key) {
+  function assocIndexOf(array, key2) {
     var length = array.length;
     while (length--) {
-      if (eq(array[length][0], key)) {
+      if (eq(array[length][0], key2)) {
         return length;
       }
     }
@@ -40063,12 +40312,12 @@ function requireLodash_uniq() {
   var createSet = !(Set2 && 1 / setToArray(new Set2([, -0]))[1] == INFINITY) ? noop : function(values) {
     return new Set2(values);
   };
-  function getMapData(map2, key) {
+  function getMapData(map2, key2) {
     var data = map2.__data__;
-    return isKeyable(key) ? data[typeof key == "string" ? "string" : "hash"] : data.map;
+    return isKeyable(key2) ? data[typeof key2 == "string" ? "string" : "hash"] : data.map;
   }
-  function getNative(object2, key) {
-    var value = getValue(object2, key);
+  function getNative(object2, key2) {
+    var value = getValue(object2, key2);
     return baseIsNative(value) ? value : void 0;
   }
   function isKeyable(value) {
@@ -40163,9 +40412,9 @@ function requireLodash_groupby() {
       }
       return false;
     }
-    function baseProperty(key) {
+    function baseProperty(key2) {
       return function(object2) {
-        return object2 == null ? void 0 : object2[key];
+        return object2 == null ? void 0 : object2[key2];
       };
     }
     function baseTimes(n, iteratee) {
@@ -40180,8 +40429,8 @@ function requireLodash_groupby() {
         return func(value);
       };
     }
-    function getValue(object2, key) {
-      return object2 == null ? void 0 : object2[key];
+    function getValue(object2, key2) {
+      return object2 == null ? void 0 : object2[key2];
     }
     function isHostObject(value) {
       var result = false;
@@ -40195,8 +40444,8 @@ function requireLodash_groupby() {
     }
     function mapToArray(map2) {
       var index2 = -1, result = Array(map2.size);
-      map2.forEach(function(value, key) {
-        result[++index2] = [key, value];
+      map2.forEach(function(value, key2) {
+        result[++index2] = [key2, value];
       });
       return result;
     }
@@ -40240,24 +40489,24 @@ function requireLodash_groupby() {
     function hashClear() {
       this.__data__ = nativeCreate ? nativeCreate(null) : {};
     }
-    function hashDelete(key) {
-      return this.has(key) && delete this.__data__[key];
+    function hashDelete(key2) {
+      return this.has(key2) && delete this.__data__[key2];
     }
-    function hashGet(key) {
+    function hashGet(key2) {
       var data = this.__data__;
       if (nativeCreate) {
-        var result = data[key];
+        var result = data[key2];
         return result === HASH_UNDEFINED ? void 0 : result;
       }
-      return hasOwnProperty.call(data, key) ? data[key] : void 0;
+      return hasOwnProperty.call(data, key2) ? data[key2] : void 0;
     }
-    function hashHas(key) {
+    function hashHas(key2) {
       var data = this.__data__;
-      return nativeCreate ? data[key] !== void 0 : hasOwnProperty.call(data, key);
+      return nativeCreate ? data[key2] !== void 0 : hasOwnProperty.call(data, key2);
     }
-    function hashSet(key, value) {
+    function hashSet(key2, value) {
       var data = this.__data__;
-      data[key] = nativeCreate && value === void 0 ? HASH_UNDEFINED : value;
+      data[key2] = nativeCreate && value === void 0 ? HASH_UNDEFINED : value;
       return this;
     }
     Hash.prototype.clear = hashClear;
@@ -40276,8 +40525,8 @@ function requireLodash_groupby() {
     function listCacheClear() {
       this.__data__ = [];
     }
-    function listCacheDelete(key) {
-      var data = this.__data__, index2 = assocIndexOf(data, key);
+    function listCacheDelete(key2) {
+      var data = this.__data__, index2 = assocIndexOf(data, key2);
       if (index2 < 0) {
         return false;
       }
@@ -40289,17 +40538,17 @@ function requireLodash_groupby() {
       }
       return true;
     }
-    function listCacheGet(key) {
-      var data = this.__data__, index2 = assocIndexOf(data, key);
+    function listCacheGet(key2) {
+      var data = this.__data__, index2 = assocIndexOf(data, key2);
       return index2 < 0 ? void 0 : data[index2][1];
     }
-    function listCacheHas(key) {
-      return assocIndexOf(this.__data__, key) > -1;
+    function listCacheHas(key2) {
+      return assocIndexOf(this.__data__, key2) > -1;
     }
-    function listCacheSet(key, value) {
-      var data = this.__data__, index2 = assocIndexOf(data, key);
+    function listCacheSet(key2, value) {
+      var data = this.__data__, index2 = assocIndexOf(data, key2);
       if (index2 < 0) {
-        data.push([key, value]);
+        data.push([key2, value]);
       } else {
         data[index2][1] = value;
       }
@@ -40325,17 +40574,17 @@ function requireLodash_groupby() {
         "string": new Hash()
       };
     }
-    function mapCacheDelete(key) {
-      return getMapData(this, key)["delete"](key);
+    function mapCacheDelete(key2) {
+      return getMapData(this, key2)["delete"](key2);
     }
-    function mapCacheGet(key) {
-      return getMapData(this, key).get(key);
+    function mapCacheGet(key2) {
+      return getMapData(this, key2).get(key2);
     }
-    function mapCacheHas(key) {
-      return getMapData(this, key).has(key);
+    function mapCacheHas(key2) {
+      return getMapData(this, key2).has(key2);
     }
-    function mapCacheSet(key, value) {
-      getMapData(this, key).set(key, value);
+    function mapCacheSet(key2, value) {
+      getMapData(this, key2).set(key2, value);
       return this;
     }
     MapCache.prototype.clear = mapCacheClear;
@@ -40365,26 +40614,26 @@ function requireLodash_groupby() {
     function stackClear() {
       this.__data__ = new ListCache();
     }
-    function stackDelete(key) {
-      return this.__data__["delete"](key);
+    function stackDelete(key2) {
+      return this.__data__["delete"](key2);
     }
-    function stackGet(key) {
-      return this.__data__.get(key);
+    function stackGet(key2) {
+      return this.__data__.get(key2);
     }
-    function stackHas(key) {
-      return this.__data__.has(key);
+    function stackHas(key2) {
+      return this.__data__.has(key2);
     }
-    function stackSet(key, value) {
+    function stackSet(key2, value) {
       var cache2 = this.__data__;
       if (cache2 instanceof ListCache) {
         var pairs = cache2.__data__;
         if (!Map2 || pairs.length < LARGE_ARRAY_SIZE - 1) {
-          pairs.push([key, value]);
+          pairs.push([key2, value]);
           return this;
         }
         cache2 = this.__data__ = new MapCache(pairs);
       }
-      cache2.set(key, value);
+      cache2.set(key2, value);
       return this;
     }
     Stack.prototype.clear = stackClear;
@@ -40395,24 +40644,24 @@ function requireLodash_groupby() {
     function arrayLikeKeys(value, inherited) {
       var result = isArray(value) || isArguments(value) ? baseTimes(value.length, String) : [];
       var length = result.length, skipIndexes = !!length;
-      for (var key in value) {
-        if (hasOwnProperty.call(value, key) && !(skipIndexes && (key == "length" || isIndex(key, length)))) {
-          result.push(key);
+      for (var key2 in value) {
+        if (hasOwnProperty.call(value, key2) && !(skipIndexes && (key2 == "length" || isIndex(key2, length)))) {
+          result.push(key2);
         }
       }
       return result;
     }
-    function assocIndexOf(array, key) {
+    function assocIndexOf(array, key2) {
       var length = array.length;
       while (length--) {
-        if (eq(array[length][0], key)) {
+        if (eq(array[length][0], key2)) {
           return length;
         }
       }
       return -1;
     }
     function baseAggregator(collection, setter, iteratee, accumulator) {
-      baseEach(collection, function(value, key, collection2) {
+      baseEach(collection, function(value, key2, collection2) {
         setter(accumulator, value, iteratee(value), collection2);
       });
       return accumulator;
@@ -40433,8 +40682,8 @@ function requireLodash_groupby() {
     function baseGetTag(value) {
       return objectToString.call(value);
     }
-    function baseHasIn(object2, key) {
-      return object2 != null && key in Object(object2);
+    function baseHasIn(object2, key2) {
+      return object2 != null && key2 in Object(object2);
     }
     function baseIsEqual(value, other, customizer, bitmask, stack) {
       if (value === other) {
@@ -40488,9 +40737,9 @@ function requireLodash_groupby() {
       }
       while (++index2 < length) {
         data = matchData[index2];
-        var key = data[0], objValue = object2[key], srcValue = data[1];
+        var key2 = data[0], objValue = object2[key2], srcValue = data[1];
         if (data[2]) {
-          if (objValue === void 0 && !(key in object2)) {
+          if (objValue === void 0 && !(key2 in object2)) {
             return false;
           }
         } else {
@@ -40530,9 +40779,9 @@ function requireLodash_groupby() {
         return nativeKeys(object2);
       }
       var result = [];
-      for (var key in Object(object2)) {
-        if (hasOwnProperty.call(object2, key) && key != "constructor") {
-          result.push(key);
+      for (var key2 in Object(object2)) {
+        if (hasOwnProperty.call(object2, key2) && key2 != "constructor") {
+          result.push(key2);
         }
       }
       return result;
@@ -40600,8 +40849,8 @@ function requireLodash_groupby() {
       return function(object2, iteratee, keysFunc) {
         var index2 = -1, iterable = Object(object2), props2 = keysFunc(object2), length = props2.length;
         while (length--) {
-          var key = props2[++index2];
-          if (iteratee(iterable[key], key, iterable) === false) {
+          var key2 = props2[++index2];
+          if (iteratee(iterable[key2], key2, iterable) === false) {
             break;
           }
         }
@@ -40703,8 +40952,8 @@ function requireLodash_groupby() {
       }
       var index2 = objLength;
       while (index2--) {
-        var key = objProps[index2];
-        if (!(isPartial ? key in other : hasOwnProperty.call(other, key))) {
+        var key2 = objProps[index2];
+        if (!(isPartial ? key2 in other : hasOwnProperty.call(other, key2))) {
           return false;
         }
       }
@@ -40717,16 +40966,16 @@ function requireLodash_groupby() {
       stack.set(other, object2);
       var skipCtor = isPartial;
       while (++index2 < objLength) {
-        key = objProps[index2];
-        var objValue = object2[key], othValue = other[key];
+        key2 = objProps[index2];
+        var objValue = object2[key2], othValue = other[key2];
         if (customizer) {
-          var compared = isPartial ? customizer(othValue, objValue, key, other, object2, stack) : customizer(objValue, othValue, key, object2, other, stack);
+          var compared = isPartial ? customizer(othValue, objValue, key2, other, object2, stack) : customizer(objValue, othValue, key2, object2, other, stack);
         }
         if (!(compared === void 0 ? objValue === othValue || equalFunc(objValue, othValue, customizer, bitmask, stack) : compared)) {
           result = false;
           break;
         }
-        skipCtor || (skipCtor = key == "constructor");
+        skipCtor || (skipCtor = key2 == "constructor");
       }
       if (result && !skipCtor) {
         var objCtor = object2.constructor, othCtor = other.constructor;
@@ -40738,20 +40987,20 @@ function requireLodash_groupby() {
       stack["delete"](other);
       return result;
     }
-    function getMapData(map2, key) {
+    function getMapData(map2, key2) {
       var data = map2.__data__;
-      return isKeyable(key) ? data[typeof key == "string" ? "string" : "hash"] : data.map;
+      return isKeyable(key2) ? data[typeof key2 == "string" ? "string" : "hash"] : data.map;
     }
     function getMatchData(object2) {
       var result = keys(object2), length = result.length;
       while (length--) {
-        var key = result[length], value = object2[key];
-        result[length] = [key, value, isStrictComparable(value)];
+        var key2 = result[length], value = object2[key2];
+        result[length] = [key2, value, isStrictComparable(value)];
       }
       return result;
     }
-    function getNative(object2, key) {
-      var value = getValue(object2, key);
+    function getNative(object2, key2) {
+      var value = getValue(object2, key2);
       return baseIsNative(value) ? value : void 0;
     }
     var getTag = baseGetTag;
@@ -40779,17 +41028,17 @@ function requireLodash_groupby() {
       path2 = isKey(path2, object2) ? [path2] : castPath(path2);
       var result, index2 = -1, length = path2.length;
       while (++index2 < length) {
-        var key = toKey(path2[index2]);
-        if (!(result = object2 != null && hasFunc(object2, key))) {
+        var key2 = toKey(path2[index2]);
+        if (!(result = object2 != null && hasFunc(object2, key2))) {
           break;
         }
-        object2 = object2[key];
+        object2 = object2[key2];
       }
       if (result) {
         return result;
       }
       var length = object2 ? object2.length : 0;
-      return !!length && isLength(length) && isIndex(key, length) && (isArray(object2) || isArguments(object2));
+      return !!length && isLength(length) && isIndex(key2, length) && (isArray(object2) || isArguments(object2));
     }
     function isIndex(value, length) {
       length = length == null ? MAX_SAFE_INTEGER : length;
@@ -40819,12 +41068,12 @@ function requireLodash_groupby() {
     function isStrictComparable(value) {
       return value === value && !isObject(value);
     }
-    function matchesStrictComparable(key, srcValue) {
+    function matchesStrictComparable(key2, srcValue) {
       return function(object2) {
         if (object2 == null) {
           return false;
         }
-        return object2[key] === srcValue && (srcValue !== void 0 || key in Object(object2));
+        return object2[key2] === srcValue && (srcValue !== void 0 || key2 in Object(object2));
       };
     }
     var stringToPath = memoize2(function(string) {
@@ -40858,11 +41107,11 @@ function requireLodash_groupby() {
       }
       return "";
     }
-    var groupBy2 = createAggregator(function(result, value, key) {
-      if (hasOwnProperty.call(result, key)) {
-        result[key].push(value);
+    var groupBy2 = createAggregator(function(result, value, key2) {
+      if (hasOwnProperty.call(result, key2)) {
+        result[key2].push(value);
       } else {
-        result[key] = [value];
+        result[key2] = [value];
       }
     });
     function memoize2(func, resolver) {
@@ -40870,12 +41119,12 @@ function requireLodash_groupby() {
         throw new TypeError(FUNC_ERROR_TEXT);
       }
       var memoized = function() {
-        var args = arguments, key = resolver ? resolver.apply(this, args) : args[0], cache2 = memoized.cache;
-        if (cache2.has(key)) {
-          return cache2.get(key);
+        var args = arguments, key2 = resolver ? resolver.apply(this, args) : args[0], cache2 = memoized.cache;
+        if (cache2.has(key2)) {
+          return cache2.get(key2);
         }
         var result = func.apply(this, args);
-        memoized.cache = cache2.set(key, result);
+        memoized.cache = cache2.set(key2, result);
         return result;
       };
       memoized.cache = new (memoize2.Cache || MapCache)();
@@ -42390,7 +42639,7 @@ function requireCsv() {
   const dayjs = requireDayjs_min().extend(customParseFormat2).extend(utc2);
   const StreamBuf = requireStreamBuf();
   const {
-    fs: { exists }
+    fs: { exists: exists2 }
   } = requireUtils();
   const SpecialValues = {
     true: true,
@@ -42410,7 +42659,7 @@ function requireCsv() {
     }
     async readFile(filename, options) {
       options = options || {};
-      if (!await exists(filename)) {
+      if (!await exists2(filename)) {
         throw new Error(`File not found: ${filename}`);
       }
       const stream2 = fs.createReadStream(filename);
@@ -43788,10 +44037,10 @@ function requireReaddirGlob() {
       }
       const filename = dir2 + "/" + name;
       const relative2 = filename.slice(1);
-      const absolute = path2 + "/" + relative2;
+      const absolute2 = path2 + "/" + relative2;
       let stats = null;
       if (useStat || followSymlinks) {
-        stats = await stat2(absolute, followSymlinks);
+        stats = await stat2(absolute2, followSymlinks);
       }
       if (!stats && file2.name !== void 0) {
         stats = file2;
@@ -43801,11 +44050,11 @@ function requireReaddirGlob() {
       }
       if (stats.isDirectory()) {
         if (!shouldSkip(relative2)) {
-          yield { relative: relative2, absolute, stats };
+          yield { relative: relative2, absolute: absolute2, stats };
           yield* exploreWalkAsync(filename, path2, followSymlinks, useStat, shouldSkip, false);
         }
       } else {
-        yield { relative: relative2, absolute, stats };
+        yield { relative: relative2, absolute: absolute2, stats };
       }
     }
   }
@@ -43889,15 +44138,15 @@ function requireReaddirGlob() {
             const isDirectory = obj.value.stats.isDirectory();
             if (this._fileMatches(obj.value.relative, isDirectory)) {
               let relative2 = obj.value.relative;
-              let absolute = obj.value.absolute;
+              let absolute2 = obj.value.absolute;
               if (this.options.mark && isDirectory) {
                 relative2 += "/";
-                absolute += "/";
+                absolute2 += "/";
               }
               if (this.options.stat) {
-                this.emit("match", { relative: relative2, absolute, stat: obj.value.stats });
+                this.emit("match", { relative: relative2, absolute: absolute2, stat: obj.value.stats });
               } else {
-                this.emit("match", { relative: relative2, absolute });
+                this.emit("match", { relative: relative2, absolute: absolute2 });
               }
             }
             this._next(this.iterator);
@@ -44097,11 +44346,11 @@ function createObjectIterator(obj) {
   var i2 = -1;
   var len = okeys.length;
   return function next() {
-    var key = okeys[++i2];
-    if (key === "__proto__") {
+    var key2 = okeys[++i2];
+    if (key2 === "__proto__") {
       return next();
     }
-    return i2 < len ? { value: obj[key], key } : null;
+    return i2 < len ? { value: obj[key2], key: key2 } : null;
   };
 }
 function createIterator(coll) {
@@ -44302,37 +44551,37 @@ function auto(tasks, concurrency, callback) {
   var readyTasks = [];
   var readyToCheck = [];
   var uncheckedDependencies = {};
-  Object.keys(tasks).forEach((key) => {
-    var task = tasks[key];
+  Object.keys(tasks).forEach((key2) => {
+    var task = tasks[key2];
     if (!Array.isArray(task)) {
-      enqueueTask(key, [task]);
-      readyToCheck.push(key);
+      enqueueTask(key2, [task]);
+      readyToCheck.push(key2);
       return;
     }
     var dependencies = task.slice(0, task.length - 1);
     var remainingDependencies = dependencies.length;
     if (remainingDependencies === 0) {
-      enqueueTask(key, task);
-      readyToCheck.push(key);
+      enqueueTask(key2, task);
+      readyToCheck.push(key2);
       return;
     }
-    uncheckedDependencies[key] = remainingDependencies;
+    uncheckedDependencies[key2] = remainingDependencies;
     dependencies.forEach((dependencyName) => {
       if (!tasks[dependencyName]) {
-        throw new Error("async.auto task `" + key + "` has a non-existent dependency `" + dependencyName + "` in " + dependencies.join(", "));
+        throw new Error("async.auto task `" + key2 + "` has a non-existent dependency `" + dependencyName + "` in " + dependencies.join(", "));
       }
       addListener(dependencyName, () => {
         remainingDependencies--;
         if (remainingDependencies === 0) {
-          enqueueTask(key, task);
+          enqueueTask(key2, task);
         }
       });
     });
   });
   checkForDeadlocks();
   processQueue();
-  function enqueueTask(key, task) {
-    readyTasks.push(() => runTask(key, task));
+  function enqueueTask(key2, task) {
+    readyTasks.push(() => runTask(key2, task));
   }
   function processQueue() {
     if (canceled) return;
@@ -44356,7 +44605,7 @@ function auto(tasks, concurrency, callback) {
     taskListeners.forEach((fn) => fn());
     processQueue();
   }
-  function runTask(key, task) {
+  function runTask(key2, task) {
     if (hasError) return;
     var taskCallback = onlyOnce((err2, ...result) => {
       runningTasks--;
@@ -44372,14 +44621,14 @@ function auto(tasks, concurrency, callback) {
         Object.keys(results).forEach((rkey) => {
           safeResults[rkey] = results[rkey];
         });
-        safeResults[key] = result;
+        safeResults[key2] = result;
         hasError = true;
         listeners = /* @__PURE__ */ Object.create(null);
         if (canceled) return;
         callback(err2, safeResults);
       } else {
-        results[key] = result;
-        taskComplete(key);
+        results[key2] = result;
+        taskComplete(key2);
       }
     });
     runningTasks++;
@@ -44410,10 +44659,10 @@ function auto(tasks, concurrency, callback) {
   }
   function getDependents(taskName) {
     var result = [];
-    Object.keys(tasks).forEach((key) => {
-      const task = tasks[key];
+    Object.keys(tasks).forEach((key2) => {
+      const task = tasks[key2];
       if (Array.isArray(task) && task.indexOf(taskName) >= 0) {
-        result.push(key);
+        result.push(key2);
       }
     });
     return result;
@@ -44460,24 +44709,24 @@ function parseParams(func) {
 }
 function autoInject(tasks, callback) {
   var newTasks = {};
-  Object.keys(tasks).forEach((key) => {
-    var taskFn = tasks[key];
+  Object.keys(tasks).forEach((key2) => {
+    var taskFn = tasks[key2];
     var params;
     var fnIsAsync = isAsync(taskFn);
     var hasNoDeps = !fnIsAsync && taskFn.length === 1 || fnIsAsync && taskFn.length === 0;
     if (Array.isArray(taskFn)) {
       params = [...taskFn];
       taskFn = params.pop();
-      newTasks[key] = params.concat(params.length > 0 ? newTask : taskFn);
+      newTasks[key2] = params.concat(params.length > 0 ? newTask : taskFn);
     } else if (hasNoDeps) {
-      newTasks[key] = taskFn;
+      newTasks[key2] = taskFn;
     } else {
       params = parseParams(taskFn);
       if (taskFn.length === 0 && !fnIsAsync && params.length === 0) {
         throw new Error("autoInject task functions require explicit parameters.");
       }
       if (!fnIsAsync) params.pop();
-      newTasks[key] = params.concat(newTask);
+      newTasks[key2] = params.concat(newTask);
     }
     function newTask(results, taskCb) {
       var newArgs = params.map((name) => results[name]);
@@ -45057,21 +45306,21 @@ var forever$1 = awaitify(forever, 2);
 function groupByLimit(coll, limit, iteratee, callback) {
   var _iteratee = wrapAsync(iteratee);
   return mapLimit$1(coll, limit, (val, iterCb) => {
-    _iteratee(val, (err2, key) => {
+    _iteratee(val, (err2, key2) => {
       if (err2) return iterCb(err2);
-      return iterCb(err2, { key, val });
+      return iterCb(err2, { key: key2, val });
     });
   }, (err2, mapResults) => {
     var result = {};
     var { hasOwnProperty } = Object.prototype;
     for (var i2 = 0; i2 < mapResults.length; i2++) {
       if (mapResults[i2]) {
-        var { key } = mapResults[i2];
+        var { key: key2 } = mapResults[i2];
         var { val } = mapResults[i2];
-        if (hasOwnProperty.call(result, key)) {
-          result[key].push(val);
+        if (hasOwnProperty.call(result, key2)) {
+          result[key2].push(val);
         } else {
-          result[key] = [val];
+          result[key2] = [val];
         }
       }
     }
@@ -45090,10 +45339,10 @@ function mapValuesLimit(obj, limit, iteratee, callback) {
   callback = once$1(callback);
   var newObj = {};
   var _iteratee = wrapAsync(iteratee);
-  return eachOfLimit$2(limit)(obj, (val, key, next) => {
-    _iteratee(val, key, (err2, result) => {
+  return eachOfLimit$2(limit)(obj, (val, key2, next) => {
+    _iteratee(val, key2, (err2, result) => {
       if (err2) return next(err2);
-      newObj[key] = result;
+      newObj[key2] = result;
       next(err2);
     });
   }, (err2) => callback(err2, newObj));
@@ -45110,19 +45359,19 @@ function memoize(fn, hasher = (v) => v) {
   var queues = /* @__PURE__ */ Object.create(null);
   var _fn = wrapAsync(fn);
   var memoized = initialParams((args, callback) => {
-    var key = hasher(...args);
-    if (key in memo) {
-      setImmediate$1(() => callback(null, ...memo[key]));
-    } else if (key in queues) {
-      queues[key].push(callback);
+    var key2 = hasher(...args);
+    if (key2 in memo) {
+      setImmediate$1(() => callback(null, ...memo[key2]));
+    } else if (key2 in queues) {
+      queues[key2].push(callback);
     } else {
-      queues[key] = [callback];
+      queues[key2] = [callback];
       _fn(...args, (err2, ...resultArgs) => {
         if (!err2) {
-          memo[key] = resultArgs;
+          memo[key2] = resultArgs;
         }
-        var q = queues[key];
-        delete queues[key];
+        var q = queues[key2];
+        delete queues[key2];
         for (var i2 = 0, l = q.length; i2 < l; i2++) {
           q[i2](err2, ...resultArgs);
         }
@@ -45144,12 +45393,12 @@ if (hasNextTick) {
 var nextTick = wrap(_defer);
 var _parallel = awaitify((eachfn, tasks, callback) => {
   var results = isArrayLike(tasks) ? [] : {};
-  eachfn(tasks, (task, key, taskCb) => {
+  eachfn(tasks, (task, key2, taskCb) => {
     wrapAsync(task)((err2, ...result) => {
       if (result.length < 2) {
         [result] = result;
       }
-      results[key] = result;
+      results[key2] = result;
       taskCb(err2);
     });
   }, (err2) => callback(err2, results));
@@ -45324,8 +45573,8 @@ function reflectAll(tasks) {
     results = tasks.map(reflect);
   } else {
     results = {};
-    Object.keys(tasks).forEach((key) => {
-      results[key] = reflect.call(this, tasks[key]);
+    Object.keys(tasks).forEach((key2) => {
+      results[key2] = reflect.call(this, tasks[key2]);
     });
   }
   return results;
@@ -46102,8 +46351,8 @@ function requireLegacyStreams() {
       options = options || {};
       var keys = Object.keys(options);
       for (var index2 = 0, length = keys.length; index2 < length; index2++) {
-        var key = keys[index2];
-        this[key] = options[key];
+        var key2 = keys[index2];
+        this[key2] = options[key2];
       }
       if (this.encoding) this.setEncoding(this.encoding);
       if (this.start !== void 0) {
@@ -46150,8 +46399,8 @@ function requireLegacyStreams() {
       options = options || {};
       var keys = Object.keys(options);
       for (var index2 = 0, length = keys.length; index2 < length; index2++) {
-        var key = keys[index2];
-        this[key] = options[key];
+        var key2 = keys[index2];
+        this[key2] = options[key2];
       }
       if (this.start !== void 0) {
         if ("number" !== typeof this.start) {
@@ -46189,8 +46438,8 @@ function requireClone() {
       var copy = { __proto__: getPrototypeOf(obj) };
     else
       var copy = /* @__PURE__ */ Object.create(null);
-    Object.getOwnPropertyNames(obj).forEach(function(key) {
-      Object.defineProperty(copy, key, Object.getOwnPropertyDescriptor(obj, key));
+    Object.getOwnPropertyNames(obj).forEach(function(key2) {
+      Object.defineProperty(copy, key2, Object.getOwnPropertyDescriptor(obj, key2));
     });
     return copy;
   }
@@ -46684,23 +46933,23 @@ function requireLodash_defaults() {
   function arrayLikeKeys(value, inherited) {
     var result = isArray(value) || isArguments(value) ? baseTimes(value.length, String) : [];
     var length = result.length, skipIndexes = !!length;
-    for (var key in value) {
-      if (!(skipIndexes && (key == "length" || isIndex(key, length)))) {
-        result.push(key);
+    for (var key2 in value) {
+      if (!(skipIndexes && (key2 == "length" || isIndex(key2, length)))) {
+        result.push(key2);
       }
     }
     return result;
   }
-  function assignInDefaults(objValue, srcValue, key, object2) {
-    if (objValue === void 0 || eq(objValue, objectProto[key]) && !hasOwnProperty.call(object2, key)) {
+  function assignInDefaults(objValue, srcValue, key2, object2) {
+    if (objValue === void 0 || eq(objValue, objectProto[key2]) && !hasOwnProperty.call(object2, key2)) {
       return srcValue;
     }
     return objValue;
   }
-  function assignValue(object2, key, value) {
-    var objValue = object2[key];
-    if (!(hasOwnProperty.call(object2, key) && eq(objValue, value)) || value === void 0 && !(key in object2)) {
-      object2[key] = value;
+  function assignValue(object2, key2, value) {
+    var objValue = object2[key2];
+    if (!(hasOwnProperty.call(object2, key2) && eq(objValue, value)) || value === void 0 && !(key2 in object2)) {
+      object2[key2] = value;
     }
   }
   function baseKeysIn(object2) {
@@ -46708,9 +46957,9 @@ function requireLodash_defaults() {
       return nativeKeysIn(object2);
     }
     var isProto = isPrototype(object2), result = [];
-    for (var key in object2) {
-      if (!(key == "constructor" && (isProto || !hasOwnProperty.call(object2, key)))) {
-        result.push(key);
+    for (var key2 in object2) {
+      if (!(key2 == "constructor" && (isProto || !hasOwnProperty.call(object2, key2)))) {
+        result.push(key2);
       }
     }
     return result;
@@ -46735,9 +46984,9 @@ function requireLodash_defaults() {
     object2 || (object2 = {});
     var index2 = -1, length = props2.length;
     while (++index2 < length) {
-      var key = props2[index2];
-      var newValue = customizer ? customizer(object2[key], source[key], key, object2, source) : void 0;
-      assignValue(object2, key, newValue === void 0 ? source[key] : newValue);
+      var key2 = props2[index2];
+      var newValue = customizer ? customizer(object2[key2], source[key2], key2, object2, source) : void 0;
+      assignValue(object2, key2, newValue === void 0 ? source[key2] : newValue);
     }
     return object2;
   }
@@ -46780,8 +47029,8 @@ function requireLodash_defaults() {
   function nativeKeysIn(object2) {
     var result = [];
     if (object2 != null) {
-      for (var key in Object(object2)) {
-        result.push(key);
+      for (var key2 in Object(object2)) {
+        result.push(key2);
       }
     }
     return result;
@@ -46960,11 +47209,11 @@ function requireLodash_difference() {
   function baseIsNaN(value) {
     return value !== value;
   }
-  function cacheHas(cache2, key) {
-    return cache2.has(key);
+  function cacheHas(cache2, key2) {
+    return cache2.has(key2);
   }
-  function getValue(object2, key) {
-    return object2 == null ? void 0 : object2[key];
+  function getValue(object2, key2) {
+    return object2 == null ? void 0 : object2[key2];
   }
   function isHostObject(value) {
     var result = false;
@@ -47002,24 +47251,24 @@ function requireLodash_difference() {
   function hashClear() {
     this.__data__ = nativeCreate ? nativeCreate(null) : {};
   }
-  function hashDelete(key) {
-    return this.has(key) && delete this.__data__[key];
+  function hashDelete(key2) {
+    return this.has(key2) && delete this.__data__[key2];
   }
-  function hashGet(key) {
+  function hashGet(key2) {
     var data = this.__data__;
     if (nativeCreate) {
-      var result = data[key];
+      var result = data[key2];
       return result === HASH_UNDEFINED ? void 0 : result;
     }
-    return hasOwnProperty.call(data, key) ? data[key] : void 0;
+    return hasOwnProperty.call(data, key2) ? data[key2] : void 0;
   }
-  function hashHas(key) {
+  function hashHas(key2) {
     var data = this.__data__;
-    return nativeCreate ? data[key] !== void 0 : hasOwnProperty.call(data, key);
+    return nativeCreate ? data[key2] !== void 0 : hasOwnProperty.call(data, key2);
   }
-  function hashSet(key, value) {
+  function hashSet(key2, value) {
     var data = this.__data__;
-    data[key] = nativeCreate && value === void 0 ? HASH_UNDEFINED : value;
+    data[key2] = nativeCreate && value === void 0 ? HASH_UNDEFINED : value;
     return this;
   }
   Hash.prototype.clear = hashClear;
@@ -47038,8 +47287,8 @@ function requireLodash_difference() {
   function listCacheClear() {
     this.__data__ = [];
   }
-  function listCacheDelete(key) {
-    var data = this.__data__, index2 = assocIndexOf(data, key);
+  function listCacheDelete(key2) {
+    var data = this.__data__, index2 = assocIndexOf(data, key2);
     if (index2 < 0) {
       return false;
     }
@@ -47051,17 +47300,17 @@ function requireLodash_difference() {
     }
     return true;
   }
-  function listCacheGet(key) {
-    var data = this.__data__, index2 = assocIndexOf(data, key);
+  function listCacheGet(key2) {
+    var data = this.__data__, index2 = assocIndexOf(data, key2);
     return index2 < 0 ? void 0 : data[index2][1];
   }
-  function listCacheHas(key) {
-    return assocIndexOf(this.__data__, key) > -1;
+  function listCacheHas(key2) {
+    return assocIndexOf(this.__data__, key2) > -1;
   }
-  function listCacheSet(key, value) {
-    var data = this.__data__, index2 = assocIndexOf(data, key);
+  function listCacheSet(key2, value) {
+    var data = this.__data__, index2 = assocIndexOf(data, key2);
     if (index2 < 0) {
-      data.push([key, value]);
+      data.push([key2, value]);
     } else {
       data[index2][1] = value;
     }
@@ -47087,17 +47336,17 @@ function requireLodash_difference() {
       "string": new Hash()
     };
   }
-  function mapCacheDelete(key) {
-    return getMapData(this, key)["delete"](key);
+  function mapCacheDelete(key2) {
+    return getMapData(this, key2)["delete"](key2);
   }
-  function mapCacheGet(key) {
-    return getMapData(this, key).get(key);
+  function mapCacheGet(key2) {
+    return getMapData(this, key2).get(key2);
   }
-  function mapCacheHas(key) {
-    return getMapData(this, key).has(key);
+  function mapCacheHas(key2) {
+    return getMapData(this, key2).has(key2);
   }
-  function mapCacheSet(key, value) {
-    getMapData(this, key).set(key, value);
+  function mapCacheSet(key2, value) {
+    getMapData(this, key2).set(key2, value);
     return this;
   }
   MapCache.prototype.clear = mapCacheClear;
@@ -47121,10 +47370,10 @@ function requireLodash_difference() {
   }
   SetCache.prototype.add = SetCache.prototype.push = setCacheAdd;
   SetCache.prototype.has = setCacheHas;
-  function assocIndexOf(array, key) {
+  function assocIndexOf(array, key2) {
     var length = array.length;
     while (length--) {
-      if (eq(array[length][0], key)) {
+      if (eq(array[length][0], key2)) {
         return length;
       }
     }
@@ -47195,12 +47444,12 @@ function requireLodash_difference() {
       return apply2(func, this, otherArgs);
     };
   }
-  function getMapData(map2, key) {
+  function getMapData(map2, key2) {
     var data = map2.__data__;
-    return isKeyable(key) ? data[typeof key == "string" ? "string" : "hash"] : data.map;
+    return isKeyable(key2) ? data[typeof key2 == "string" ? "string" : "hash"] : data.map;
   }
-  function getNative(object2, key) {
-    var value = getValue(object2, key);
+  function getNative(object2, key2) {
+    var value = getValue(object2, key2);
     return baseIsNative(value) ? value : void 0;
   }
   function isFlattenable(value) {
@@ -47321,11 +47570,11 @@ function requireLodash_union() {
   function baseIsNaN(value) {
     return value !== value;
   }
-  function cacheHas(cache2, key) {
-    return cache2.has(key);
+  function cacheHas(cache2, key2) {
+    return cache2.has(key2);
   }
-  function getValue(object2, key) {
-    return object2 == null ? void 0 : object2[key];
+  function getValue(object2, key2) {
+    return object2 == null ? void 0 : object2[key2];
   }
   function isHostObject(value) {
     var result = false;
@@ -47370,24 +47619,24 @@ function requireLodash_union() {
   function hashClear() {
     this.__data__ = nativeCreate ? nativeCreate(null) : {};
   }
-  function hashDelete(key) {
-    return this.has(key) && delete this.__data__[key];
+  function hashDelete(key2) {
+    return this.has(key2) && delete this.__data__[key2];
   }
-  function hashGet(key) {
+  function hashGet(key2) {
     var data = this.__data__;
     if (nativeCreate) {
-      var result = data[key];
+      var result = data[key2];
       return result === HASH_UNDEFINED ? void 0 : result;
     }
-    return hasOwnProperty.call(data, key) ? data[key] : void 0;
+    return hasOwnProperty.call(data, key2) ? data[key2] : void 0;
   }
-  function hashHas(key) {
+  function hashHas(key2) {
     var data = this.__data__;
-    return nativeCreate ? data[key] !== void 0 : hasOwnProperty.call(data, key);
+    return nativeCreate ? data[key2] !== void 0 : hasOwnProperty.call(data, key2);
   }
-  function hashSet(key, value) {
+  function hashSet(key2, value) {
     var data = this.__data__;
-    data[key] = nativeCreate && value === void 0 ? HASH_UNDEFINED : value;
+    data[key2] = nativeCreate && value === void 0 ? HASH_UNDEFINED : value;
     return this;
   }
   Hash.prototype.clear = hashClear;
@@ -47406,8 +47655,8 @@ function requireLodash_union() {
   function listCacheClear() {
     this.__data__ = [];
   }
-  function listCacheDelete(key) {
-    var data = this.__data__, index2 = assocIndexOf(data, key);
+  function listCacheDelete(key2) {
+    var data = this.__data__, index2 = assocIndexOf(data, key2);
     if (index2 < 0) {
       return false;
     }
@@ -47419,17 +47668,17 @@ function requireLodash_union() {
     }
     return true;
   }
-  function listCacheGet(key) {
-    var data = this.__data__, index2 = assocIndexOf(data, key);
+  function listCacheGet(key2) {
+    var data = this.__data__, index2 = assocIndexOf(data, key2);
     return index2 < 0 ? void 0 : data[index2][1];
   }
-  function listCacheHas(key) {
-    return assocIndexOf(this.__data__, key) > -1;
+  function listCacheHas(key2) {
+    return assocIndexOf(this.__data__, key2) > -1;
   }
-  function listCacheSet(key, value) {
-    var data = this.__data__, index2 = assocIndexOf(data, key);
+  function listCacheSet(key2, value) {
+    var data = this.__data__, index2 = assocIndexOf(data, key2);
     if (index2 < 0) {
-      data.push([key, value]);
+      data.push([key2, value]);
     } else {
       data[index2][1] = value;
     }
@@ -47455,17 +47704,17 @@ function requireLodash_union() {
       "string": new Hash()
     };
   }
-  function mapCacheDelete(key) {
-    return getMapData(this, key)["delete"](key);
+  function mapCacheDelete(key2) {
+    return getMapData(this, key2)["delete"](key2);
   }
-  function mapCacheGet(key) {
-    return getMapData(this, key).get(key);
+  function mapCacheGet(key2) {
+    return getMapData(this, key2).get(key2);
   }
-  function mapCacheHas(key) {
-    return getMapData(this, key).has(key);
+  function mapCacheHas(key2) {
+    return getMapData(this, key2).has(key2);
   }
-  function mapCacheSet(key, value) {
-    getMapData(this, key).set(key, value);
+  function mapCacheSet(key2, value) {
+    getMapData(this, key2).set(key2, value);
     return this;
   }
   MapCache.prototype.clear = mapCacheClear;
@@ -47489,10 +47738,10 @@ function requireLodash_union() {
   }
   SetCache.prototype.add = SetCache.prototype.push = setCacheAdd;
   SetCache.prototype.has = setCacheHas;
-  function assocIndexOf(array, key) {
+  function assocIndexOf(array, key2) {
     var length = array.length;
     while (length--) {
-      if (eq(array[length][0], key)) {
+      if (eq(array[length][0], key2)) {
         return length;
       }
     }
@@ -47572,12 +47821,12 @@ function requireLodash_union() {
   var createSet = !(Set2 && 1 / setToArray(new Set2([, -0]))[1] == INFINITY) ? noop : function(values) {
     return new Set2(values);
   };
-  function getMapData(map2, key) {
+  function getMapData(map2, key2) {
     var data = map2.__data__;
-    return isKeyable(key) ? data[typeof key == "string" ? "string" : "hash"] : data.map;
+    return isKeyable(key2) ? data[typeof key2 == "string" ? "string" : "hash"] : data.map;
   }
-  function getNative(object2, key) {
-    var value = getValue(object2, key);
+  function getNative(object2, key2) {
+    var value = getValue(object2, key2);
     return baseIsNative(value) ? value : void 0;
   }
   function isFlattenable(value) {
@@ -49368,10 +49617,10 @@ function requireSync() {
     }
   };
   GlobSync.prototype._processSimple = function(prefix, index2) {
-    var exists = this._stat(prefix);
+    var exists2 = this._stat(prefix);
     if (!this.matches[index2])
       this.matches[index2] = /* @__PURE__ */ Object.create(null);
-    if (!exists)
+    if (!exists2)
       return;
     if (prefix && isAbsolute(prefix) && !this.nomount) {
       var trail = /[\/\\]$/.test(prefix);
@@ -49524,18 +49773,18 @@ function requireInflight() {
   var reqs = /* @__PURE__ */ Object.create(null);
   var once2 = requireOnce();
   inflight_1 = wrappy(inflight);
-  function inflight(key, cb) {
-    if (reqs[key]) {
-      reqs[key].push(cb);
+  function inflight(key2, cb) {
+    if (reqs[key2]) {
+      reqs[key2].push(cb);
       return null;
     } else {
-      reqs[key] = [cb];
-      return makeres(key);
+      reqs[key2] = [cb];
+      return makeres(key2);
     }
   }
-  function makeres(key) {
+  function makeres(key2) {
     return once2(function RES() {
-      var cbs = reqs[key];
+      var cbs = reqs[key2];
       var len = cbs.length;
       var args = slice(arguments);
       try {
@@ -49549,7 +49798,7 @@ function requireInflight() {
             RES.apply(null, args);
           });
         } else {
-          delete reqs[key];
+          delete reqs[key2];
         }
       }
     });
@@ -50030,14 +50279,14 @@ function requireGlob() {
   };
   Glob.prototype._processSimple = function(prefix, index2, cb) {
     var self2 = this;
-    this._stat(prefix, function(er, exists) {
-      self2._processSimple2(prefix, index2, er, exists, cb);
+    this._stat(prefix, function(er, exists2) {
+      self2._processSimple2(prefix, index2, er, exists2, cb);
     });
   };
-  Glob.prototype._processSimple2 = function(prefix, index2, er, exists, cb) {
+  Glob.prototype._processSimple2 = function(prefix, index2, er, exists2, cb) {
     if (!this.matches[index2])
       this.matches[index2] = /* @__PURE__ */ Object.create(null);
-    if (!exists)
+    if (!exists2)
       return cb();
     if (prefix && isAbsolute(prefix) && !this.nomount) {
       var trail = /[\/\\]$/.test(prefix);
@@ -50569,11 +50818,11 @@ function requireCore() {
     this._module.pipe(this);
     this._state.modulePiped = true;
   };
-  Archiver.prototype._moduleSupports = function(key) {
-    if (!this._module.supports || !this._module.supports[key]) {
+  Archiver.prototype._moduleSupports = function(key2) {
+    if (!this._module.supports || !this._module.supports[key2]) {
       return false;
     }
-    return this._module.supports[key];
+    return this._module.supports[key2];
   };
   Archiver.prototype._moduleUnpipe = function() {
     this._module.unpipe(this);
@@ -53257,8 +53506,8 @@ function requireHeaders() {
     if (opts.linkname) result += addLength(" linkpath=" + opts.linkname + "\n");
     var pax = opts.pax;
     if (pax) {
-      for (var key in pax) {
-        result += addLength(" " + key + "=" + pax[key] + "\n");
+      for (var key2 in pax) {
+        result += addLength(" " + key2 + "=" + pax[key2] + "\n");
       }
     }
     return Buffer.from(result);
@@ -54496,14 +54745,14 @@ function requireWorksheetWriter() {
         column2.defn = defn;
       });
     }
-    getColumnKey(key) {
-      return this._keys[key];
+    getColumnKey(key2) {
+      return this._keys[key2];
     }
-    setColumnKey(key, value) {
-      this._keys[key] = value;
+    setColumnKey(key2, value) {
+      this._keys[key2] = value;
     }
-    deleteColumnKey(key) {
-      delete this._keys[key];
+    deleteColumnKey(key2) {
+      delete this._keys[key2];
     }
     eachColumnKey(f) {
       _2.each(this._keys, f);
@@ -55235,21 +55484,21 @@ function requireTraverse() {
   Traverse.prototype.get = function(ps) {
     var node2 = this.value;
     for (var i2 = 0; i2 < ps.length; i2++) {
-      var key = ps[i2];
-      if (!Object.hasOwnProperty.call(node2, key)) {
+      var key2 = ps[i2];
+      if (!Object.hasOwnProperty.call(node2, key2)) {
         node2 = void 0;
         break;
       }
-      node2 = node2[key];
+      node2 = node2[key2];
     }
     return node2;
   };
   Traverse.prototype.set = function(ps, value) {
     var node2 = this.value;
     for (var i2 = 0; i2 < ps.length - 1; i2++) {
-      var key = ps[i2];
-      if (!Object.hasOwnProperty.call(node2, key)) node2[key] = {};
-      node2 = node2[key];
+      var key2 = ps[i2];
+      if (!Object.hasOwnProperty.call(node2, key2)) node2[key2] = {};
+      node2 = node2[key2];
     }
     node2[ps[i2]] = value;
     return value;
@@ -55358,8 +55607,8 @@ function requireTraverse() {
         var dst = copy(src2);
         parents.push(src2);
         nodes.push(dst);
-        Object.keys(src2).forEach(function(key) {
-          dst[key] = clone(src2[key]);
+        Object.keys(src2).forEach(function(key2) {
+          dst[key2] = clone(src2[key2]);
         });
         parents.pop();
         nodes.pop();
@@ -55437,12 +55686,12 @@ function requireTraverse() {
       if (typeof state2.node == "object" && state2.node !== null && !state2.circular) {
         parents.push(state2);
         var keys = Object.keys(state2.node);
-        keys.forEach(function(key, i3) {
-          path2.push(key);
-          if (modifiers.pre) modifiers.pre.call(state2, state2.node[key], key);
-          var child2 = walker(state2.node[key]);
-          if (immutable && Object.hasOwnProperty.call(state2.node, key)) {
-            state2.node[key] = child2.node;
+        keys.forEach(function(key2, i3) {
+          path2.push(key2);
+          if (modifiers.pre) modifiers.pre.call(state2, state2.node[key2], key2);
+          var child2 = walker(state2.node[key2]);
+          if (immutable && Object.hasOwnProperty.call(state2.node, key2)) {
+            state2.node[key2] = child2.node;
           }
           child2.isLast = i3 == keys.length - 1;
           child2.isFirst = i3 == 0;
@@ -55455,11 +55704,11 @@ function requireTraverse() {
       return state2;
     })(root).node;
   }
-  Object.keys(Traverse.prototype).forEach(function(key) {
-    Traverse[key] = function(obj) {
+  Object.keys(Traverse.prototype).forEach(function(key2) {
+    Traverse[key2] = function(obj) {
       var args = [].slice.call(arguments, 1);
       var t = Traverse(obj);
-      return t[key].apply(t, args);
+      return t[key2].apply(t, args);
     };
   });
   function copy(src2) {
@@ -55478,8 +55727,8 @@ function requireTraverse() {
       } else {
         dst = Object.create(Object.getPrototypeOf(src2));
       }
-      Object.keys(src2).forEach(function(key) {
-        dst[key] = src2[key];
+      Object.keys(src2).forEach(function(key2) {
+        dst[key2] = src2[key2];
       });
       return dst;
     } else return src2;
@@ -55540,8 +55789,8 @@ function requireChainsaw() {
         saw.emit("end");
       } else if (!action.trap) {
         var node2 = saw.handlers;
-        action.path.forEach(function(key) {
-          node2 = node2[key];
+        action.path.forEach(function(key2) {
+          node2 = node2[key2];
         });
         node2.apply(saw.handlers, action.args);
       }
@@ -55828,11 +56077,11 @@ function requireVars() {
         if (node2[k] === void 0) node2[k] = {};
         node2 = node2[k];
       });
-      var key = keys[keys.length - 1];
+      var key2 = keys[keys.length - 1];
       if (arguments.length == 1) {
-        return node2[key];
+        return node2[key2];
       } else {
-        return node2[key] = value;
+        return node2[key2] = value;
       }
     }
     var vars2 = {
@@ -55935,10 +56184,10 @@ function requireBinary() {
         self2.tap = function(cb) {
           saw.nest(cb, vars2.store);
         };
-        self2.into = function(key, cb) {
-          if (!vars2.get(key)) vars2.set(key, {});
+        self2.into = function(key2, cb) {
+          if (!vars2.get(key2)) vars2.set(key2, {});
           var parent2 = vars2;
-          vars2 = Vars(parent2.get(key));
+          vars2 = Vars(parent2.get(key2));
           saw.nest(function() {
             cb.apply(this, arguments);
             this.tap(function() {
@@ -56064,12 +56313,12 @@ function requireBinary() {
         cb.call(self2, vars2.store);
         return self2;
       };
-      self2.into = function(key, cb) {
-        if (!vars2.get(key)) {
-          vars2.set(key, {});
+      self2.into = function(key2, cb) {
+        if (!vars2.get(key2)) {
+          vars2.set(key2, {});
         }
         var parent2 = vars2;
-        vars2 = Vars(parent2.get(key));
+        vars2 = Vars(parent2.get(key2));
         cb.call(self2, vars2.store);
         vars2 = parent2;
         return self2;
@@ -56204,18 +56453,18 @@ function requireEs5() {
     var proto = {}.constructor.prototype;
     var ObjectKeys = function(o) {
       var ret = [];
-      for (var key in o) {
-        if (has.call(o, key)) {
-          ret.push(key);
+      for (var key2 in o) {
+        if (has.call(o, key2)) {
+          ret.push(key2);
         }
       }
       return ret;
     };
-    var ObjectGetDescriptor = function(o, key) {
-      return { value: o[key] };
+    var ObjectGetDescriptor = function(o, key2) {
+      return { value: o[key2] };
     };
-    var ObjectDefineProperty = function(o, key, desc) {
-      o[key] = desc.value;
+    var ObjectDefineProperty = function(o, key2, desc) {
+      o[key2] = desc.value;
       return o;
     };
     var ObjectFreeze = function(obj) {
@@ -56310,14 +56559,14 @@ function requireUtil() {
     ret2[i2] = appendee;
     return ret2;
   }
-  function getDataPropertyOrDefault(obj2, key, defaultValue) {
+  function getDataPropertyOrDefault(obj2, key2, defaultValue) {
     if (es52.isES5) {
-      var desc = Object.getOwnPropertyDescriptor(obj2, key);
+      var desc = Object.getOwnPropertyDescriptor(obj2, key2);
       if (desc != null) {
         return desc.get == null && desc.set == null ? desc.value : defaultValue;
       }
     } else {
-      return {}.hasOwnProperty.call(obj2, key) ? obj2[key] : void 0;
+      return {}.hasOwnProperty.call(obj2, key2) ? obj2[key2] : void 0;
     }
   }
   function notEnumerableProp(obj2, name, value) {
@@ -56361,12 +56610,12 @@ function requireUtil() {
             return ret2;
           }
           for (var i2 = 0; i2 < keys.length; ++i2) {
-            var key = keys[i2];
-            if (visitedKeys[key]) continue;
-            visitedKeys[key] = true;
-            var desc = Object.getOwnPropertyDescriptor(obj2, key);
+            var key2 = keys[i2];
+            if (visitedKeys[key2]) continue;
+            visitedKeys[key2] = true;
+            var desc = Object.getOwnPropertyDescriptor(obj2, key2);
             if (desc != null && desc.get == null && desc.set == null) {
-              ret2.push(key);
+              ret2.push(key2);
             }
           }
           obj2 = es52.getPrototypeOf(obj2);
@@ -56378,16 +56627,16 @@ function requireUtil() {
       return function(obj2) {
         if (isExcludedProto(obj2)) return [];
         var ret2 = [];
-        enumeration: for (var key in obj2) {
-          if (hasProp.call(obj2, key)) {
-            ret2.push(key);
+        enumeration: for (var key2 in obj2) {
+          if (hasProp.call(obj2, key2)) {
+            ret2.push(key2);
           } else {
             for (var i2 = 0; i2 < excludedPrototypes.length; ++i2) {
-              if (hasProp.call(excludedPrototypes[i2], key)) {
+              if (hasProp.call(excludedPrototypes[i2], key2)) {
                 continue enumeration;
               }
             }
-            ret2.push(key);
+            ret2.push(key2);
           }
         }
         return ret2;
@@ -56471,10 +56720,10 @@ function requireUtil() {
   function copyDescriptors(from, to, filter2) {
     var keys = es52.names(from);
     for (var i2 = 0; i2 < keys.length; ++i2) {
-      var key = keys[i2];
-      if (filter2(key)) {
+      var key2 = keys[i2];
+      if (filter2(key2)) {
         try {
-          es52.defineProperty(to, key, es52.getDescriptor(from, key));
+          es52.defineProperty(to, key2, es52.getDescriptor(from, key2));
         } catch (ignore) {
         }
       }
@@ -56509,8 +56758,8 @@ function requireUtil() {
   }
   var isNode = typeof process !== "undefined" && classString(process).toLowerCase() === "[object process]";
   var hasEnvVariables = typeof process !== "undefined" && typeof process.env !== "undefined";
-  function env(key) {
-    return hasEnvVariables ? process.env[key] : void 0;
+  function env(key2) {
+    return hasEnvVariables ? process.env[key2] : void 0;
   }
   function getNativePromise() {
     if (typeof Promise === "function") {
@@ -58264,8 +58513,8 @@ function requireCatch_filter() {
           } else if (util2.isObject(e)) {
             var keys = getKeys(item);
             for (var j = 0; j < keys.length; ++j) {
-              var key = keys[j];
-              if (item[key] != e[key]) {
+              var key2 = keys[j];
+              if (item[key2] != e[key2]) {
                 continue predicateLoop;
               }
             }
@@ -58302,9 +58551,9 @@ function requireNodeback() {
       ret.stack = obj.stack;
       var keys = es52.keys(obj);
       for (var i2 = 0; i2 < keys.length; ++i2) {
-        var key = keys[i2];
-        if (!rErrorKey.test(key)) {
-          ret[key] = obj[key];
+        var key2 = keys[i2];
+        if (!rErrorKey.test(key2)) {
+          ret[key2] = obj[key2];
         }
       }
       return ret;
@@ -59729,8 +59978,8 @@ function requirePromisify() {
     var defaultFilter = function(name) {
       return util2.isIdentifier(name) && name.charAt(0) !== "_" && name !== "constructor";
     };
-    function propsFilter(key) {
-      return !noCopyPropsPattern.test(key);
+    function propsFilter(key2) {
+      return !noCopyPropsPattern.test(key2);
     }
     function isPromisified(fn) {
       try {
@@ -59739,19 +59988,19 @@ function requirePromisify() {
         return false;
       }
     }
-    function hasPromisified(obj, key, suffix) {
+    function hasPromisified(obj, key2, suffix) {
       var val = util2.getDataPropertyOrDefault(
         obj,
-        key + suffix,
+        key2 + suffix,
         defaultPromisified
       );
       return val ? isPromisified(val) : false;
     }
     function checkValid(ret, suffix, suffixRegexp) {
       for (var i2 = 0; i2 < ret.length; i2 += 2) {
-        var key = ret[i2];
-        if (suffixRegexp.test(key)) {
-          var keyWithoutAsyncSuffix = key.replace(suffixRegexp, "");
+        var key2 = ret[i2];
+        if (suffixRegexp.test(key2)) {
+          var keyWithoutAsyncSuffix = key2.replace(suffixRegexp, "");
           for (var j = 0; j < ret.length; j += 2) {
             if (ret[j] === keyWithoutAsyncSuffix) {
               throw new TypeError2("Cannot promisify an API that has normal methods with '%s'-suffix\n\n    See http://goo.gl/MqrFmX\n".replace("%s", suffix));
@@ -59764,11 +60013,11 @@ function requirePromisify() {
       var keys = util2.inheritedDataKeys(obj);
       var ret = [];
       for (var i2 = 0; i2 < keys.length; ++i2) {
-        var key = keys[i2];
-        var value = obj[key];
-        var passesDefaultFilter = filter2 === defaultFilter ? true : defaultFilter(key);
-        if (typeof value === "function" && !isPromisified(value) && !hasPromisified(obj, key, suffix) && filter2(key, value, obj, passesDefaultFilter)) {
-          ret.push(key, value);
+        var key2 = keys[i2];
+        var value = obj[key2];
+        var passesDefaultFilter = filter2 === defaultFilter ? true : defaultFilter(key2);
+        if (typeof value === "function" && !isPromisified(value) && !hasPromisified(obj, key2, suffix) && filter2(key2, value, obj, passesDefaultFilter)) {
+          ret.push(key2, value);
         }
       }
       checkValid(ret, suffix, suffixRegexp);
@@ -59889,17 +60138,17 @@ function requirePromisify() {
       var suffixRegexp = new RegExp(escapeIdentRegex(suffix) + "$");
       var methods = promisifiableMethods(obj, suffix, suffixRegexp, filter2);
       for (var i2 = 0, len = methods.length; i2 < len; i2 += 2) {
-        var key = methods[i2];
+        var key2 = methods[i2];
         var fn = methods[i2 + 1];
-        var promisifiedKey = key + suffix;
+        var promisifiedKey = key2 + suffix;
         if (promisifier === makeNodePromisified) {
-          obj[promisifiedKey] = makeNodePromisified(key, THIS, key, fn, suffix, multiArgs);
+          obj[promisifiedKey] = makeNodePromisified(key2, THIS, key2, fn, suffix, multiArgs);
         } else {
           var promisified = promisifier(fn, function() {
             return makeNodePromisified(
-              key,
+              key2,
               THIS,
-              key,
+              key2,
               fn,
               suffix,
               multiArgs
@@ -59984,9 +60233,9 @@ function requireProps() {
     var mapToEntries = /* @__PURE__ */ (function() {
       var index2 = 0;
       var size = 0;
-      function extractEntry(value, key) {
+      function extractEntry(value, key2) {
         this[index2] = value;
-        this[index2 + size] = key;
+        this[index2 + size] = key2;
         index2++;
       }
       return function mapToEntries2(map2) {
@@ -60001,9 +60250,9 @@ function requireProps() {
       var ret = new Es6Map();
       var length = entries.length / 2 | 0;
       for (var i2 = 0; i2 < length; ++i2) {
-        var key = entries[length + i2];
+        var key2 = entries[length + i2];
         var value = entries[i2];
-        ret.set(key, value);
+        ret.set(key2, value);
       }
       return ret;
     };
@@ -60018,9 +60267,9 @@ function requireProps() {
         var len = keys.length;
         entries = new Array(len * 2);
         for (var i2 = 0; i2 < len; ++i2) {
-          var key = keys[i2];
-          entries[i2] = obj[key];
-          entries[i2 + len] = key;
+          var key2 = keys[i2];
+          entries[i2] = obj[key2];
+          entries[i2 + len] = key2;
         }
       }
       this.constructor$(entries);
@@ -65284,8 +65533,8 @@ function requireOpen() {
         },
         stream: function(offset, length) {
           var d = {};
-          for (var key in params)
-            d[key] = params[key];
+          for (var key2 in params)
+            d[key2] = params[key2];
           d.Range = "bytes=" + offset + "-" + (length ? length : "");
           return client.getObject(d).createReadStream();
         }
@@ -65509,8 +65758,8 @@ function requireTmp() {
         return [{}, callback];
       }
       const actualOptions = {};
-      for (const key of Object.getOwnPropertyNames(options)) {
-        actualOptions[key] = options[key];
+      for (const key2 of Object.getOwnPropertyNames(options)) {
+        actualOptions[key2] = options[key2];
       }
       return [actualOptions, callback];
     }
@@ -65786,14 +66035,14 @@ function requireWorksheetReader() {
       }
       return this._columns[c - 1];
     }
-    getColumnKey(key) {
-      return this._keys[key];
+    getColumnKey(key2) {
+      return this._keys[key2];
     }
-    setColumnKey(key, value) {
-      this._keys[key] = value;
+    setColumnKey(key2, value) {
+      this._keys[key2] = value;
     }
-    deleteColumnKey(key) {
-      delete this._keys[key];
+    deleteColumnKey(key2) {
+      delete this._keys[key2];
     }
     eachColumnKey(f) {
       _2.each(this._keys, f);
@@ -68665,9 +68914,9 @@ async function analyzeVersion(bytes, ext) {
     const structure = {};
     if ([".txt", ".md", ".csv", ".json", ".xml", ".html"].includes(ext)) text2 = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
     else if (ext === ".docx" || ext === ".pptx") {
-      const files = unzipSync(bytes), decode = (key) => {
-        if (!files[key]) throw new Error("缺少文档正文");
-        return new TextDecoder().decode(files[key]);
+      const files = unzipSync(bytes), decode = (key2) => {
+        if (!files[key2]) throw new Error("缺少文档正文");
+        return new TextDecoder().decode(files[key2]);
       };
       if (ext === ".docx") {
         const body = xmlStats(decode("word/document.xml"), "w:t");
@@ -69049,13 +69298,13 @@ async function versionStatsHandler(args) {
   const baselineVersion = baselineId ? byId.get(baselineId) : line[0];
   if (baselineId && !baselineVersion) throw new Error("基准版本不属于当前文档");
   const read = async (v) => {
-    const key = [repo.root, docName2, v.contentId].join("\0");
-    let a = cache.get(key);
+    const key2 = [repo.root, docName2, v.contentId].join("\0");
+    let a = cache.get(key2);
     if (!a) {
       a = await analyzeVersion(await versionBytes(repo, docName2, v.id), path$1.extname(docName2).toLowerCase());
       if ((a.values.cells ?? 0) < 2e4 && (a.paragraphs?.length ?? 0) < 1e4) {
         if (cache.size >= 256) cache.delete(cache.keys().next().value);
-        cache.set(key, a);
+        cache.set(key2, a);
       }
     }
     return a;
@@ -69323,6 +69572,16 @@ function registerEditHistoryHandlers() {
   ipcMain.handle("history.undo", () => undoEdit(getRepo()));
   ipcMain.handle("history.redo", () => redoEdit(getRepo()));
 }
+const paths = arrayType(stringType().min(1)).min(1);
+function registerDropHandlers() {
+  ipcMain.handle("drop.inspect", (_event, input) => inspectDroppedFiles(paths.parse(input)));
+  ipcMain.handle("drop.prepare", (_event, input) => {
+    const request2 = objectType({ paths, projectId: stringType().uuid().optional(), parentId: stringType().uuid().nullable().optional(), workingFolder: stringType().optional() }).parse(input);
+    return prepareProjectDrop(getRepo(), request2.paths, request2.projectId, request2.parentId, request2.workingFolder);
+  });
+  ipcMain.handle("drop.project", (_event, input) => importDroppedProject(getRepo(), ProjectDropRequestSchema.parse(input)));
+  ipcMain.handle("drop.projects", (_event, input) => createDroppedProjects(getRepo(), paths.parse(input)));
+}
 function registerAllHandlers() {
   registerRepoHandlers();
   registerDocHandlers();
@@ -69335,6 +69594,7 @@ function registerAllHandlers() {
   registerVersionStatsHandlers();
   registerProjectHandlers();
   registerEditHistoryHandlers();
+  registerDropHandlers();
 }
 let win = null;
 function createWindow() {
