@@ -7,6 +7,8 @@ const api = {
     mutate: (request) => electron.ipcRenderer.invoke("library.mutate", request)
   },
   repo: {
+    bootstrap: (previousRoot) => electron.ipcRenderer.invoke("repo.bootstrap", { previousRoot }),
+    relocate: (parent) => electron.ipcRenderer.invoke("repo.relocate", { parent }),
     close: () => electron.ipcRenderer.invoke("repo.close", {}),
     create: (root, name) => electron.ipcRenderer.invoke("repo.create", { root, name }),
     open: (root) => electron.ipcRenderer.invoke("repo.open", { root })

@@ -1,7 +1,7 @@
 {
   "name": "word_git",
-  "productName": "word_git",
-  "version": "0.1.0",
+  "productName": "稿喵",
+  "version": "0.2.0",
   "type": "module",
   "main": "out/main/index.js"
 }

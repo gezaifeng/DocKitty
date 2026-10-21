@@ -1,4 +1,4 @@
-import { ipcMain, shell, dialog, app, BrowserWindow } from "electron";
+import { ipcMain, app, shell, dialog, BrowserWindow } from "electron";
 import path$1, { resolve, join as join$1, relative, sep } from "node:path";
 import { promises } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
@@ -47,7 +47,19 @@ async function writeFileAtomic(target, data) {
   } finally {
     await fh.close();
   }
-  await promises.rename(tmp2, target);
+  try {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await promises.rename(tmp2, target);
+        break;
+      } catch (error2) {
+        if (attempt >= 4 || !["EPERM", "EBUSY", "EACCES"].includes(error2.code ?? "")) throw error2;
+        await new Promise((resolve2) => setTimeout(resolve2, 25 * 2 ** attempt));
+      }
+    }
+  } finally {
+    await promises.rm(tmp2, { force: true });
+  }
 }
 function teeHash(stream2) {
   const hash = createHash("sha256");
@@ -126,6 +138,11 @@ class Repo {
   }
   root;
   static async init(root, name) {
+    try {
+      if ((await promises.readdir(root)).length) throw new Error("仓库位置已有文件，请使用空目录或打开已有仓库");
+    } catch (error2) {
+      if (error2.code !== "ENOENT") throw error2;
+    }
     await promises.mkdir(root, { recursive: true });
     for (const d of LAYOUT_DIRS) await promises.mkdir(path$1.join(root, d), { recursive: true });
     const config = { formatVersion: FORMAT_VERSION, name, createdAt: (/* @__PURE__ */ new Date()).toISOString() };
@@ -2416,11 +2433,13 @@ async function exportVersion(repo, docName2, id, destination) {
 }
 async function beginVersionEdit(repo, docName2, id, branch) {
   return withRepoWrite(repo, async () => {
-    await requireVersion(repo, docName2, id);
+    const version2 = await requireVersion(repo, docName2, id);
     const d = await documentDetail(repo, docName2);
     const target = branch ?? d.currentBranch;
     if (!d.branchHeads[target]) await createBranchUnlocked(repo, docName2, target, { commitId: id });
     else if (d.branchHeads[target] !== id) throw new Error("该版本不是目标分支最新稿，请填写新分支名，或先移动分支起点");
+    const meta = await readLibraryMeta(repo, docName2);
+    if (target === d.currentBranch && d.workspace.exists && meta.workingVersionId === id && meta.workingContentId === version2.contentId) return;
     await switchBranchUnlocked(repo, docName2, target);
   });
 }
@@ -2444,6 +2463,8 @@ const CH = {
   REPO_CREATE: "repo.create",
   REPO_CLOSE: "repo.close",
   REPO_OPEN: "repo.open",
+  REPO_BOOTSTRAP: "repo.bootstrap",
+  REPO_RELOCATE: "repo.relocate",
   DOC_IMPORT: "doc.import",
   DOC_LIST: "doc.list",
   DOC_EDIT: "doc.edit",
@@ -6152,6 +6173,8 @@ const RepoCreateReq = objectType({ root: stringType().min(1), name: stringType()
 objectType({ repoRoot: stringType() });
 const RepoOpenReq = objectType({ root: stringType().min(1) });
 objectType({ repoRoot: stringType(), repoName: stringType() });
+const RepoBootstrapReq = objectType({ previousRoot: stringType().min(1).optional() });
+const RepoRelocateReq = objectType({ parent: stringType().min(1) });
 const DocImportReq = objectType({ sourcePath: stringType().min(1), name: stringType().optional() });
 objectType({ docId: stringType(), commitId: stringType() });
 const DocInfoSchema = objectType({
@@ -6288,6 +6311,80 @@ function clearRepo() {
   _repo = null;
   _listener?.(null);
 }
+const libraryName = "稿喵文档库.wg";
+const settingsPath = () => path$1.join(app.getPath("userData"), "library-settings.json");
+async function rememberRoot(root) {
+  await writeFileAtomic(settingsPath(), new TextEncoder().encode(JSON.stringify({ root })));
+}
+let starting;
+function bootstrapRepo(args) {
+  starting ??= bootstrapRepoOnce(args).finally(() => {
+    starting = void 0;
+  });
+  return starting;
+}
+async function bootstrapRepoOnce(args) {
+  const { previousRoot } = RepoBootstrapReq.parse(args);
+  let configured;
+  try {
+    const config = JSON.parse(await promises.readFile(settingsPath(), "utf8"));
+    if (typeof config.root !== "string" || !path$1.isAbsolute(config.root)) throw new Error("文档库位置设置无效，请更改保存位置");
+    configured = config.root;
+  } catch (error2) {
+    if (error2.code !== "ENOENT") throw error2;
+  }
+  const home = process.env.WORDGIT_LIBRARY_HOME ?? (app.isPackaged ? path$1.dirname(process.execPath) : app.getAppPath());
+  let root = configured ?? previousRoot ?? path$1.join(home, libraryName);
+  let repo;
+  let notice;
+  if (configured || previousRoot) repo = await Repo.open(root);
+  else {
+    const openOrCreate = async (target) => {
+      try {
+        await promises.access(path$1.join(target, "repo.yaml"));
+        return Repo.open(target);
+      } catch (error2) {
+        if (error2.code !== "ENOENT") throw error2;
+      }
+      return Repo.init(target, "我的文档");
+    };
+    try {
+      repo = await openOrCreate(root);
+    } catch (error2) {
+      if (!["EACCES", "EPERM"].includes(error2.code ?? "")) throw error2;
+      root = path$1.join(app.getPath("userData"), libraryName);
+      repo = await openOrCreate(root);
+      notice = "软件所在目录不可写，文档暂存到用户目录。可在文件菜单中更改保存位置。";
+    }
+  }
+  await rememberRoot(repo.root);
+  setRepo(repo);
+  return { repoRoot: repo.root, repoName: "我的文档", notice };
+}
+async function relocateRepo(args) {
+  const { parent: parent2 } = RepoRelocateReq.parse(args);
+  const repo = getRepo();
+  const root = path$1.resolve(parent2, libraryName);
+  const source = path$1.resolve(repo.root);
+  if (root.toLowerCase() === source.toLowerCase()) return { repoRoot: repo.root, repoName: "我的文档" };
+  if (root.toLowerCase().startsWith(source.toLowerCase() + path$1.sep)) throw new Error("新位置不能位于当前文档库内部");
+  await withRepoWrite(repo, async () => {
+    await promises.mkdir(path$1.dirname(root), { recursive: true });
+    if (await promises.stat(root).then(() => true, () => false)) throw new Error("新位置已有文档库，请选择其他文件夹");
+    const staging = await promises.mkdtemp(path$1.join(path$1.dirname(root), ".稿喵搬迁-"));
+    try {
+      await promises.cp(repo.root, staging, { recursive: true, filter: (file2) => path$1.basename(file2) !== ".write.lock" && !path$1.basename(file2).includes(".tmp-") });
+      await Repo.open(staging);
+      await promises.rename(staging, root);
+      await rememberRoot(root);
+    } finally {
+      if (path$1.dirname(staging) !== path$1.dirname(root) || !path$1.basename(staging).startsWith(".稿喵搬迁-")) throw new Error("搬迁临时目录位置无效");
+      await promises.rm(staging, { recursive: true, force: true });
+    }
+  });
+  setRepo(await Repo.open(root));
+  return { repoRoot: root, repoName: "我的文档" };
+}
 async function createRepo(args) {
   const { root, name } = RepoCreateReq.parse(args);
   const repo = await Repo.init(root, name);
@@ -6297,10 +6394,13 @@ async function createRepo(args) {
 async function openRepo(args) {
   const { root } = RepoOpenReq.parse(args);
   const repo = await Repo.open(root);
+  await rememberRoot(repo.root);
   setRepo(repo);
   return { repoRoot: root, repoName: path$1.basename(root) };
 }
 function registerRepoHandlers() {
+  ipcMain.handle(CH.REPO_BOOTSTRAP, (_event, args) => bootstrapRepo(args));
+  ipcMain.handle(CH.REPO_RELOCATE, (_event, args) => relocateRepo(args));
   ipcMain.handle(CH.REPO_CLOSE, () => clearRepo());
   ipcMain.handle(CH.REPO_CREATE, (_e, arg) => createRepo(arg));
   ipcMain.handle(CH.REPO_OPEN, (_e, arg) => openRepo(arg));
@@ -8048,7 +8148,7 @@ async function importDocHandler(args) {
 async function editDoc(args) {
   const { docName: docName2 } = DocEditReq.parse(args);
   const repo = getRepo();
-  const workspacePath = path$1.join(repo.root, "workspace", docName2);
+  const workspacePath = path$1.join(repo.root, "workspace", validateDocName(docName2));
   const error2 = await shell.openPath(workspacePath);
   if (error2) throw new Error(error2);
   watchDoc(docName2, workspacePath);
@@ -65650,7 +65750,7 @@ function createWindow() {
     minWidth: 900,
     minHeight: 600,
     show: false,
-    title: "word_git",
+    title: "稿喵",
     webPreferences: {
       preload: path$1.join(__dirname, "../preload/index.cjs"),
       contextIsolation: true,

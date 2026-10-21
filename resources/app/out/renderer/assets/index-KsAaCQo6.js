@@ -26257,17 +26257,6 @@ const FolderOpen = createLucideIcon("FolderOpen", [
     }
   ]
 ]);
-const FolderPlus = createLucideIcon("FolderPlus", [
-  ["path", { d: "M12 10v6", key: "1bos4e" }],
-  ["path", { d: "M9 13h6", key: "1uhe8q" }],
-  [
-    "path",
-    {
-      d: "M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z",
-      key: "1kt360"
-    }
-  ]
-]);
 const GitBranch = createLucideIcon("GitBranch", [
   ["line", { x1: "6", x2: "6", y1: "3", y2: "15", key: "17qcm7" }],
   ["circle", { cx: "18", cy: "6", r: "3", key: "1h7g24" }],
@@ -26315,9 +26304,6 @@ const Import = createLucideIcon("Import", [
       key: "1ywtjm"
     }
   ]
-]);
-const LoaderCircle = createLucideIcon("LoaderCircle", [
-  ["path", { d: "M21 12a9 9 0 1 1-6.219-8.56", key: "13zald" }]
 ]);
 const Maximize2 = createLucideIcon("Maximize2", [
   ["polyline", { points: "15 3 21 3 21 9", key: "mznyad" }],
@@ -26395,32 +26381,32 @@ const X = createLucideIcon("X", [
   ["path", { d: "M18 6 6 18", key: "1bl5f8" }],
   ["path", { d: "m6 6 12 12", key: "d8bk6v" }]
 ]);
-var __defProp$f = Object.defineProperty;
-var __name$f = (target, value) => __defProp$f(target, "name", { value, configurable: true });
+var __defProp$e = Object.defineProperty;
+var __name$e = (target, value) => __defProp$e(target, "name", { value, configurable: true });
 var canUseDOM = !!(typeof window !== "undefined" && window.document && window.document.createElement);
 function composeEventHandlers(originalEventHandler, ourEventHandler, { checkForDefaultPrevented = true } = {}) {
-  return /* @__PURE__ */ __name$f(function handleEvent(event) {
+  return /* @__PURE__ */ __name$e(function handleEvent(event) {
     originalEventHandler?.(event);
     if (checkForDefaultPrevented === false || !event || !event.defaultPrevented) {
       return ourEventHandler?.(event);
     }
   }, "handleEvent");
 }
-__name$f(composeEventHandlers, "composeEventHandlers");
+__name$e(composeEventHandlers, "composeEventHandlers");
 function getOwnerWindow(element) {
   if (!canUseDOM) {
     throw new Error("Cannot access window outside of the DOM");
   }
   return element?.ownerDocument?.defaultView ?? window;
 }
-__name$f(getOwnerWindow, "getOwnerWindow");
+__name$e(getOwnerWindow, "getOwnerWindow");
 function getOwnerDocument(element) {
   if (!canUseDOM) {
     throw new Error("Cannot access document outside of the DOM");
   }
   return element?.ownerDocument ?? document;
 }
-__name$f(getOwnerDocument, "getOwnerDocument");
+__name$e(getOwnerDocument, "getOwnerDocument");
 function getActiveElement(node, activeDescendant = false) {
   const { activeElement } = getOwnerDocument(node);
   if (!activeElement?.nodeName) {
@@ -26440,13 +26426,13 @@ function getActiveElement(node, activeDescendant = false) {
   }
   return activeElement;
 }
-__name$f(getActiveElement, "getActiveElement");
+__name$e(getActiveElement, "getActiveElement");
 function isFrame(element) {
   return element.tagName === "IFRAME";
 }
-__name$f(isFrame, "isFrame");
-var __defProp$e = Object.defineProperty;
-var __name$e = (target, value) => __defProp$e(target, "name", { value, configurable: true });
+__name$e(isFrame, "isFrame");
+var __defProp$d = Object.defineProperty;
+var __name$d = (target, value) => __defProp$d(target, "name", { value, configurable: true });
 function setRef$1(ref, value) {
   if (typeof ref === "function") {
     return ref(value);
@@ -26454,7 +26440,7 @@ function setRef$1(ref, value) {
     ref.current = value;
   }
 }
-__name$e(setRef$1, "setRef");
+__name$d(setRef$1, "setRef");
 function composeRefs(...refs) {
   return (node) => {
     let hasCleanup = false;
@@ -26479,18 +26465,18 @@ function composeRefs(...refs) {
     }
   };
 }
-__name$e(composeRefs, "composeRefs");
+__name$d(composeRefs, "composeRefs");
 function useComposedRefs(...refs) {
   return reactExports.useCallback(composeRefs(...refs), refs);
 }
-__name$e(useComposedRefs, "useComposedRefs");
-var __defProp$d = Object.defineProperty;
-var __name$d = (target, value) => __defProp$d(target, "name", { value, configurable: true });
+__name$d(useComposedRefs, "useComposedRefs");
+var __defProp$c = Object.defineProperty;
+var __name$c = (target, value) => __defProp$c(target, "name", { value, configurable: true });
 // @__NO_SIDE_EFFECTS__
 function createContext2(rootComponentName, defaultContext) {
   const Context = reactExports.createContext(defaultContext);
   Context.displayName = rootComponentName + "Context";
-  const Provider = /* @__PURE__ */ __name$d((props) => {
+  const Provider = /* @__PURE__ */ __name$c((props) => {
     const { children, ...context } = props;
     const value = reactExports.useMemo(() => context, Object.values(context));
     return /* @__PURE__ */ jsxRuntimeExports.jsx(Context.Provider, { value, children });
@@ -26504,10 +26490,10 @@ function createContext2(rootComponentName, defaultContext) {
     if (optional) return void 0;
     throw new Error(`\`${consumerName}\` must be used within \`${rootComponentName}\``);
   }
-  __name$d(useContext2, "useContext");
+  __name$c(useContext2, "useContext");
   return [Provider, useContext2];
 }
-__name$d(createContext2, "createContext");
+__name$c(createContext2, "createContext");
 // @__NO_SIDE_EFFECTS__
 function createContextScope(scopeName, createContextScopeDeps = []) {
   let defaultContexts = [];
@@ -26516,7 +26502,7 @@ function createContextScope(scopeName, createContextScopeDeps = []) {
     BaseContext.displayName = rootComponentName + "Context";
     const index = defaultContexts.length;
     defaultContexts = [...defaultContexts, defaultContext];
-    const Provider = /* @__PURE__ */ __name$d((props) => {
+    const Provider = /* @__PURE__ */ __name$c((props) => {
       const { scope, children, ...context } = props;
       const Context = scope?.[scopeName]?.[index] || BaseContext;
       const value = reactExports.useMemo(() => context, Object.values(context));
@@ -26532,15 +26518,15 @@ function createContextScope(scopeName, createContextScopeDeps = []) {
       if (optional) return void 0;
       throw new Error(`\`${consumerName}\` must be used within \`${rootComponentName}\``);
     }
-    __name$d(useContext2, "useContext");
+    __name$c(useContext2, "useContext");
     return [Provider, useContext2];
   }
-  __name$d(createContext3, "createContext");
-  const createScope = /* @__PURE__ */ __name$d(() => {
+  __name$c(createContext3, "createContext");
+  const createScope = /* @__PURE__ */ __name$c(() => {
     const scopeContexts = defaultContexts.map((defaultContext) => {
       return reactExports.createContext(defaultContext);
     });
-    return /* @__PURE__ */ __name$d(function useScope(scope) {
+    return /* @__PURE__ */ __name$c(function useScope(scope) {
       const contexts = scope?.[scopeName] || scopeContexts;
       return reactExports.useMemo(
         () => ({ [`__scope${scopeName}`]: { ...scope, [scopeName]: contexts } }),
@@ -26551,16 +26537,16 @@ function createContextScope(scopeName, createContextScopeDeps = []) {
   createScope.scopeName = scopeName;
   return [createContext3, composeContextScopes(createScope, ...createContextScopeDeps)];
 }
-__name$d(createContextScope, "createContextScope");
+__name$c(createContextScope, "createContextScope");
 function composeContextScopes(...scopes) {
   const baseScope = scopes[0];
   if (scopes.length === 1) return baseScope;
-  const createScope = /* @__PURE__ */ __name$d(() => {
+  const createScope = /* @__PURE__ */ __name$c(() => {
     const scopeHooks = scopes.map((createScope2) => ({
       useScope: createScope2(),
       scopeName: createScope2.scopeName
     }));
-    return /* @__PURE__ */ __name$d(function useComposedScopes(overrideScopes) {
+    return /* @__PURE__ */ __name$c(function useComposedScopes(overrideScopes) {
       const nextScopes = scopeHooks.reduce((nextScopes2, { useScope, scopeName }) => {
         const scopeProps = useScope(overrideScopes);
         const currentScope = scopeProps[`__scope${scopeName}`];
@@ -26572,11 +26558,11 @@ function composeContextScopes(...scopes) {
   createScope.scopeName = baseScope.scopeName;
   return createScope;
 }
-__name$d(composeContextScopes, "composeContextScopes");
+__name$c(composeContextScopes, "composeContextScopes");
 var useLayoutEffect2 = globalThis?.document ? reactExports.useLayoutEffect : () => {
 };
-var __defProp$c = Object.defineProperty;
-var __name$c = (target, value) => __defProp$c(target, "name", { value, configurable: true });
+var __defProp$b = Object.defineProperty;
+var __name$b = (target, value) => __defProp$b(target, "name", { value, configurable: true });
 var useReactId = React$1[" useId ".trim().toString()] || (() => void 0);
 var count$1 = 0;
 function useId(deterministicId) {
@@ -26586,9 +26572,9 @@ function useId(deterministicId) {
   }, [deterministicId]);
   return deterministicId || (id2 ? `radix-${id2}` : "");
 }
-__name$c(useId, "useId");
-var __defProp$b = Object.defineProperty;
-var __name$b = (target, value) => __defProp$b(target, "name", { value, configurable: true });
+__name$b(useId, "useId");
+var __defProp$a = Object.defineProperty;
+var __name$a = (target, value) => __defProp$a(target, "name", { value, configurable: true });
 var useReactEffectEvent = React$1[" useEffectEvent ".trim().toString()];
 var useReactInsertionEffect = React$1[" useInsertionEffect ".trim().toString()];
 function useEffectEvent(callback) {
@@ -26609,14 +26595,14 @@ function useEffectEvent(callback) {
   }
   return reactExports.useMemo(() => ((...args) => ref.current?.(...args)), []);
 }
-__name$b(useEffectEvent, "useEffectEvent");
-var __defProp$a = Object.defineProperty;
-var __name$a = (target, value) => __defProp$a(target, "name", { value, configurable: true });
+__name$a(useEffectEvent, "useEffectEvent");
+var __defProp$9 = Object.defineProperty;
+var __name$9 = (target, value) => __defProp$9(target, "name", { value, configurable: true });
 var useInsertionEffect = React$1[" useInsertionEffect ".trim().toString()] || useLayoutEffect2;
 function useControllableState({
   prop,
   defaultProp,
-  onChange = /* @__PURE__ */ __name$a(() => {
+  onChange = /* @__PURE__ */ __name$9(() => {
   }, "onChange"),
   caller
 }) {
@@ -26641,7 +26627,7 @@ function useControllableState({
   );
   return [value, setValue];
 }
-__name$a(useControllableState, "useControllableState");
+__name$9(useControllableState, "useControllableState");
 function useUncontrolledState({
   defaultProp,
   onChange
@@ -26660,11 +26646,11 @@ function useUncontrolledState({
   }, [value, prevValueRef]);
   return [value, setValue, onChangeRef];
 }
-__name$a(useUncontrolledState, "useUncontrolledState");
+__name$9(useUncontrolledState, "useUncontrolledState");
 function isFunction(value) {
   return typeof value === "function";
 }
-__name$a(isFunction, "isFunction");
+__name$9(isFunction, "isFunction");
 var SYNC_STATE = /* @__PURE__ */ Symbol("RADIX:SYNC_STATE");
 function useControllableStateReducer(reducer, userArgs, initialArg, init) {
   const { prop: controlledState, defaultProp, onChange: onChangeProp, caller } = userArgs;
@@ -26711,10 +26697,10 @@ function useControllableStateReducer(reducer, userArgs, initialArg, init) {
   }, [controlledState, internalState.state, isControlled]);
   return [state, dispatch];
 }
-__name$a(useControllableStateReducer, "useControllableStateReducer");
+__name$9(useControllableStateReducer, "useControllableStateReducer");
 var reactDomExports = requireReactDom();
-var __defProp$9 = Object.defineProperty;
-var __name$9 = (target, value) => __defProp$9(target, "name", { value, configurable: true });
+var __defProp$8 = Object.defineProperty;
+var __name$8 = (target, value) => __defProp$8(target, "name", { value, configurable: true });
 // @__NO_SIDE_EFFECTS__
 function createSlot(ownerName) {
   const Slot2 = reactExports.forwardRef((props, forwardedRef) => {
@@ -26769,18 +26755,18 @@ function createSlot(ownerName) {
   Slot2.displayName = `${ownerName}.Slot`;
   return Slot2;
 }
-__name$9(createSlot, "createSlot");
+__name$8(createSlot, "createSlot");
 var Slot$1 = /* @__PURE__ */ createSlot("Slot");
 var SLOTTABLE_IDENTIFIER = /* @__PURE__ */ Symbol.for("radix.slottable");
 // @__NO_SIDE_EFFECTS__
 function createSlottable(ownerName) {
-  const Slottable2 = /* @__PURE__ */ __name$9((props) => "child" in props ? props.children(props.child) : props.children, "Slottable");
+  const Slottable2 = /* @__PURE__ */ __name$8((props) => "child" in props ? props.children(props.child) : props.children, "Slottable");
   Slottable2.displayName = `${ownerName}.Slottable`;
   Slottable2.__radixId = SLOTTABLE_IDENTIFIER;
   return Slottable2;
 }
-__name$9(createSlottable, "createSlottable");
-var getSlottableElementFromSlottable = /* @__PURE__ */ __name$9((slottable, child) => {
+__name$8(createSlottable, "createSlottable");
+var getSlottableElementFromSlottable = /* @__PURE__ */ __name$8((slottable, child) => {
   if ("child" in slottable.props) {
     const child2 = slottable.props.child;
     if (!reactExports.isValidElement(child2)) return null;
@@ -26812,7 +26798,7 @@ function mergeProps(slotProps, childProps) {
   }
   return { ...slotProps, ...overrideProps };
 }
-__name$9(mergeProps, "mergeProps");
+__name$8(mergeProps, "mergeProps");
 function getElementRef$1(element) {
   let getter = Object.getOwnPropertyDescriptor(element.props, "ref")?.get;
   let mayWarn = getter && "isReactWarning" in getter && getter.isReactWarning;
@@ -26826,29 +26812,29 @@ function getElementRef$1(element) {
   }
   return element.props.ref || element.ref;
 }
-__name$9(getElementRef$1, "getElementRef");
+__name$8(getElementRef$1, "getElementRef");
 function isSlottable(child) {
   return reactExports.isValidElement(child) && typeof child.type === "function" && "__radixId" in child.type && child.type.__radixId === SLOTTABLE_IDENTIFIER;
 }
-__name$9(isSlottable, "isSlottable");
+__name$8(isSlottable, "isSlottable");
 var REACT_LAZY_TYPE = /* @__PURE__ */ Symbol.for("react.lazy");
 function isLazyComponent(element) {
   return element != null && typeof element === "object" && "$$typeof" in element && element.$$typeof === REACT_LAZY_TYPE && "_payload" in element && isPromiseLike(element._payload);
 }
-__name$9(isLazyComponent, "isLazyComponent");
+__name$8(isLazyComponent, "isLazyComponent");
 function isPromiseLike(value) {
   return typeof value === "object" && value !== null && "then" in value;
 }
-__name$9(isPromiseLike, "isPromiseLike");
-var createSlotError = /* @__PURE__ */ __name$9((ownerName) => {
+__name$8(isPromiseLike, "isPromiseLike");
+var createSlotError = /* @__PURE__ */ __name$8((ownerName) => {
   return `${ownerName} failed to slot onto its children. Expected a single React element child or \`Slottable\`.`;
 }, "createSlotError");
-var createSlottableError = /* @__PURE__ */ __name$9((ownerName) => {
+var createSlottableError = /* @__PURE__ */ __name$8((ownerName) => {
   return `${ownerName} failed to slot onto its \`Slottable\`. Expected \`Slottable\` to receive a single React element child.`;
 }, "createSlottableError");
 var use = React$1[" use ".trim().toString()];
-var __defProp$8 = Object.defineProperty;
-var __name$8 = (target, value) => __defProp$8(target, "name", { value, configurable: true });
+var __defProp$7 = Object.defineProperty;
+var __name$7 = (target, value) => __defProp$7(target, "name", { value, configurable: true });
 var NODES = [
   "a",
   "button",
@@ -26884,9 +26870,9 @@ var Primitive = NODES.reduce((primitive, node) => {
 function dispatchDiscreteCustomEvent(target, event) {
   if (target) reactDomExports.flushSync(() => target.dispatchEvent(event));
 }
-__name$8(dispatchDiscreteCustomEvent, "dispatchDiscreteCustomEvent");
-var __defProp$7 = Object.defineProperty;
-var __name$7 = (target, value) => __defProp$7(target, "name", { value, configurable: true });
+__name$7(dispatchDiscreteCustomEvent, "dispatchDiscreteCustomEvent");
+var __defProp$6 = Object.defineProperty;
+var __name$6 = (target, value) => __defProp$6(target, "name", { value, configurable: true });
 function useCallbackRef$1(callback) {
   const callbackRef = reactExports.useRef(callback);
   reactExports.useEffect(() => {
@@ -26894,9 +26880,9 @@ function useCallbackRef$1(callback) {
   });
   return reactExports.useMemo(() => ((...args) => callbackRef.current?.(...args)), []);
 }
-__name$7(useCallbackRef$1, "useCallbackRef");
-var __defProp$6 = Object.defineProperty;
-var __name$6 = (target, value) => __defProp$6(target, "name", { value, configurable: true });
+__name$6(useCallbackRef$1, "useCallbackRef");
+var __defProp$5 = Object.defineProperty;
+var __name$5 = (target, value) => __defProp$5(target, "name", { value, configurable: true });
 var CONTEXT_UPDATE = "dismissableLayer.update";
 var POINTER_DOWN_OUTSIDE = "dismissableLayer.pointerDownOutside";
 var FOCUS_OUTSIDE = "dismissableLayer.focusOutside";
@@ -26914,7 +26900,7 @@ var DismissableLayerContext = reactExports.createContext({
 });
 var DismissableLayer = /* @__PURE__ */ reactExports.forwardRef(
   // blank line to reduce diff noise
-  /* @__PURE__ */ __name$6(function DismissableLayer2(props, forwardedRef) {
+  /* @__PURE__ */ __name$5(function DismissableLayer2(props, forwardedRef) {
     const {
       disableOutsidePointerEvents = false,
       deferPointerDownOutside = false,
@@ -27022,7 +27008,7 @@ var DismissableLayer = /* @__PURE__ */ reactExports.forwardRef(
       };
     }, [node, context]);
     reactExports.useEffect(() => {
-      const handleUpdate = /* @__PURE__ */ __name$6(() => force({}), "handleUpdate");
+      const handleUpdate = /* @__PURE__ */ __name$5(() => force({}), "handleUpdate");
       document.addEventListener(CONTEXT_UPDATE, handleUpdate);
       return () => document.removeEventListener(CONTEXT_UPDATE, handleUpdate);
     }, []);
@@ -27059,8 +27045,8 @@ function useDismissableLayerSurface() {
   }, [node, context.dismissableSurfaces]);
   return setNode;
 }
-__name$6(useDismissableLayerSurface, "useDismissableLayerSurface");
-var IS_TRUE = /* @__PURE__ */ __name$6(() => true, "IS_TRUE");
+__name$5(useDismissableLayerSurface, "useDismissableLayerSurface");
+var IS_TRUE = /* @__PURE__ */ __name$5(() => true, "IS_TRUE");
 function usePointerDownOutside(onPointerDownOutside, args) {
   const {
     ownerDocument = globalThis?.document,
@@ -27081,11 +27067,11 @@ function usePointerDownOutside(onPointerDownOutside, args) {
       isDeferredPointerDownOutsideRef.current = false;
       interceptedOutsideInteractionEventsRef.current.clear();
     }
-    __name$6(resetOutsideInteraction, "resetOutsideInteraction");
+    __name$5(resetOutsideInteraction, "resetOutsideInteraction");
     function isOutsideInteractionIntercepted() {
       return Array.from(interceptedOutsideInteractionEventsRef.current.values()).some(Boolean);
     }
-    __name$6(isOutsideInteractionIntercepted, "isOutsideInteractionIntercepted");
+    __name$5(isOutsideInteractionIntercepted, "isOutsideInteractionIntercepted");
     function handleInteractionCapture(event) {
       if (!isPointerDownOutsideRef.current) {
         return;
@@ -27103,14 +27089,14 @@ function usePointerDownOutside(onPointerDownOutside, args) {
         }, 0);
       }
     }
-    __name$6(handleInteractionCapture, "handleInteractionCapture");
+    __name$5(handleInteractionCapture, "handleInteractionCapture");
     function handleInteractionBubble(event) {
       if (isPointerDownOutsideRef.current) {
         interceptedOutsideInteractionEventsRef.current.set(event.type, false);
       }
     }
-    __name$6(handleInteractionBubble, "handleInteractionBubble");
-    const handlePointerDown = /* @__PURE__ */ __name$6((event) => {
+    __name$5(handleInteractionBubble, "handleInteractionBubble");
+    const handlePointerDown = /* @__PURE__ */ __name$5((event) => {
       if (event.target && !isPointerInsideReactTreeRef.current) {
         let handleAndDispatchPointerDownOutsideEvent2 = function() {
           ownerDocument.removeEventListener("click", handleClickRef.current);
@@ -27125,7 +27111,7 @@ function usePointerDownOutside(onPointerDownOutside, args) {
             );
           }
         };
-        __name$6(handleAndDispatchPointerDownOutsideEvent2, "handleAndDispatchPointerDownOutsideEvent");
+        __name$5(handleAndDispatchPointerDownOutsideEvent2, "handleAndDispatchPointerDownOutsideEvent");
         if (!shouldHandlePointerDownOutside(event.target)) {
           ownerDocument.removeEventListener("click", handleClickRef.current);
           resetOutsideInteraction();
@@ -27183,15 +27169,15 @@ function usePointerDownOutside(onPointerDownOutside, args) {
   ]);
   return {
     // ensures we check React component tree (not just DOM tree)
-    onPointerDownCapture: /* @__PURE__ */ __name$6(() => isPointerInsideReactTreeRef.current = true, "onPointerDownCapture")
+    onPointerDownCapture: /* @__PURE__ */ __name$5(() => isPointerInsideReactTreeRef.current = true, "onPointerDownCapture")
   };
 }
-__name$6(usePointerDownOutside, "usePointerDownOutside");
+__name$5(usePointerDownOutside, "usePointerDownOutside");
 function useFocusOutside(onFocusOutside, ownerDocument = globalThis?.document) {
   const handleFocusOutside = useCallbackRef$1(onFocusOutside);
   const isFocusInsideReactTreeRef = reactExports.useRef(false);
   reactExports.useEffect(() => {
-    const handleFocus = /* @__PURE__ */ __name$6((event) => {
+    const handleFocus = /* @__PURE__ */ __name$5((event) => {
       if (event.target && !isFocusInsideReactTreeRef.current) {
         const eventDetail = { originalEvent: event };
         handleAndDispatchCustomEvent(FOCUS_OUTSIDE, handleFocusOutside, eventDetail, {
@@ -27203,16 +27189,16 @@ function useFocusOutside(onFocusOutside, ownerDocument = globalThis?.document) {
     return () => ownerDocument.removeEventListener("focusin", handleFocus);
   }, [ownerDocument, handleFocusOutside]);
   return {
-    onFocusCapture: /* @__PURE__ */ __name$6(() => isFocusInsideReactTreeRef.current = true, "onFocusCapture"),
-    onBlurCapture: /* @__PURE__ */ __name$6(() => isFocusInsideReactTreeRef.current = false, "onBlurCapture")
+    onFocusCapture: /* @__PURE__ */ __name$5(() => isFocusInsideReactTreeRef.current = true, "onFocusCapture"),
+    onBlurCapture: /* @__PURE__ */ __name$5(() => isFocusInsideReactTreeRef.current = false, "onBlurCapture")
   };
 }
-__name$6(useFocusOutside, "useFocusOutside");
+__name$5(useFocusOutside, "useFocusOutside");
 function dispatchUpdate() {
   const event = new CustomEvent(CONTEXT_UPDATE);
   document.dispatchEvent(event);
 }
-__name$6(dispatchUpdate, "dispatchUpdate");
+__name$5(dispatchUpdate, "dispatchUpdate");
 function handleAndDispatchCustomEvent(name, handler, detail, { discrete }) {
   const target = detail.originalEvent.target;
   const event = new CustomEvent(name, { bubbles: false, cancelable: true, detail });
@@ -27223,14 +27209,14 @@ function handleAndDispatchCustomEvent(name, handler, detail, { discrete }) {
     target.dispatchEvent(event);
   }
 }
-__name$6(handleAndDispatchCustomEvent, "handleAndDispatchCustomEvent");
-var __defProp$5 = Object.defineProperty;
-var __name$5 = (target, value) => __defProp$5(target, "name", { value, configurable: true });
+__name$5(handleAndDispatchCustomEvent, "handleAndDispatchCustomEvent");
+var __defProp$4 = Object.defineProperty;
+var __name$4 = (target, value) => __defProp$4(target, "name", { value, configurable: true });
 var AUTOFOCUS_ON_MOUNT = "focusScope.autoFocusOnMount";
 var AUTOFOCUS_ON_UNMOUNT = "focusScope.autoFocusOnUnmount";
 var EVENT_OPTIONS = { bubbles: false, cancelable: true };
 var FocusScope = /* @__PURE__ */ reactExports.forwardRef(
-  /* @__PURE__ */ __name$5(function FocusScope2(props, forwardedRef) {
+  /* @__PURE__ */ __name$4(function FocusScope2(props, forwardedRef) {
     const {
       loop = false,
       trapped = false,
@@ -27276,9 +27262,9 @@ var FocusScope = /* @__PURE__ */ reactExports.forwardRef(
             if (mutation.removedNodes.length > 0) focus(container);
           }
         };
-        __name$5(handleFocusIn2, "handleFocusIn");
-        __name$5(handleFocusOut2, "handleFocusOut");
-        __name$5(handleMutations2, "handleMutations");
+        __name$4(handleFocusIn2, "handleFocusIn");
+        __name$4(handleFocusOut2, "handleFocusOut");
+        __name$4(handleMutations2, "handleMutations");
         document.addEventListener("focusin", handleFocusIn2);
         document.addEventListener("focusout", handleFocusOut2);
         const mutationObserver = new MutationObserver(handleMutations2);
@@ -27356,18 +27342,18 @@ function focusFirst(candidates, { select = false } = {}) {
     if (document.activeElement !== previouslyFocusedElement) return;
   }
 }
-__name$5(focusFirst, "focusFirst");
+__name$4(focusFirst, "focusFirst");
 function getTabbableEdges(container) {
   const candidates = getTabbableCandidates(container);
   const first = findVisible(candidates, container);
   const last = findVisible(candidates.reverse(), container);
   return [first, last];
 }
-__name$5(getTabbableEdges, "getTabbableEdges");
+__name$4(getTabbableEdges, "getTabbableEdges");
 function getTabbableCandidates(container) {
   const nodes = [];
   const walker = document.createTreeWalker(container, NodeFilter.SHOW_ELEMENT, {
-    acceptNode: /* @__PURE__ */ __name$5((node) => {
+    acceptNode: /* @__PURE__ */ __name$4((node) => {
       const isHiddenInput = node.tagName === "INPUT" && node.type === "hidden";
       if (node.disabled || node.hidden || isHiddenInput) return NodeFilter.FILTER_SKIP;
       return node.tabIndex >= 0 ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
@@ -27376,7 +27362,7 @@ function getTabbableCandidates(container) {
   while (walker.nextNode()) nodes.push(walker.currentNode);
   return nodes;
 }
-__name$5(getTabbableCandidates, "getTabbableCandidates");
+__name$4(getTabbableCandidates, "getTabbableCandidates");
 function findVisible(elements, container) {
   const canUseCheckVisibility = typeof container.checkVisibility === "function" && container.checkVisibility({ checkVisibilityCSS: true });
   for (const element of elements) {
@@ -27386,7 +27372,7 @@ function findVisible(elements, container) {
     }
   }
 }
-__name$5(findVisible, "findVisible");
+__name$4(findVisible, "findVisible");
 function isHidden(node, { upTo }) {
   if (getComputedStyle(node).visibility === "hidden") return true;
   while (node) {
@@ -27396,11 +27382,11 @@ function isHidden(node, { upTo }) {
   }
   return false;
 }
-__name$5(isHidden, "isHidden");
+__name$4(isHidden, "isHidden");
 function isSelectableInput(element) {
   return element instanceof HTMLInputElement && "select" in element;
 }
-__name$5(isSelectableInput, "isSelectableInput");
+__name$4(isSelectableInput, "isSelectableInput");
 function focus(element, { select = false } = {}) {
   if (element && element.focus) {
     const previouslyFocusedElement = document.activeElement;
@@ -27409,7 +27395,7 @@ function focus(element, { select = false } = {}) {
       element.select();
   }
 }
-__name$5(focus, "focus");
+__name$4(focus, "focus");
 var focusScopesStack = createFocusScopesStack();
 function createFocusScopesStack() {
   let stack = [];
@@ -27428,7 +27414,7 @@ function createFocusScopesStack() {
     }
   };
 }
-__name$5(createFocusScopesStack, "createFocusScopesStack");
+__name$4(createFocusScopesStack, "createFocusScopesStack");
 function arrayRemove(array, item) {
   const updatedArray = [...array];
   const index = updatedArray.indexOf(item);
@@ -27437,15 +27423,15 @@ function arrayRemove(array, item) {
   }
   return updatedArray;
 }
-__name$5(arrayRemove, "arrayRemove");
+__name$4(arrayRemove, "arrayRemove");
 function removeLinks(items) {
   return items.filter((item) => item.tagName !== "A");
 }
-__name$5(removeLinks, "removeLinks");
-var __defProp$4 = Object.defineProperty;
-var __name$4 = (target, value) => __defProp$4(target, "name", { value, configurable: true });
+__name$4(removeLinks, "removeLinks");
+var __defProp$3 = Object.defineProperty;
+var __name$3 = (target, value) => __defProp$3(target, "name", { value, configurable: true });
 var Portal = /* @__PURE__ */ reactExports.forwardRef(
-  /* @__PURE__ */ __name$4(function Portal2(props, forwardedRef) {
+  /* @__PURE__ */ __name$3(function Portal2(props, forwardedRef) {
     const { container: containerProp, ...portalProps } = props;
     const [mounted, setMounted] = reactExports.useState(false);
     useLayoutEffect2(() => setMounted(true), []);
@@ -27453,16 +27439,16 @@ var Portal = /* @__PURE__ */ reactExports.forwardRef(
     return container ? reactDomExports.createPortal(/* @__PURE__ */ jsxRuntimeExports.jsx(Primitive.div, { ...portalProps, ref: forwardedRef }), container) : null;
   }, "Portal")
 );
-var __defProp$3 = Object.defineProperty;
-var __name$3 = (target, value) => __defProp$3(target, "name", { value, configurable: true });
+var __defProp$2 = Object.defineProperty;
+var __name$2 = (target, value) => __defProp$2(target, "name", { value, configurable: true });
 function useStateMachine(initialState, machine) {
   return reactExports.useReducer((state, event) => {
     const nextState = machine[state][event];
     return nextState ?? state;
   }, initialState);
 }
-__name$3(useStateMachine, "useStateMachine");
-var Presence = /* @__PURE__ */ __name$3((props) => {
+__name$2(useStateMachine, "useStateMachine");
+var Presence = /* @__PURE__ */ __name$2((props) => {
   const { present, children } = props;
   const presence = usePresence(present);
   const child = typeof children === "function" ? children({ present: presence.isPresent }) : reactExports.Children.only(children);
@@ -27525,7 +27511,7 @@ function usePresence(present) {
     if (node) {
       let timeoutId;
       const ownerWindow = node.ownerDocument.defaultView ?? window;
-      const handleAnimationEnd = /* @__PURE__ */ __name$3((event) => {
+      const handleAnimationEnd = /* @__PURE__ */ __name$2((event) => {
         const currentAnimationName = getAnimationName(stylesRef.current);
         const isCurrentAnimation = currentAnimationName.includes(CSS.escape(event.animationName));
         if (event.target === node && isCurrentAnimation) {
@@ -27541,7 +27527,7 @@ function usePresence(present) {
           }
         }
       }, "handleAnimationEnd");
-      const handleAnimationStart = /* @__PURE__ */ __name$3((event) => {
+      const handleAnimationStart = /* @__PURE__ */ __name$2((event) => {
         if (event.target === node) {
           prevAnimationNameRef.current = getAnimationName(stylesRef.current);
         }
@@ -27573,7 +27559,7 @@ function usePresence(present) {
     }, [])
   };
 }
-__name$3(usePresence, "usePresence");
+__name$2(usePresence, "usePresence");
 function setRef(ref, value) {
   if (typeof ref === "function") {
     return ref(value);
@@ -27581,7 +27567,7 @@ function setRef(ref, value) {
     ref.current = value;
   }
 }
-__name$3(setRef, "setRef");
+__name$2(setRef, "setRef");
 function useStableComposedRefs(...refs) {
   const refsRef = reactExports.useRef(refs);
   refsRef.current = refs;
@@ -27609,11 +27595,11 @@ function useStableComposedRefs(...refs) {
     }
   }, []);
 }
-__name$3(useStableComposedRefs, "useStableComposedRefs");
+__name$2(useStableComposedRefs, "useStableComposedRefs");
 function getAnimationName(styles) {
   return styles?.animationName || "none";
 }
-__name$3(getAnimationName, "getAnimationName");
+__name$2(getAnimationName, "getAnimationName");
 function getElementRef(element) {
   let getter = Object.getOwnPropertyDescriptor(element.props, "ref")?.get;
   let mayWarn = getter && "isReactWarning" in getter && getter.isReactWarning;
@@ -27627,16 +27613,16 @@ function getElementRef(element) {
   }
   return element.props.ref || element.ref;
 }
-__name$3(getElementRef, "getElementRef");
-var __defProp$2 = Object.defineProperty;
-var __name$2 = (target, value) => __defProp$2(target, "name", { value, configurable: true });
+__name$2(getElementRef, "getElementRef");
+var __defProp$1 = Object.defineProperty;
+var __name$1 = (target, value) => __defProp$1(target, "name", { value, configurable: true });
 var count = 0;
 var guards = null;
 function FocusGuards(props) {
   useFocusGuards();
   return props.children;
 }
-__name$2(FocusGuards, "FocusGuards");
+__name$1(FocusGuards, "FocusGuards");
 function useFocusGuards() {
   reactExports.useEffect(() => {
     if (!guards) {
@@ -27660,7 +27646,7 @@ function useFocusGuards() {
     };
   }, []);
 }
-__name$2(useFocusGuards, "useFocusGuards");
+__name$1(useFocusGuards, "useFocusGuards");
 function createFocusGuard() {
   const element = document.createElement("span");
   element.setAttribute("data-radix-focus-guard", "");
@@ -27671,7 +27657,7 @@ function createFocusGuard() {
   element.style.pointerEvents = "none";
   return element;
 }
-__name$2(createFocusGuard, "createFocusGuard");
+__name$1(createFocusGuard, "createFocusGuard");
 var __assign = function() {
   __assign = Object.assign || function __assign2(t) {
     for (var s, i = 1, n = arguments.length; i < n; i++) {
@@ -28451,12 +28437,12 @@ var hideOthers = function(originalTarget, parentNode, markerName) {
   targets.push.apply(targets, Array.from(activeParentNode.querySelectorAll("[aria-live], script")));
   return applyAttributeToOthers(targets, activeParentNode, markerName, "aria-hidden");
 };
-var __defProp$1 = Object.defineProperty;
-var __name$1 = (target, value) => __defProp$1(target, "name", { value, configurable: true });
+var __defProp = Object.defineProperty;
+var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 var DIALOG_NAME = "Dialog";
 var [createDialogContext, createDialogScope] = /* @__PURE__ */ createContextScope(DIALOG_NAME);
 var [DialogProvider, useDialogContext] = createDialogContext(DIALOG_NAME);
-var Dialog$1 = /* @__PURE__ */ __name$1((props) => {
+var Dialog$1 = /* @__PURE__ */ __name((props) => {
   const {
     __scopeDialog,
     children,
@@ -28500,14 +28486,14 @@ var PORTAL_NAME = "DialogPortal";
 var [PortalProvider, usePortalContext] = createDialogContext(PORTAL_NAME, {
   forceMount: void 0
 });
-var DialogPortal$1 = /* @__PURE__ */ __name$1((props) => {
+var DialogPortal$1 = /* @__PURE__ */ __name((props) => {
   const { __scopeDialog, forceMount, children, container } = props;
   const context = useDialogContext(PORTAL_NAME, __scopeDialog);
   return /* @__PURE__ */ jsxRuntimeExports.jsx(PortalProvider, { scope: __scopeDialog, forceMount, children: reactExports.Children.map(children, (child) => /* @__PURE__ */ jsxRuntimeExports.jsx(Presence, { present: forceMount || context.open, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Portal, { asChild: true, container, children: child }) })) });
 }, "DialogPortal");
 var OVERLAY_NAME = "DialogOverlay";
 var DialogOverlay$1 = /* @__PURE__ */ reactExports.forwardRef(
-  /* @__PURE__ */ __name$1(function DialogOverlay2(props, forwardedRef) {
+  /* @__PURE__ */ __name(function DialogOverlay2(props, forwardedRef) {
     const portalContext = usePortalContext(OVERLAY_NAME, props.__scopeDialog);
     const { forceMount = portalContext.forceMount, ...overlayProps } = props;
     const context = useDialogContext(OVERLAY_NAME, props.__scopeDialog);
@@ -28517,7 +28503,7 @@ var DialogOverlay$1 = /* @__PURE__ */ reactExports.forwardRef(
 var Slot = /* @__PURE__ */ createSlot("DialogOverlay.RemoveScroll");
 var DialogOverlayImpl = /* @__PURE__ */ reactExports.forwardRef(
   // blank line to reduce diff noise
-  /* @__PURE__ */ __name$1(function DialogOverlayImpl2(props, forwardedRef) {
+  /* @__PURE__ */ __name(function DialogOverlayImpl2(props, forwardedRef) {
     const { __scopeDialog, ...overlayProps } = props;
     const context = useDialogContext(OVERLAY_NAME, __scopeDialog);
     const registerDismissableSurface = useDismissableLayerSurface();
@@ -28539,7 +28525,7 @@ var DialogOverlayImpl = /* @__PURE__ */ reactExports.forwardRef(
 );
 var CONTENT_NAME = "DialogContent";
 var DialogContent$1 = /* @__PURE__ */ reactExports.forwardRef(
-  /* @__PURE__ */ __name$1(function DialogContent2(props, forwardedRef) {
+  /* @__PURE__ */ __name(function DialogContent2(props, forwardedRef) {
     const portalContext = usePortalContext(CONTENT_NAME, props.__scopeDialog);
     const { forceMount = portalContext.forceMount, ...contentProps } = props;
     const context = useDialogContext(CONTENT_NAME, props.__scopeDialog);
@@ -28548,7 +28534,7 @@ var DialogContent$1 = /* @__PURE__ */ reactExports.forwardRef(
 );
 var DialogContentModal = /* @__PURE__ */ reactExports.forwardRef(
   // blank line to reduce diff noise
-  /* @__PURE__ */ __name$1(function DialogContentModal2(props, forwardedRef) {
+  /* @__PURE__ */ __name(function DialogContentModal2(props, forwardedRef) {
     const context = useDialogContext(CONTENT_NAME, props.__scopeDialog);
     const contentRef = reactExports.useRef(null);
     const composedRefs = useComposedRefs(forwardedRef, context.contentRef, contentRef);
@@ -28583,7 +28569,7 @@ var DialogContentModal = /* @__PURE__ */ reactExports.forwardRef(
 );
 var DialogContentNonModal = /* @__PURE__ */ reactExports.forwardRef(
   // blank line to reduce diff noise
-  /* @__PURE__ */ __name$1(function DialogContentNonModal2(props, forwardedRef) {
+  /* @__PURE__ */ __name(function DialogContentNonModal2(props, forwardedRef) {
     const context = useDialogContext(CONTENT_NAME, props.__scopeDialog);
     const hasInteractedOutsideRef = reactExports.useRef(false);
     const hasPointerDownOutsideRef = reactExports.useRef(false);
@@ -28624,7 +28610,7 @@ var DialogContentNonModal = /* @__PURE__ */ reactExports.forwardRef(
 );
 var DialogContentImpl = /* @__PURE__ */ reactExports.forwardRef(
   // blank line to reduce diff noise
-  /* @__PURE__ */ __name$1(function DialogContentImpl2(props, forwardedRef) {
+  /* @__PURE__ */ __name(function DialogContentImpl2(props, forwardedRef) {
     const { __scopeDialog, trapFocus, onOpenAutoFocus, onCloseAutoFocus, ...contentProps } = props;
     const context = useDialogContext(CONTENT_NAME, __scopeDialog);
     useFocusGuards();
@@ -28656,7 +28642,7 @@ var DialogContentImpl = /* @__PURE__ */ reactExports.forwardRef(
 );
 var TITLE_NAME = "DialogTitle";
 var DialogTitle$1 = /* @__PURE__ */ reactExports.forwardRef(
-  /* @__PURE__ */ __name$1(function DialogTitle2(props, forwardedRef) {
+  /* @__PURE__ */ __name(function DialogTitle2(props, forwardedRef) {
     const { __scopeDialog, ...titleProps } = props;
     const context = useDialogContext(TITLE_NAME, __scopeDialog);
     const { setTitleCount } = context;
@@ -28670,7 +28656,7 @@ var DialogTitle$1 = /* @__PURE__ */ reactExports.forwardRef(
 var DESCRIPTION_NAME = "DialogDescription";
 var DialogDescription$1 = /* @__PURE__ */ reactExports.forwardRef(
   // blank line to reduce diff noise
-  /* @__PURE__ */ __name$1(function DialogDescription2(props, forwardedRef) {
+  /* @__PURE__ */ __name(function DialogDescription2(props, forwardedRef) {
     const { __scopeDialog, ...descriptionProps } = props;
     const context = useDialogContext(DESCRIPTION_NAME, __scopeDialog);
     const { setDescriptionCount } = context;
@@ -28684,7 +28670,7 @@ var DialogDescription$1 = /* @__PURE__ */ reactExports.forwardRef(
 function getState(open) {
   return open ? "open" : "closed";
 }
-__name$1(getState, "getState");
+__name(getState, "getState");
 function r(e) {
   var t, f, n = "";
   if ("string" == typeof e || "number" == typeof e) n += e;
@@ -37729,22 +37715,35 @@ async function renderAsync(data, bodyContainer, styleContainer, userOptions) {
 }
 function DocxPreview({ data }) {
   const containerRef = reactExports.useRef(null);
+  const [error, setError] = reactExports.useState(null);
   reactExports.useEffect(() => {
     if (!containerRef.current || data.byteLength === 0) return;
-    containerRef.current.replaceChildren();
-    renderAsync(data, containerRef.current, containerRef.current, {
+    let active = true;
+    setError(null);
+    const content = document.createElement("div");
+    renderAsync(data, content, content, {
       className: "docx-preview",
       inWrapper: false,
       ignoreWidth: true
-    }).catch(console.error);
+    }).then(() => {
+      if (active) containerRef.current?.replaceChildren(content);
+    }).catch((e) => {
+      if (active) setError(e.message);
+    });
+    return () => {
+      active = false;
+    };
   }, [data]);
-  return /* @__PURE__ */ jsxRuntimeExports.jsx(
-    "div",
-    {
-      ref: containerRef,
-      className: "prose prose-sm max-w-none p-4 overflow-auto h-full"
-    }
-  );
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+    error && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { role: "alert", className: "text-destructive text-sm p-4", children: error }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "div",
+      {
+        ref: containerRef,
+        className: "prose prose-sm max-w-none p-4 overflow-auto h-full"
+      }
+    )
+  ] });
 }
 var exceljs_min = { exports: {} };
 var hasRequiredExceljs_min;
@@ -60842,8 +60841,12 @@ function XlsxPreview({ data }) {
   const [error, setError] = reactExports.useState(null);
   reactExports.useEffect(() => {
     if (data.byteLength === 0) return;
+    let active = true;
+    setError(null);
+    setSheetData(null);
     const workbook = new ExcelJS.Workbook();
     workbook.xlsx.load(data).then(() => {
+      if (!active) return;
       const sheet = workbook.worksheets[0];
       if (!sheet) {
         setError("Excel 文件中没有工作表");
@@ -60869,10 +60872,15 @@ function XlsxPreview({ data }) {
         rows.push(cells);
       });
       setSheetData({ rows });
-    }).catch((e) => setError(e.message));
+    }).catch((e) => {
+      if (active) setError(e.message);
+    });
+    return () => {
+      active = false;
+    };
   }, [data]);
   if (error) {
-    return /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-destructive text-sm p-4", children: error });
+    return /* @__PURE__ */ jsxRuntimeExports.jsx("p", { role: "alert", className: "text-destructive text-sm p-4", children: error });
   }
   if (!sheetData) {
     return /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-muted-foreground text-sm p-4", children: "解析中…" });
@@ -61235,6 +61243,7 @@ function SettingsPage() {
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mx-auto flex w-full max-w-2xl flex-col gap-4 p-4", children: [
       stats && /* @__PURE__ */ jsxRuntimeExports.jsx(SectionCard, { icon: Database, title: "存储统计", index: 0, children: /* @__PURE__ */ jsxRuntimeExports.jsx(StorageStats, { stats }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs(SectionCard, { icon: Archive, title: "备份", index: 1, children: [
+        (exportMutation.error || importMutation.error) && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { role: "alert", className: "mb-2 text-sm text-destructive", children: (exportMutation.error || importMutation.error)?.message }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-wrap gap-2", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(
             Button,
@@ -61264,6 +61273,7 @@ function SettingsPage() {
         ] })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs(SectionCard, { icon: ShieldCheck, title: "数据完整性", index: 2, children: [
+        scrubMutation.error && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { role: "alert", className: "mb-2 text-sm text-destructive", children: scrubMutation.error.message }),
         /* @__PURE__ */ jsxRuntimeExports.jsx(
           Button,
           {
@@ -61294,6 +61304,79 @@ function SettingsPage() {
     ] })
   ] });
 }
+function HelpDocument({ repoRoot }) {
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("article", { className: "wg-help-document", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "wg-help-lead", children: "每一稿，都有迹可循。稿喵把一份文档的多次修改放在一起，让你随时找到、阅读和继续编辑以前的稿件。" }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "01 · 开始管理文档" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "打开软件即可进入“我的文档”，无需创建仓库。首次使用默认把文档库放在软件所在目录；升级后会优先沿用原有文档库。" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
+        "当前保存位置：",
+        /* @__PURE__ */ jsxRuntimeExports.jsx("code", { children: repoRoot })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "通过“文件 → 更改保存位置…”选择新位置。软件会复制文档、历史版本与整理信息，验证后切换位置，并保留原目录。迁移前请保存并关闭 Word / WPS / Excel 中正在编辑的文件。" })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "02 · 新建与导入" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "“新建文档”支持 Word（.docx）、Excel（.xlsx）和纯文本（.txt），创建后用系统默认程序打开。其他格式可以导入已有文件。" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "首次导入选择“一份新的文档”。同一份文档的旧稿或新稿，选择“已有文档的新稿或旧稿”，指定归属文档；工作台仍只显示一份文档。原始导入文件不会被修改，导入旧稿也不会覆盖当前工作区。" })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "03 · 编辑与保存版本" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("ol", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("li", { children: "选中文档，打开当前工作区，或选中历史版本后点击“从此稿继续编辑”。软件会让你选择编辑路线。" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("li", { children: "在 Word / WPS / Excel 中完成编辑并保存文件，再回到稿喵。看到工作区有修改后，点击“保存工作区”。" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("li", { children: "小修小改可选“覆盖当前编辑的版本”，不增加版本节点；重要变化可选“另存为新版本”，保留旧稿并延续当前路线。每次都可以自由选择。" })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "覆盖后可以使用“撤销覆盖”恢复此前记录的内容；它不会自动抹掉工作区尚未记录的修改。软件不会为每次编辑器保存自动创建一个版本。" })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "04 · 查找与整理旧稿" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "总览工作台：" }),
+        "按文档名称查找、按格式筛选，选中文档后查看所有分支的版本。"
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "版本关系图：" }),
+        "查看版本的前后关系与编辑分支。拖动节点调整布局；拖动空白处平移，使用按钮缩放。拖动分支标签到版本节点可调整继续编辑起点，确认后保留原路线为保护分支。"
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "分类看板：" }),
+        "按“初稿 / 导师审阅 / 定稿”等自定义分类整理版本。拖动卡片改变分类和顺序；也可以用排序按钮，或聚焦卡片后按 Alt + 左 / 右切换分类。"
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "版本名称、说明和分类可直接修改。分支用于保留不同编辑路线，分类用于整理稿件，两者互不替代。" })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "05 · 预览、比较与导出" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "历史预览只读，选中旧版本即可查看。“导出副本”将选中的历史稿保存为独立文件；在外部程序修改该副本不会改变已记录的历史。" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "“选择两版比较”用于查看文本变化。Word 正文、Excel 单元格和幻灯片文本可以比较；复杂排版、图片、宏及修订语义不在比较视图中呈现。旧式 .doc / .xls 等文件可保存版本，完整查看请用系统关联程序。" })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "06 · 回收、备份与恢复" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "回收文档或版本会保留数据，可以在“回收内容”或所选文档的回收版本中还原。回收的分支可在“备份与保存设置”中还原。" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "通过“文件 → 备份与保存设置”导出完整备份；“从备份恢复”需要选择一个空目录，恢复成功后软件使用恢复出的文档库。建议定期把备份保存到另一块磁盘。" })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "07 · 常见问题" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("details", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("summary", { children: "编辑后为什么没有新增版本？" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "请先在编辑器中保存文件，再回到稿喵点击“保存工作区”，选择覆盖或另存。编辑器保存和版本记录是两个步骤。" })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("details", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("summary", { children: "双击文件没有打开编辑器怎么办？" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "请安装支持该格式的 Word、WPS、Excel 等软件，并设置系统默认打开方式。稿喵本身不提供 Office 文档编辑器。" })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("details", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("summary", { children: "软件目录无法写入怎么办？" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "首次启动会使用用户目录，并提示实际位置。可在文件菜单中更改保存位置；已配置位置无法访问时会显示恢复入口，不会用空库替换你的原文档。" })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("details", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("summary", { children: "换设备如何带走文档？" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "先导出备份，在另一台设备打开稿喵后从备份恢复。免安装版软件需要复制整个软件目录；自定义位置的文档库需另外备份。" })
+      ] })
+    ] })
+  ] });
+}
 const extension = (name) => name.includes(".") ? name.split(".").pop().toLowerCase() : "";
 const baseName = (name) => name.split(/[\\/]/).pop() ?? name;
 function FileIcon({ name, size = 18 }) {
@@ -61304,7 +61387,7 @@ function FileIcon({ name, size = 18 }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsx(File, { size });
 }
 function Workspace() {
-  const { repoRoot, repoName, setRepo, clearRepo } = useRepoStore();
+  const { repoRoot, repoName, setRepo } = useRepoStore();
   const { selectedDocName, selectDoc, theme, setTheme, rightPanel, setRightPanel } = useUiStore();
   const queryClient2 = useQueryClient();
   const [view, setView] = reactExports.useState("overview");
@@ -61327,7 +61410,7 @@ function Workspace() {
   const detailQuery = useQuery({ queryKey: detailKey, queryFn: () => api.library.detail(selectedDocName), enabled: !!selectedDocName, refetchInterval: 4e3 });
   const docs = docsQuery.data ?? [];
   const detail = detailQuery.data;
-  const visibleDocs = docs.filter((d) => !!d.deletedAt === showDeleted && (!search || (d.title + d.docName).toLowerCase().includes(search.toLowerCase())) && (fileFilter === "all" || fileFilter === extension(d.docName) || fileFilter === "other" && !["docx", "doc", "xlsx", "xls", "pptx", "ppt"].includes(extension(d.docName))));
+  const visibleDocs = docs.filter((d) => !!d.deletedAt === showDeleted && (!search || (d.title + d.docName).toLowerCase().includes(search.toLowerCase())) && (fileFilter === "all" || fileFilter === extension(d.docName) || fileFilter === "docx" && extension(d.docName) === "doc" || fileFilter === "xlsx" && ["xls", "csv"].includes(extension(d.docName)) || fileFilter === "pptx" && extension(d.docName) === "ppt" || fileFilter === "other" && !["docx", "doc", "xlsx", "xls", "csv", "pptx", "ppt"].includes(extension(d.docName))));
   const versions = reactExports.useMemo(() => (detail?.versions ?? []).filter((v) => !!v.deletedAt === showDeleted && (branchFilter === "all" || v.branches.includes(branchFilter))), [detail?.versions, showDeleted, branchFilter]);
   const selectedVersion = detail?.versions.find((v) => v.id === selectedVersionId) ?? null;
   const workingVersion = detail?.versions.find((v) => v.id === detail.workspace.versionId);
@@ -61443,18 +61526,18 @@ function Workspace() {
     const destination = await api.dialog.savePath("导出历史副本（使用新文件名）", `${stem}-${selectedVersion.id.slice(0, 7)}${ext ? "." + ext : ""}`);
     if (destination) await mutate({ type: "export", docName: selectedDocName, versionId: selectedVersion.id, destination }, "历史副本已导出，当前草稿保持原样");
   }
-  async function openRepository() {
-    const root = await api.dialog.pickFolder("打开已有 .wg 仓库");
-    if (!root) return;
-    await run(async () => {
-      const result = await api.repo.open(root);
+  async function changeLocation() {
+    const parent = await api.dialog.pickFolder("选择文档库新的保存文件夹");
+    if (!parent) return;
+    confirm("更改文档保存位置", "请先保存并关闭 Word / WPS 等正在编辑的文件。所有文档、版本与分类会复制到新位置，原位置保留为副本；已有文档库不会被覆盖。", async () => {
+      const result = await api.repo.relocate(parent);
       queryClient2.clear();
       selectDoc(null);
       setSelectedVersionId(null);
       setView("overview");
       setShowDeleted(false);
       setRepo(result.repoRoot, result.repoName);
-    }, "已切换仓库");
+    }, "保存位置已更改，原文档库副本仍保留");
   }
   async function submit() {
     if (!modal) return;
@@ -61470,8 +61553,12 @@ function Workspace() {
         setSelectedVersionId(result.versionId);
         setView("overview");
         setShowDeleted(false);
-        await api.library.mutate({ type: "edit", docName: result.docName });
-        setNotice("文档已创建并交给系统编辑器，保存后回到这里选择保存方式");
+        try {
+          await api.library.mutate({ type: "edit", docName: result.docName });
+          setNotice("文档已创建并交给系统编辑器，保存后回到这里选择保存方式");
+        } catch (error) {
+          setFailure("文档已创建，但系统编辑器未能打开。可使用“打开当前工作区”重试：" + error.message);
+        }
       } else if (modal.kind === "import") {
         if (!form.source) throw new Error("请先选择要导入的文件");
         if (form.importMode === "document") {
@@ -61524,14 +61611,14 @@ function Workspace() {
     });
     if (ok) setModal(null);
   }
-  const modalTitle = !modal ? "" : modal.kind === "confirm" ? modal.title : { import: "把文件放到正确的位置", new: "新建一份受管文档", save: "保存这次修改", version: "整理版本信息", document: "修改文档显示名称", category: modal.action === "rename" ? "重命名分类" : "添加版本分类", edit: "从这份稿件继续编辑", branch: "从此版本创建分支", deleteBranch: "回收一条编辑路线", compare: "两份版本的内容比较", help: "先选文档，再管理版本" }[modal.kind];
-  const modalDescription = modal?.kind === "confirm" ? modal.description : modal?.kind === "compare" ? "比较只读取历史快照，不改变当前文档。Word 正文、Excel 单元格和幻灯片文本可比较；复杂排版与修订语义不在此视图中呈现。" : modal?.kind === "save" ? `当前编辑来源：${workingVersion?.title ?? "工作区"}。小修小改可覆盖同版本，重要变化可另存为新版本。` : modal?.kind === "import" ? "同一份文档的旧稿和新稿，选择“已有文档的版本”，工作台就只显示一份文档。" : "操作会保存在当前仓库，三个视图共用同一份数据。";
+  const modalTitle = !modal ? "" : modal.kind === "confirm" ? modal.title : { import: "把文件放到正确的位置", new: "新建一份受管文档", save: "保存这次修改", version: "整理版本信息", document: "修改文档显示名称", category: modal.action === "rename" ? "重命名分类" : "添加版本分类", edit: "从这份稿件继续编辑", branch: "从此版本创建分支", deleteBranch: "回收一条编辑路线", compare: "两份版本的内容比较", help: "稿喵使用帮助" }[modal.kind];
+  const modalDescription = modal?.kind === "help" ? "从第一份文档到多次修订：开始、编辑、整理、备份。" : modal?.kind === "confirm" ? modal.description : modal?.kind === "compare" ? "比较只读取历史快照，不改变当前文档。Word 正文、Excel 单元格和幻灯片文本可比较；复杂排版与修订语义不在此视图中呈现。" : modal?.kind === "save" ? `当前编辑来源：${workingVersion?.title ?? "工作区"}。小修小改可覆盖同版本，重要变化可另存为新版本。` : modal?.kind === "import" ? "同一份文档的旧稿和新稿，选择“已有文档的版本”，工作台就只显示一份文档。" : "操作会保存在当前仓库，三个视图共用同一份数据。";
   if (!repoRoot) return null;
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wordgit-workspace", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { className: "wg-menubar", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-brand", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx(Files, { size: 19 }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "word_git" })
+        /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "稿喵" })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("details", { className: "wg-menu", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("summary", { children: "文件" }),
@@ -61539,17 +61626,9 @@ function Workspace() {
           /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => open("new"), disabled: busy, children: "新建文档…" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => open("import"), disabled: busy, children: "导入文档 / 版本…" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("hr", {}),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => void openRepository(), disabled: busy, children: "打开其他仓库…" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => void run(async () => {
-            await api.repo.close();
-            selectDoc(null);
-            setView("overview");
-            setRightPanel("preview");
-            queryClient2.clear();
-            clearRepo();
-          }), disabled: busy, children: "关闭当前仓库" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => void changeLocation(), disabled: busy, children: "更改保存位置…" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("hr", {}),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setRightPanel("settings"), children: "备份与仓库设置" })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setRightPanel("settings"), children: "备份与保存设置" })
         ] })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-menubutton", onClick: () => open("help"), children: "使用帮助" }),
@@ -61563,7 +61642,7 @@ function Workspace() {
           /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "system", children: "跟随系统" })
         ] })
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "wg-local", children: "本地仓库" })
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "wg-local", children: "本地文档库" })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-projectbar", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
@@ -61580,7 +61659,7 @@ function Workspace() {
           /* @__PURE__ */ jsxRuntimeExports.jsx(Import, { size: 15 }),
           " 导入文档 / 版本"
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-icon-button", "aria-label": "仓库设置", onClick: () => setRightPanel("settings"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(Settings, { size: 17 }) })
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-icon-button", "aria-label": "保存与备份设置", onClick: () => setRightPanel("settings"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(Settings, { size: 17 }) })
       ] })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-viewbar", children: [
@@ -61889,7 +61968,7 @@ function Workspace() {
     ] }) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(Dialog, { open: !!modal, onOpenChange: (isOpen) => {
       if (!isOpen && !busy) setModal(null);
-    }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(DialogContent, { className: `wg-dialog ${modal?.kind === "compare" ? "wg-wide-dialog" : ""}`, children: [
+    }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(DialogContent, { className: `wg-dialog ${["compare", "help"].includes(modal?.kind ?? "") ? "wg-wide-dialog" : ""}`, children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx(DialogTitle, { children: modalTitle }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(DialogDescription, { children: modalDescription }),
       failure && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "wg-dialog-error", role: "alert", children: failure }),
@@ -61900,32 +61979,7 @@ function Workspace() {
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: detail?.versions.find((v) => v.id === compareIds[1])?.title })
         ] }),
         selectedDocName && compareIds.length === 2 && /* @__PURE__ */ jsxRuntimeExports.jsx(DiffView, { docName: selectedDocName, commitIdA: compareIds[0], commitIdB: compareIds[1] })
-      ] }) : modal?.kind === "help" ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-help", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("ol", { children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("li", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "导入一次，文档只出现一份。" }),
-          "旧稿通过“已有文档的版本”加入。"
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("li", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "选择文档，再换视图。" }),
-          "总览找文件；关系图看分叉；看板做分类。"
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("li", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "用 Office 编辑。" }),
-          "继续编辑选中的分支最新稿，完成保存后回到软件。"
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("li", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "决定如何留下修改。" }),
-          "小修覆盖同版本；重要修改另存新版本。覆盖可撤销。"
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("li", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "拖动只做明确操作。" }),
-          "节点拖动排布；分支标签拖到节点调整起点；看板拖动分类排序。"
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("li", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "旧稿随时可读。" }),
-          "预览或打开历史副本不会覆盖工作区；回收内容可还原。"
-        ] })
-      ] }) }) : modal && /* @__PURE__ */ jsxRuntimeExports.jsxs("form", { onSubmit: (e) => {
+      ] }) : modal?.kind === "help" ? /* @__PURE__ */ jsxRuntimeExports.jsx(HelpDocument, { repoRoot }) : modal && /* @__PURE__ */ jsxRuntimeExports.jsxs("form", { onSubmit: (e) => {
         e.preventDefault();
         void submit();
       }, children: [
@@ -62011,7 +62065,7 @@ function Workspace() {
             "需要回收的路线",
             /* @__PURE__ */ jsxRuntimeExports.jsx("select", { value: form.branch, onChange: (e) => changeForm("branch", e.target.value), children: Object.keys(detail?.branchHeads ?? {}).filter((b) => b !== detail?.currentBranch).map((branch) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: branch, children: branch }, branch)) })
           ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "wg-field-hint", children: "当前路线不能删除。被回收的路线和文件内容可从仓库设置还原。" })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "wg-field-hint", children: "当前路线不能删除。被回收的路线和文件内容可从备份与保存设置还原。" })
         ] }),
         modal.kind === "version" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "wg-field", children: [
@@ -62062,287 +62116,59 @@ function Workspace() {
 function MainLayout() {
   return /* @__PURE__ */ jsxRuntimeExports.jsx(Workspace, {});
 }
-const Input = reactExports.forwardRef(({ className, type, ...props }, ref) => {
-  return /* @__PURE__ */ jsxRuntimeExports.jsx(
-    "input",
-    {
-      type,
-      className: cn(
-        "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-        className
-      ),
-      ref,
-      ...props
-    }
-  );
-});
-Input.displayName = "Input";
-var __defProp = Object.defineProperty;
-var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
-var Label$1 = /* @__PURE__ */ reactExports.forwardRef(
-  /* @__PURE__ */ __name(function Label2(props, forwardedRef) {
-    return /* @__PURE__ */ jsxRuntimeExports.jsx(
-      Primitive.label,
-      {
-        ...props,
-        ref: forwardedRef,
-        onMouseDown: (event) => {
-          const target = event.target;
-          if (target.closest("button, input, select, textarea")) return;
-          props.onMouseDown?.(event);
-          if (!event.defaultPrevented && event.detail > 1) event.preventDefault();
-        }
-      }
-    );
-  }, "Label")
-);
-var Root = Label$1;
-const labelVariants = cva(
-  "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-);
-const Label = reactExports.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsxRuntimeExports.jsx(Root, { ref, className: cn(labelVariants(), className), ...props }));
-Label.displayName = Root.displayName;
-const stepVariants = {
-  initial: { opacity: 0, x: 20 },
-  animate: { opacity: 1, x: 0 },
-  exit: { opacity: 0, x: -20 }
-};
-function FirstRunPage() {
-  const { setRepo } = useRepoStore();
-  const [step, setStep] = reactExports.useState("landing");
-  const [chosenDir, setChosenDir] = reactExports.useState("");
-  const [repoName, setRepoName] = reactExports.useState("");
-  const [error, setError] = reactExports.useState(null);
-  const [loading, setLoading] = reactExports.useState(false);
-  async function handleCreate() {
-    setError(null);
-    const dir = await api.dialog.pickFolder("选择仓库保存位置");
-    if (!dir) return;
-    setChosenDir(dir);
-    setRepoName("我的仓库");
-    setStep("naming");
-  }
-  async function handleConfirmCreate() {
-    if (!repoName.trim()) {
-      setError("请输入仓库名称");
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const sep = chosenDir.includes("\\") ? "\\" : "/";
-      const repoPath = `${chosenDir}${sep}${repoName.trim()}.wg`;
-      const { repoRoot } = await api.repo.create(repoPath, repoName.trim());
-      setRepo(repoRoot, repoName.trim());
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-  async function handleOpen() {
-    setError(null);
-    const dir = await api.dialog.pickFolder("选择仓库文件夹（*.wg）");
-    if (!dir) return;
-    setLoading(true);
-    try {
-      const { repoRoot, repoName: n } = await api.repo.open(dir);
-      setRepo(repoRoot, n);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex h-screen items-center justify-center bg-background p-6", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
-    motion.div,
-    {
-      initial: { opacity: 0, y: 24, scale: 0.97 },
-      animate: { opacity: 1, y: 0, scale: 1 },
-      transition: { type: "spring", stiffness: 260, damping: 26 },
-      className: "w-full max-w-[440px]",
-      children: /* @__PURE__ */ jsxRuntimeExports.jsx(Card, { className: "border-border/80 shadow-xl shadow-black/5", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(CardContent, { className: "flex flex-col gap-6 p-8", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center gap-3 pt-2", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
-            "svg",
-            {
-              viewBox: "0 0 24 24",
-              fill: "none",
-              stroke: "currentColor",
-              strokeWidth: "2",
-              strokeLinecap: "round",
-              strokeLinejoin: "round",
-              className: "h-7 w-7",
-              children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M12 3v18" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M5 8h14" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M5 16h14" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: "12", cy: "3", r: "1.5", fill: "currentColor" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: "5", cy: "8", r: "1.5", fill: "currentColor" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: "19", cy: "8", r: "1.5", fill: "currentColor" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: "5", cy: "16", r: "1.5", fill: "currentColor" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: "19", cy: "16", r: "1.5", fill: "currentColor" })
-              ]
-            }
-          ) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-2xl font-bold tracking-tight", children: "word_git" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-1 text-sm text-muted-foreground", children: "像 Git 一样管理你的 Office 文档版本" })
-          ] })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(AnimatePresence, { mode: "wait", initial: false, children: step === "landing" ? /* @__PURE__ */ jsxRuntimeExports.jsxs(
-          motion.div,
-          {
-            variants: stepVariants,
-            initial: "initial",
-            animate: "animate",
-            exit: "exit",
-            transition: { duration: 0.18, ease: "easeOut" },
-            className: "flex flex-col gap-3",
-            children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                Button,
-                {
-                  onClick: handleCreate,
-                  disabled: loading,
-                  size: "lg",
-                  className: "w-full cursor-pointer",
-                  children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx(FolderPlus, { className: "h-4 w-4" }),
-                    "创建新仓库"
-                  ]
-                }
-              ),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                Button,
-                {
-                  onClick: handleOpen,
-                  disabled: loading,
-                  variant: "outline",
-                  size: "lg",
-                  className: "w-full cursor-pointer",
-                  children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx(FolderOpen, { className: "h-4 w-4" }),
-                    "打开已有仓库"
-                  ]
-                }
-              )
-            ]
-          },
-          "landing"
-        ) : /* @__PURE__ */ jsxRuntimeExports.jsxs(
-          motion.div,
-          {
-            variants: stepVariants,
-            initial: "initial",
-            animate: "animate",
-            exit: "exit",
-            transition: { duration: 0.18, ease: "easeOut" },
-            className: "flex flex-col gap-4",
-            children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                "div",
-                {
-                  className: "truncate rounded-md bg-muted/60 px-3 py-2 text-xs text-muted-foreground",
-                  title: chosenDir,
-                  children: [
-                    "位置：",
-                    chosenDir
-                  ]
-                }
-              ),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-2", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx(Label, { htmlFor: "repo-name", children: "仓库名称" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx(
-                  Input,
-                  {
-                    id: "repo-name",
-                    placeholder: "论文仓库",
-                    value: repoName,
-                    onChange: (e) => setRepoName(e.target.value),
-                    onKeyDown: (e) => {
-                      if (e.key === "Enter") handleConfirmCreate();
-                    },
-                    autoFocus: true
-                  }
-                )
-              ] }),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                Button,
-                {
-                  onClick: handleConfirmCreate,
-                  disabled: loading,
-                  className: "w-full cursor-pointer",
-                  children: [
-                    loading && /* @__PURE__ */ jsxRuntimeExports.jsx(LoaderCircle, { className: "h-4 w-4 animate-spin" }),
-                    loading ? "创建中…" : "确认创建"
-                  ]
-                }
-              ),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                Button,
-                {
-                  variant: "ghost",
-                  onClick: () => setStep("landing"),
-                  disabled: loading,
-                  className: "w-full cursor-pointer text-muted-foreground hover:text-foreground",
-                  children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx(ArrowLeft, { className: "h-4 w-4" }),
-                    "返回"
-                  ]
-                }
-              )
-            ]
-          },
-          "naming"
-        ) }),
-        error && /* @__PURE__ */ jsxRuntimeExports.jsx(
-          motion.p,
-          {
-            initial: { opacity: 0, y: -4 },
-            animate: { opacity: 1, y: 0 },
-            className: "text-center text-sm text-destructive",
-            role: "alert",
-            children: error
-          }
-        )
-      ] }) })
-    }
-  ) });
-}
 function App() {
-  const { repoRoot, setRepo, clearRepo } = useRepoStore();
+  const { repoRoot, setRepo } = useRepoStore();
   const theme = useUiStore((s) => s.theme);
-  const [checking, setChecking] = reactExports.useState(!!repoRoot);
+  const [checking, setChecking] = reactExports.useState(true);
+  const [error, setError] = reactExports.useState("");
+  const [notice, setNotice] = reactExports.useState("");
   reactExports.useEffect(() => {
     const root = document.documentElement;
-    if (theme === "dark") {
-      root.setAttribute("data-theme", "dark");
-    } else if (theme === "light") {
-      root.setAttribute("data-theme", "light");
-    } else if (theme === "paper") {
-      root.setAttribute("data-theme", "paper");
-    } else {
-      root.removeAttribute("data-theme");
-    }
+    if (theme === "system") root.removeAttribute("data-theme");
+    else root.setAttribute("data-theme", theme);
   }, [theme]);
-  reactExports.useEffect(() => {
-    if (!repoRoot) {
+  async function start() {
+    setChecking(true);
+    setError("");
+    try {
+      const result = await api.repo.bootstrap(repoRoot ?? void 0);
+      setRepo(result.repoRoot, result.repoName);
+      setNotice(result.notice ?? "");
+    } catch (e) {
+      setError(e.message);
+    } finally {
       setChecking(false);
-      return;
     }
-    api.repo.open(repoRoot).then(({ repoRoot: r2, repoName: n }) => {
-      setRepo(r2, n);
-      setChecking(false);
-    }).catch(() => {
-      clearRepo();
-      setChecking(false);
-    });
-  }, []);
-  if (checking) {
-    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex h-screen items-center justify-center text-muted-foreground", children: "加载中…" });
   }
-  return /* @__PURE__ */ jsxRuntimeExports.jsx(MotionConfig, { reducedMotion: "user", children: repoRoot ? /* @__PURE__ */ jsxRuntimeExports.jsx(MainLayout, {}) : /* @__PURE__ */ jsxRuntimeExports.jsx(FirstRunPage, {}) });
+  reactExports.useEffect(() => {
+    void start();
+  }, []);
+  async function reconnect() {
+    try {
+      const root = await api.dialog.pickFolder("选择原文档库文件夹（含 repo.yaml）");
+      if (!root) return;
+      const result = await api.repo.open(root);
+      setRepo(result.repoRoot, "我的文档");
+      setError("");
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(MotionConfig, { reducedMotion: "user", children: checking ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex h-screen items-center justify-center text-muted-foreground", children: "正在打开你的文档…" }) : error ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex h-screen flex-col items-center justify-center gap-4 bg-background p-8", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-xl font-semibold", children: "稿喵暂时无法打开文档库" }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("p", { role: "alert", className: "max-w-xl break-words text-sm text-destructive", children: error }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-muted-foreground", children: "原有文档不会被删除。请检查保存位置、磁盘或访问权限。" }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-4", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-button", onClick: () => void start(), children: "重试" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-button", onClick: () => void reconnect(), children: "选择原文档库位置" })
+    ] })
+  ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+    notice && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { role: "status", className: "wg-startup-notice", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: notice }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setNotice(""), children: "知道了" })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(MainLayout, {})
+  ] }) });
 }
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 5e3 } }
