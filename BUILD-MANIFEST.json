@@ -1,19 +1,19 @@
 {
   "archiveKind": "compiled-application-snapshot",
   "originalTypeScriptAvailable": false,
-  "version": "0.2.4",
-  "originalDirectory": "gaomiao-0.2.4-windows-x64",
+  "version": "0.2.5",
+  "originalDirectory": "gaomiao-0.2.5-windows-x64",
   "electronVersion": "32.3.3",
   "files": {
     "resources/app/out/main/index.js": "e99738fe4ea596e21b952e6efc65cb36b510b77a241488313f26cdf128573144",
     "resources/app/out/preload/index.cjs": "d41df302fa76c68c67384f5cef4c30915b8eabf8ef2e2783931d4592721ecb50",
-    "resources/app/out/renderer/assets/gaomiao-6OWytbL4.png": "e94a6ca71c586dbd3e65821f7d5f0424d69c5cc3355adde3b4e946a7e3efb86f",
-    "resources/app/out/renderer/assets/index-BJ3sv1E9.css": "6ab6c3ee52174b54e63f93f6a7958266eb5384166b47e7bb6ad877c390fd1b88",
-    "resources/app/out/renderer/assets/index-q1NOXNFP.js": "3e630642d56e8df63b048c5a8d864f2efb4a857a71e2d39418c72db611455aec",
-    "resources/app/out/renderer/index.html": "f61073ffe941b7eeae6a1e0ea697ef05de6de68c3c720123107baeeac2b9adc3",
-    "resources/app/package.json": "ed0c881c24fe2e852c2325db357fad008c61a804117caf0366056d4415d49191",
-    "resources/app/resources/icon.ico": "f17a58458a09402ad57d3dfa9f177c19be93182f2c7484ef0b68f1a3ed417245",
-    "resources/app/resources/icon.png": "e94a6ca71c586dbd3e65821f7d5f0424d69c5cc3355adde3b4e946a7e3efb86f",
-    "使用教程.md": "d698cc60dc2c1a510e812bfb061e71944578e788aec48acea7ae1986f10d47eb"
+    "resources/app/out/renderer/assets/gaomiao-CvAa0Tw3.png": "363cf9e153cb5d855c8a8985f2d5abe559c6699a661ec22bc39debdfd15ca2fc",
+    "resources/app/out/renderer/assets/index-Bfx0n8go.css": "f9d614a5cb1b27c35d17ae89b134fe4ef0841e5cbf58ac077ff23fff2674afb6",
+    "resources/app/out/renderer/assets/index-uSunliFK.js": "6745d6ebd6bcfe3accbe71f1553905d545a6d9396315dc478bfc53ee01b09fa6",
+    "resources/app/out/renderer/index.html": "477265350efb5f63c0d3f4ba39d4fb48166147f98604623b2b32de370f9914ae",
+    "resources/app/package.json": "b0cb6836a496eeaaa7197365e71852e16776f881ebdc01830f8e83c5ad16e794",
+    "resources/app/resources/icon.ico": "f9c7641a1d1590a47376ac41ecbb41d0e53262c027e15e505d6cbf318473acb5",
+    "resources/app/resources/icon.png": "363cf9e153cb5d855c8a8985f2d5abe559c6699a661ec22bc39debdfd15ca2fc",
+    "使用教程.md": "21da98a93ac2effa14c9e1fcb0912de03b2f1d35909ef045060067f666cc1e52"
   }
 }

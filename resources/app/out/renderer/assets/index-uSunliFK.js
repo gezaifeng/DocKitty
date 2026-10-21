@@ -61377,7 +61377,7 @@ function HelpDocument({ repoRoot }) {
     ] })
   ] });
 }
-const brandIcon = "" + new URL("gaomiao-6OWytbL4.png", import.meta.url).href;
+const brandIcon = "" + new URL("gaomiao-CvAa0Tw3.png", import.meta.url).href;
 const extension = (name) => name.includes(".") ? name.split(".").pop().toLowerCase() : "";
 const baseName = (name) => name.split(/[\\/]/).pop() ?? name;
 function FileIcon({ name, size = 18 }) {
@@ -62117,28 +62117,52 @@ function Workspace() {
 function MainLayout() {
   return /* @__PURE__ */ jsxRuntimeExports.jsx(Workspace, {});
 }
-const paper = "data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='127%20156%2048%2049'%3e%3cg%20stroke='%23284f45'%20stroke-linecap='round'%20stroke-linejoin='round'%3e%3cpath%20d='M133%20158H161L173%20170V199Q173%20203%20169%20203H133Q129%20203%20129%20199V162Q129%20158%20133%20158Z'%20fill='%23dceee4'%20stroke-width='3'/%3e%3cpath%20d='M161%20158V170H173'%20fill='%23fffdf6'%20stroke-width='2.3'/%3e%3cpath%20d='M137%20179H164M137%20187H164M137%20195H153'%20fill='none'%20stroke='%236e9481'%20stroke-width='2.4'/%3e%3c/g%3e%3c/svg%3e";
+const paper = "data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='177%2074%2062%2072'%3e%3crect%20x='177'%20y='74'%20width='62'%20height='72'%20fill='transparent'%20data-page-bounds='true'%3e%3c/rect%3e%3cg%20stroke='%234c5449'%20stroke-linecap='round'%20stroke-linejoin='round'%3e%3cpath%20d='M184%2077H218L236%2095V140Q236%20143%20233%20143H184Q180%20143%20180%20139V81Q180%2077%20184%2077Z'%20fill='%23fffdf6'%20stroke-width='3'%3e%3c/path%3e%3cpath%20d='M218%2077V95H236'%20fill='%23dce6ce'%20stroke-width='2.5'%3e%3c/path%3e%3cpath%20d='M190%20108H225M190%20118H225M190%20128H212'%20fill='none'%20stroke='%23879a74'%20stroke-width='2.8'%3e%3c/path%3e%3c/g%3e%3c/svg%3e";
 const mascotImages = { paper };
 function poseMascot(root, elapsed) {
-  const t = Math.min(1, elapsed / 800);
-  const arrival = Math.min(1, t / 0.55);
-  const landing = Math.max(0, Math.min(1, (t - 0.55) / 0.45));
-  const settle = Math.sin(landing * Math.PI * 2) * (1 - landing);
-  const idle = Math.max(0, elapsed - 800) / 1e3;
-  const y = -22 * (1 - arrival) ** 3 + 5 * settle + Math.sin(idle * 2) * 0.6;
-  root.style.opacity = String(Math.min(1, t / 0.12));
-  root.style.transform = `translateY(${y}px) rotate(${-4 * (1 - arrival) ** 2 + settle}deg)`;
+  const t = Math.min(1, elapsed / 920);
+  const smooth = (value) => {
+    const x = Math.max(0, Math.min(1, value));
+    return x * x * (3 - 2 * x);
+  };
+  const keys2 = [[0, 0], [0.06, 0], [0.27, 0.24], [0.34, 0.24], [0.56, 0.58], [0.63, 0.58], [0.86, 1], [1, 1]];
+  let progress2 = 1;
+  for (let i = 1; i < keys2.length; i++) {
+    if (t <= keys2[i][0]) {
+      const [a, start] = keys2[i - 1], [b, end] = keys2[i];
+      progress2 = start + (end - start) * smooth((t - a) / (b - a));
+      break;
+    }
+  }
+  root.style.opacity = String(smooth(t / 0.08));
+  root.style.transform = `translateY(${Math.sin(Math.max(0, elapsed - 920) / 1e3 * 2) * 0.6}px)`;
+  const path = root.querySelector("[data-worm-track]");
+  const length = path.getTotalLength?.() ?? 300;
+  for (const body of root.querySelectorAll("[data-worm-track],[data-worm-body]")) {
+    body.style.strokeDasharray = `${length} ${length}`;
+    body.style.strokeDashoffset = String(length * (1 - progress2));
+  }
+  const point = path.getPointAtLength?.(length * progress2) ?? { x: 248, y: 113 };
+  root.querySelector("[data-worm-head]").setAttribute("transform", `translate(${point.x} ${point.y})`);
+  for (const ring of root.querySelectorAll("[data-worm-ring]")) ring.style.opacity = progress2 >= Number(ring.dataset.wormRing) ? "1" : "0";
+  for (const doc of root.querySelectorAll("[data-version]")) {
+    const arrival = Number(doc.dataset.arrival);
+    const p = smooth((t - arrival) / 0.12);
+    const bounce = Math.sin(p * Math.PI) * 0.08;
+    doc.style.opacity = String(p);
+    doc.style.transform = `scale(${0.86 + 0.14 * p + bounce})`;
+  }
 }
-const cat = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 260" role="img" aria-label="稿喵，戴着折角文档胸牌的小猫">\n  <g stroke="#284f45" stroke-linecap="round" stroke-linejoin="round">\n    <path d="M190 194C216 213 249 195 243 169C239 152 223 151 220 164" fill="none" stroke-width="15"/>\n    <path d="M190 194C216 213 249 195 243 169C239 152 223 151 220 164" fill="none" stroke="#e9b98b" stroke-width="8"/>\n    <path d="M112 123C95 137 89 162 94 187C97 207 108 219 126 219H175C193 219 203 207 206 187C210 162 204 136 187 123Z" fill="#fffdf6" stroke-width="4.5"/>\n    <path d="M99 97V54L125 72Q150 63 178 72L202 48L202 98C206 130 182 146 150 146C117 146 94 129 99 97Z" fill="#fffdf6" stroke-width="4.5"/>\n    <path d="M100 54L125 72L106 76Z" fill="#e9b98b" stroke-width="3"/>\n    <path d="M183 78L195 63V86Z" fill="#e9b98b" stroke="none"/>\n    <path d="M124 103V108M175 103V108" fill="none" stroke-width="5"/>\n    <path d="M145 120L150 123L155 120" fill="none" stroke-width="3"/>\n    <path d="M150 123V128Q143 135 137 128M150 128Q157 135 163 128" fill="none" stroke-width="2.7"/>\n    <path d="M112 117L94 113M112 125L94 129M188 117L206 113M188 125L206 129" fill="none" stroke-width="2.7"/>\n    <path d="M115 147Q150 167 185 147" fill="none" stroke="#7da893" stroke-width="3"/>\n    <path d="M110 162Q105 179 118 187Q126 190 132 182M190 162Q195 179 182 187Q174 190 168 182" fill="none" stroke-width="3.3"/>\n    <path d="M121 207V218M178 207V218" fill="none" stroke-width="3"/>\n    <svg data-cat-paper="true" x="127" y="156" width="48" height="49" viewBox="127 156 48 49">\n      <path d="M133 158H161L173 170V199Q173 203 169 203H133Q129 203 129 199V162Q129 158 133 158Z" fill="#dceee4" stroke-width="3"/>\n      <path d="M161 158V170H173" fill="#fffdf6" stroke-width="2.3"/>\n      <path d="M137 179H164M137 187H164M137 195H153" fill="none" stroke="#6e9481" stroke-width="2.4"/>\n    </svg>\n  </g>\n</svg>\r\n';
+const worm = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 260" role="img" aria-label="蚯蚓连接文档的三个版本">\n  <g fill="none" stroke-linecap="round" stroke-linejoin="round">\n    <path data-worm-track="true" d="M49 206C22 179 54 145 94 163S142 204 180 182S171 126 209 132S248 143 248 113" stroke="#4c5449" stroke-width="23"></path>\n    <path data-worm-body="true" d="M49 206C22 179 54 145 94 163S142 204 180 182S171 126 209 132S248 143 248 113" stroke="#ce8b71" stroke-width="17"></path>\n    <g data-worm-rings="true" stroke="#8c5d4e" stroke-width="1.6"><path d="M31.998612962951842 191.78717378154576Q39.16834681213621 188.12180660596022 47.21719209075909 188.3586392067355" data-worm-ring="0.058823529411764705"></path><path d="M36.18600215721513 167.908448757368Q43.836466969170715 170.4204973558289 49.33425388526534 176.30389255122574" data-worm-ring="0.11764705882352941"></path><path d="M54.33999886016847 153.39469416242196Q59.062128402989764 159.91707812695626 60.063168864440904 167.90694157976554" data-worm-ring="0.17647058823529413"></path><path d="M76.21851297399037 150.33465093593063Q77.59805988903672 158.26792581514576 74.99002889612682 165.88620477696" data-worm-ring="0.23529411764705882"></path><path d="M96.79473590197452 155.70589374889332Q95.47241229432925 163.64890704843296 90.4911832874786 169.97562480579418" data-worm-ring="0.29411764705882354"></path><path d="M114.20763569374049 164.66376313050537Q112.02572619894644 172.41484505218105 106.38332194786108 178.1596926800415" data-worm-ring="0.35294117647058826"></path><path d="M130.34840470288248 174.5601497286553Q127.97202781240159 182.25383758782843 122.18676680590659 187.85479778111034" data-worm-ring="0.4117647058823529"></path><path d="M145.29360580976748 182.03441451557615Q144.92889251829178 190.0784796703981 140.73849868242002 196.95456863872073" data-worm-ring="0.47058823529411764"></path><path d="M159.6853089254928 182.34381450365746Q163.457591805828 189.45787676587656 163.34127188505408 197.50936542798317" data-worm-ring="0.5294117647058824"></path><path d="M174.9210907936786 175.91785666892264Q180.48800872546656 181.73588251458006 182.5685332297589 189.5147910361555" data-worm-ring="0.5882352941176471"></path><path d="M185.9001691625159 166.42191203896687Q193.62152832271582 168.70677805674487 199.29077932381222 174.42513385947063" data-worm-ring="0.6470588235294118"></path><path d="M187.8419662013521 153.37677988143867Q195.29481253478235 150.32799626657265 203.29514927716352 151.24156728653008" data-worm-ring="0.7058823529411765"></path><path d="M187.38788442673825 129.69711958598964Q195.0113935062216 132.28982267640222 200.44674081740237 138.23095048236974" data-worm-ring="0.7647058823529411"></path><path d="M213.0542837153717 124.75231889420073Q213.76480192115847 132.77323928273753 210.5281137455658 140.14642378158052" data-worm-ring="0.8235294117647058"></path><path d="M231.49161412359695 127.94214730334237Q232.2290905070306 135.96063398000882 229.01720545648118 143.3446568958764" data-worm-ring="0.8823529411764706"></path></g>\n  </g>\n  <g data-version="0" data-arrival=".2" style="transform-origin:55px 144px">\n    <path d="M36 118H59L75 134V167H36Z" fill="#f7f4ed" stroke="#7e8979" stroke-width="2.4" stroke-linejoin="round"></path>\n    <path d="M59 118V134H75M44 146H65M44 154H60" fill="none" stroke="#9ea894" stroke-width="2.2" stroke-linecap="round"></path>\n    \n  </g>\n  <g data-version="1" data-arrival=".56" style="transform-origin:135px 172px">\n    <path d="M113 146H140L158 164V199H113Z" fill="#e8edde" stroke="#6e7c63" stroke-width="2.4" stroke-linejoin="round"></path>\n    <path d="M140 146V164H158M121 176H149M121 185H145" fill="none" stroke="#8c9e7c" stroke-width="2.2" stroke-linecap="round"></path>\n    \n  </g>\n  <g data-version="2" data-arrival=".82" style="transform-origin:209px 110px">\n    <svg data-version-paper="true" x="177" y="74" width="62" height="72" viewBox="177 74 62 72"><rect x="177" y="74" width="62" height="72" fill="transparent" data-page-bounds="true"></rect>\n      <g stroke="#4c5449" stroke-linecap="round" stroke-linejoin="round">\n        <path d="M184 77H218L236 95V140Q236 143 233 143H184Q180 143 180 139V81Q180 77 184 77Z" fill="#fffdf6" stroke-width="3"></path>\n        <path d="M218 77V95H236" fill="#dce6ce" stroke-width="2.5"></path>\n        <path d="M190 108H225M190 118H225M190 128H212" fill="none" stroke="#879a74" stroke-width="2.8"></path>\n      </g>\n    </svg>\n    \n  </g>\n  <g data-worm-head="true" transform="translate(248 113)">\n    <ellipse rx="11" ry="12" fill="#ce8b71" stroke="#4c5449" stroke-width="2.5"></ellipse>\n    <path d="M-4-4V-2M4-4V-2" fill="none" stroke="#4c5449" stroke-width="2.4" stroke-linecap="round"></path>\n    <path d="M-3 3Q0 6 3 3" fill="none" stroke="#4c5449" stroke-width="1.7" stroke-linecap="round"></path>\n  </g>\n</svg>';
 const Mascot = reactExports.forwardRef(function Mascot2(_, ref) {
-  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-mascot", ref, dangerouslySetInnerHTML: { __html: cat } });
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-mascot", ref, dangerouslySetInnerHTML: { __html: worm } });
 });
 function StartupScreen({ ready, revealRef, onFinish }) {
-  const cat2 = reactExports.useRef(null);
+  const mascot = reactExports.useRef(null);
   const backdrop = reactExports.useRef(null);
   const exiting = reactExports.useRef(false);
   const [caught, setCaught] = reactExports.useState(false);
-  const [phase, setPhase] = reactExports.useState("catching");
+  const [phase, setPhase] = reactExports.useState("connecting");
   const [reduced, setReduced] = reactExports.useState(() => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false);
   reactExports.useEffect(() => {
     const media = window.matchMedia?.("(prefers-reduced-motion: reduce)");
@@ -62147,16 +62171,16 @@ function StartupScreen({ ready, revealRef, onFinish }) {
     return () => media?.removeEventListener("change", change);
   }, []);
   reactExports.useEffect(() => {
-    if (!cat2.current) return;
+    if (!mascot.current) return;
     let frame2 = 0, active = true, completed = false;
     let start;
     exiting.current = false;
     const tick = (now2) => {
-      if (!active || exiting.current || !cat2.current) return;
+      if (!active || exiting.current || !mascot.current) return;
       start ??= now2;
-      const elapsed = reduced ? 800 : now2 - start;
-      poseMascot(cat2.current, elapsed);
-      if (elapsed >= 800 && !completed) {
+      const elapsed = reduced ? 920 : now2 - start;
+      poseMascot(mascot.current, elapsed);
+      if (elapsed >= 920 && !completed) {
         completed = true;
         setCaught(true);
         setPhase("waiting");
@@ -62191,7 +62215,7 @@ function StartupScreen({ ready, revealRef, onFinish }) {
       finish();
       return;
     }
-    const source = cat2.current?.querySelector("[data-cat-paper]");
+    const source = mascot.current?.querySelector("[data-version-paper]");
     if (!source || !backdrop.current || !page.animate || !content || !origin) {
       finish();
       return;
@@ -62199,19 +62223,22 @@ function StartupScreen({ ready, revealRef, onFinish }) {
     const rect = source.getBoundingClientRect();
     const inset = `inset(${rect.top}px ${window.innerWidth - rect.right}px ${window.innerHeight - rect.bottom}px ${rect.left}px round 8px)`;
     const transform = `translate(${rect.left}px,${rect.top}px) scale(${rect.width / window.innerWidth},${rect.height / window.innerHeight})`;
+    const squeeze = `inset(${rect.top + 2}px ${window.innerWidth - rect.right + 2}px ${window.innerHeight - rect.bottom + 2}px ${rect.left + 2}px round 8px)`;
+    const pressed = `translate(${rect.left + 2}px,${rect.top + 2}px) scale(${(rect.width - 4) / window.innerWidth},${(rect.height - 4) / window.innerHeight})`;
     Object.assign(page.style, { clipPath: inset, visibility: "visible" });
     origin.style.transform = transform;
     setPhase("expanding");
-    const expansion = page.animate(
-      [{ clipPath: inset }, { clipPath: "inset(0px 0px 0px 0px round 0px)" }],
-      { duration: 420, easing: "cubic-bezier(.32,.72,0,1)", fill: "forwards" }
-    );
+    const expansion = page.animate([
+      { clipPath: inset, offset: 0 },
+      { clipPath: squeeze, offset: 0.1, easing: "cubic-bezier(.22,.8,.2,1)" },
+      { clipPath: "inset(0px 0px 0px 0px round 0px)", offset: 1 }
+    ], { duration: 440, fill: "forwards" });
     const animations2 = [
       expansion,
-      origin.animate([{ transform }, { transform: "none" }], { duration: 420, easing: "cubic-bezier(.32,.72,0,1)", fill: "forwards" }),
-      content.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 240, delay: 60, fill: "forwards" }),
-      origin.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 140, delay: 40, fill: "forwards" }),
-      backdrop.current.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 380, fill: "forwards" })
+      origin.animate([{ transform, offset: 0 }, { transform: pressed, offset: 0.1, easing: "cubic-bezier(.22,.8,.2,1)" }, { transform: "none", offset: 1 }], { duration: 440, fill: "forwards" }),
+      content.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 240, delay: 85, fill: "forwards" }),
+      origin.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 140, delay: 70, fill: "forwards" }),
+      backdrop.current.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 410, fill: "forwards" })
     ];
     let active = true;
     expansion.finished.then(() => {
@@ -62226,7 +62253,7 @@ function StartupScreen({ ready, revealRef, onFinish }) {
     };
   }, [ready, caught, reduced, revealRef, onFinish]);
   return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-startup", "data-phase": phase, role: "status", "aria-label": "稿喵正在启动", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-startup-backdrop", ref: backdrop, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-startup-content", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx(Mascot, { ref: cat2 }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(Mascot, { ref: mascot }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: "稿喵" }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "每一稿，都有迹可循。" }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: ready ? "文档已就绪" : "正在打开你的文档…" })
