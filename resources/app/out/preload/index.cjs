@@ -32,7 +32,8 @@ const api = {
   },
   stats: {
     storage: () => electron.ipcRenderer.invoke("stats.storage", {}),
-    versions: (docName, branch) => electron.ipcRenderer.invoke("stats.versions", { docName, branch })
+    versions: (docName, branch, options) => electron.ipcRenderer.invoke("stats.versions", { docName, branch, ...options }),
+    export: (docName, branch, options, destination, versionIds, png) => electron.ipcRenderer.invoke("stats.export", { docName, branch, ...options, destination, versionIds, png })
   },
   backup: {
     export: (destPath) => electron.ipcRenderer.invoke("backup.export", { destPath }),
@@ -42,7 +43,7 @@ const api = {
     scrub: () => electron.ipcRenderer.invoke("maintenance.scrub", {}),
     quarantine: {
       list: () => electron.ipcRenderer.invoke("quarantine.list", {}),
-      restore: (entryId) => electron.ipcRenderer.invoke("quarantine.restore", { entryId }),
+      restore: (entryId, branch) => electron.ipcRenderer.invoke("quarantine.restore", { entryId, branch }),
       purge: (beforeMs) => electron.ipcRenderer.invoke("quarantine.purge", { beforeMs })
     }
   },

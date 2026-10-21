@@ -60870,42 +60870,47 @@ function requireExceljs_min() {
 }
 var exceljs_minExports = requireExceljs_min();
 const ExcelJS = /* @__PURE__ */ getDefaultExportFromCjs(exceljs_minExports);
+function columnLabel(index) {
+  let label = "";
+  for (let n = index; n > 0; n = Math.floor((n - 1) / 26)) label = String.fromCharCode(65 + (n - 1) % 26) + label;
+  return label;
+}
 function XlsxPreview({ data }) {
-  const [sheetData, setSheetData] = reactExports.useState(null);
-  const [error, setError] = reactExports.useState(null);
+  const [sheets, setSheets] = reactExports.useState([]), [selected, setSelected] = reactExports.useState(0), [error, setError] = reactExports.useState("");
   reactExports.useEffect(() => {
-    if (data.byteLength === 0) return;
     let active = true;
-    setError(null);
-    setSheetData(null);
-    const workbook = new ExcelJS.Workbook();
-    workbook.xlsx.load(data).then(() => {
+    setSheets([]);
+    setSelected(0);
+    setError("");
+    const book = new ExcelJS.Workbook();
+    void book.xlsx.load(data).then(() => {
       if (!active) return;
-      const sheet = workbook.worksheets[0];
-      if (!sheet) {
+      if (!book.worksheets.length) {
         setError("Excel 文件中没有工作表");
         return;
       }
-      const rows = [];
-      sheet.eachRow({ includeEmpty: false }, (row, rowNum) => {
-        const cells = [];
-        row.eachCell({ includeEmpty: true }, (cell) => {
-          const raw = cell.value;
-          let text = "";
-          if (raw === null || raw === void 0) {
-            text = "";
-          } else if (typeof raw === "object" && "richText" in raw) {
-            text = raw.richText.map((r2) => r2.text).join("");
-          } else if (typeof raw === "object" && "result" in raw) {
-            text = String(raw.result ?? "");
-          } else {
-            text = String(raw);
-          }
-          cells.push({ text, isHeader: rowNum === 1 });
+      setSheets(book.worksheets.map((sheet2) => {
+        const rows2 = [], columns = /* @__PURE__ */ new Set();
+        sheet2.eachRow((row) => {
+          const cells = {}, formulas = {};
+          row.eachCell((cell) => {
+            const value = cell.value;
+            if (value === null || value === "") return;
+            const col = Number(cell.col);
+            columns.add(col);
+            if (typeof value === "object" && "richText" in value) cells[col] = value.richText.map((r2) => r2.text).join("");
+            else if (typeof value === "object" && ("formula" in value || "sharedFormula" in value)) {
+              formulas[col] = "=" + cell.formula;
+              const result = value.result;
+              cells[col] = typeof result === "object" && result && "error" in result ? result.error : result === void 0 ? formulas[col] : String(result);
+            } else if (value instanceof Date) cells[col] = value.toLocaleDateString("zh-CN");
+            else if (typeof value === "object" && "error" in value) cells[col] = value.error;
+            else cells[col] = cell.text;
+          });
+          if (Object.keys(cells).length) rows2.push({ number: row.number, cells, formulas });
         });
-        rows.push(cells);
-      });
-      setSheetData({ rows });
+        return { name: sheet2.name, columns: [...columns].sort((a, b) => a - b), rows: rows2 };
+      }));
     }).catch((e) => {
       if (active) setError(e.message);
     });
@@ -60913,22 +60918,29 @@ function XlsxPreview({ data }) {
       active = false;
     };
   }, [data]);
-  if (error) {
-    return /* @__PURE__ */ jsxRuntimeExports.jsx("p", { role: "alert", className: "text-destructive text-sm p-4", children: error });
-  }
-  if (!sheetData) {
-    return /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-muted-foreground text-sm p-4", children: "解析中…" });
-  }
-  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "overflow-auto h-full p-4", children: /* @__PURE__ */ jsxRuntimeExports.jsx("table", { className: "text-sm border-collapse w-full", children: /* @__PURE__ */ jsxRuntimeExports.jsx("tbody", { children: sheetData.rows.map((row, ri) => /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: row.map(
-    (cell, ci) => cell.isHeader ? /* @__PURE__ */ jsxRuntimeExports.jsx(
-      "th",
-      {
-        className: "border border-border px-2 py-1 bg-muted font-semibold text-left",
-        children: cell.text
-      },
-      ci
-    ) : /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "border border-border px-2 py-1", children: cell.text }, ci)
-  ) }, ri)) }) }) });
+  if (error) return /* @__PURE__ */ jsxRuntimeExports.jsx("p", { role: "alert", className: "text-destructive text-sm p-4", children: error });
+  if (!sheets.length) return /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-muted-foreground text-sm p-4", children: "解析中…" });
+  const sheet = sheets[selected], cols = sheet.columns.slice(0, 60), rows = sheet.rows.slice(0, 300);
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-xlsx-preview", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { role: "tablist", "aria-label": "工作表", children: sheets.map((s, i) => /* @__PURE__ */ jsxRuntimeExports.jsx("button", { role: "tab", "aria-selected": i === selected, onClick: () => setSelected(i), children: s.name }, s.name)) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
+      "只显示有内容的行列，保留真实坐标；鼠标停留查看公式。",
+      sheet.rows.length > 300 || sheet.columns.length > 60 ? "预览限前300个有效行、60列，完整内容请打开历史副本。" : ""
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-xlsx-grid", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("th", {}),
+          cols.map((c) => /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: columnLabel(c) }, c))
+        ] }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("tbody", { children: rows.map((row) => /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: row.number }),
+          cols.map((c) => /* @__PURE__ */ jsxRuntimeExports.jsx("td", { title: columnLabel(c) + row.number + (row.formulas[c] ? " · " + row.formulas[c] : ""), children: row.cells[c] ?? "" }, c))
+        ] }, row.number)) })
+      ] }),
+      !rows.length && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "这张工作表没有内容。" })
+    ] })
+  ] });
 }
 function VersionPreview({ repoRoot, docName, versionId, contentId }) {
   const { data, error, isLoading } = useQuery({
@@ -61110,8 +61122,9 @@ function Badge({ className, variant, ...props }) {
 }
 function QuarantineList({ entries }) {
   const queryClient2 = useQueryClient();
+  const [names, setNames] = reactExports.useState({});
   const restoreMutation = useMutation({
-    mutationFn: (entryId) => api.maintenance.quarantine.restore(entryId),
+    mutationFn: (entryId) => names[entryId]?.trim() ? api.maintenance.quarantine.restore(entryId, names[entryId].trim()) : api.maintenance.quarantine.restore(entryId),
     onSuccess: () => {
       queryClient2.invalidateQueries({ queryKey: keys.quarantineList() });
       queryClient2.invalidateQueries({ queryKey: ["library"] });
@@ -61138,6 +61151,7 @@ function QuarantineList({ entries }) {
               /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-muted-foreground", children: new Date(entry.deletedAt).toLocaleDateString("zh-CN") })
             ] })
           ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("input", { className: "wg-restore-name", "aria-label": `恢复分支名称 ${entry.branch}`, placeholder: entry.branch, value: names[entry.id] ?? "", onChange: (e) => setNames((n) => ({ ...n, [entry.id]: e.target.value })) }),
           /* @__PURE__ */ jsxRuntimeExports.jsx(
             Button,
             {
@@ -61396,19 +61410,29 @@ function ThemePicker() {
     ] }, t.id)) })
   ] });
 }
-function VersionStatistics({ detail, onSelect }) {
+function VersionStatistics({ detail, onSelect, onOpenVersion, onCompare }) {
   const repoRoot = useRepoStore((s) => s.repoRoot);
   const [branch, setBranch] = reactExports.useState(detail.currentBranch);
   const [metric, setMetric] = reactExports.useState("characters");
   const [selected, setSelected] = reactExports.useState(null);
+  const [baselineId, setBaselineId] = reactExports.useState(""), [compareBranch, setCompareBranch] = reactExports.useState(""), [onlyExclusive, setOnlyExclusive] = reactExports.useState(false);
+  const [from, setFrom] = reactExports.useState(""), [until, setUntil] = reactExports.useState(""), [fromDate, setFromDate] = reactExports.useState(""), [untilDate, setUntilDate] = reactExports.useState(""), [axis, setAxis] = reactExports.useState("version");
+  const [bucket, setBucket] = reactExports.useState("day"), [column, setColumn] = reactExports.useState(""), [exporting, setExporting] = reactExports.useState(false), [exportNotice, setExportNotice] = reactExports.useState("");
+  const targetKey = "gaomiao-target:" + repoRoot + ":" + detail.docName;
+  const [target, setTarget2] = reactExports.useState(() => localStorage.getItem(targetKey) ?? "");
+  const chart = reactExports.useRef(null);
+  const options2 = { baselineId: baselineId || void 0, compareBranch: compareBranch || void 0, onlyExclusive };
   const revisionKey = JSON.stringify(detail.versions.map((v) => [v.id, v.contentId, v.title, v.revisionCount, v.deletedAt])) + JSON.stringify(detail.branchHeads);
-  const query = useQuery({ queryKey: ["stats", "versions", repoRoot, detail.docName, branch, revisionKey], queryFn: () => api.stats.versions(detail.docName, branch), retry: false });
+  const query = useQuery({ queryKey: ["stats", "versions", repoRoot, detail.docName, branch, revisionKey, options2], queryFn: () => api.stats.versions(detail.docName, branch, options2), retry: false });
   const data = query.data, definitions = data?.metrics ?? [];
   const active = definitions.find((m) => m.id === metric) ?? definitions.find((m) => m.id === "size");
-  const rows = data?.versions ?? [], current = rows.find((v) => v.id === selected) ?? rows.at(-1);
+  const allRows = data?.versions ?? [], start = from ? allRows.findIndex((v) => v.id === from) : 0, end = until ? allRows.findIndex((v) => v.id === until) : allRows.length - 1;
+  const localDate = (value2) => new Date(value2).toLocaleDateString("en-CA");
+  const rows = allRows.slice(Math.max(0, start), end < 0 ? allRows.length : end + 1).filter((v) => (!fromDate || localDate(v.createdAt) >= fromDate) && (!untilDate || localDate(v.createdAt) <= untilDate)), current = rows.find((v) => v.id === selected) ?? rows.at(-1);
   const values2 = rows.map((v) => active ? v.values[active.id] : void 0), valid = values2.filter((v) => v !== void 0);
   const min = Math.min(0, ...valid), max = Math.max(1, ...valid), span = max - min || 1;
-  const x = (i) => 60 + i / Math.max(1, rows.length - 1) * 680, y = (v) => 225 - (v - min) / span * 190;
+  const times = rows.map((v) => Date.parse(v.createdAt)), tMin = Math.min(...times), tMax = Math.max(...times);
+  const x = (i) => 60 + (axis === "time" && tMax > tMin ? (times[i] - tMin) / (tMax - tMin) : i / Math.max(1, rows.length - 1)) * 680, y = (v) => 225 - (v - min) / span * 190;
   const paths = [];
   let segment = "";
   values2.forEach((v, i) => {
@@ -61424,8 +61448,84 @@ function VersionStatistics({ detail, onSelect }) {
   };
   const unit = active?.unit ?? "";
   const pretty = (v) => v === void 0 ? "—" : v.toLocaleString("zh-CN", { maximumFractionDigits: 1 });
-  const first = rows.find((v) => active && v.values[active.id] !== void 0)?.values[active?.id ?? ""];
+  const first = data?.baseline?.values[active?.id ?? ""];
   const value = current?.values[active?.id ?? ""];
+  const sectionList = Array.from(new Map([...data?.baseline?.sections ?? [], ...current?.sections ?? []].map((s) => [s.id, s])).values());
+  const specials = { activity: "保存活动", distribution: "分类与作者", ranking: "大改版本排行", sections: "章节变化", structure: "结构变化明细", columns: "数值列统计", target: "字数目标" };
+  const activities = /* @__PURE__ */ new Map();
+  for (const v of rows) {
+    const day = localDate(v.createdAt), key = bucket === "month" ? day.slice(0, 7) : bucket === "week" ? (() => {
+      const d = /* @__PURE__ */ new Date(day + "T12:00:00");
+      d.setDate(d.getDate() - (d.getDay() + 6) % 7);
+      return localDate(d.toISOString());
+    })() : day;
+    activities.set(key, (activities.get(key) ?? 0) + 1);
+  }
+  const distribution = (field) => {
+    const counts = /* @__PURE__ */ new Map();
+    for (const v of rows) {
+      const label = v[field] ?? "未标注";
+      counts.set(label, (counts.get(label) ?? 0) + 1);
+    }
+    return [...counts].sort((a, b) => b[1] - a[1]);
+  };
+  const resetRange = () => {
+    setFrom("");
+    setUntil("");
+    setFromDate("");
+    setUntilDate("");
+    setSelected(null);
+  };
+  async function exportData(image = false) {
+    if (!data || !rows.length) return;
+    setExporting(true);
+    setExportNotice("");
+    try {
+      let png;
+      if (image) {
+        if (!chart.current) throw new Error("请先选择一个趋势指标再导出图表");
+        const svg = chart.current.cloneNode(true);
+        const sources = [chart.current, ...Array.from(chart.current.querySelectorAll("*"))], targets = [svg, ...Array.from(svg.querySelectorAll("*"))];
+        sources.forEach((source, i) => {
+          const style = getComputedStyle(source);
+          for (const key of ["fill", "stroke", "stroke-width", "font-family", "font-size", "opacity"]) targets[i].setAttribute(key, style.getPropertyValue(key));
+        });
+        svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+        svg.setAttribute("width", "1200");
+        svg.setAttribute("height", "405");
+        const blob = new Blob([new XMLSerializer().serializeToString(svg)], { type: "image/svg+xml" }), url = URL.createObjectURL(blob);
+        try {
+          const img = new Image();
+          img.src = url;
+          await img.decode();
+          const canvas = document.createElement("canvas");
+          canvas.width = 1200;
+          canvas.height = 500;
+          const ctx = canvas.getContext("2d");
+          ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--wg-surface");
+          ctx.fillRect(0, 0, 1200, 500);
+          ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--wg-text");
+          ctx.font = "24px Microsoft YaHei";
+          ctx.fillText(detail.title + " · " + active?.label + " · " + branch, 30, 38);
+          ctx.font = "14px Microsoft YaHei";
+          ctx.fillText("单位：" + unit + "；基于历史快照；" + rows.length + "个版本", 30, 65);
+          ctx.drawImage(img, 0, 85, 1200, 405);
+          png = canvas.toDataURL("image/png");
+        } finally {
+          URL.revokeObjectURL(url);
+        }
+      }
+      const destination = await api.dialog.savePath(image ? "导出趋势图" : "导出版本统计", detail.title.replace(/[\\/:*?"<>|]/g, "_") + "-版本统计." + (image ? "png" : "csv"));
+      if (destination) {
+        await api.stats.export(detail.docName, branch, options2, destination, rows.map((v) => v.id), png);
+        setExportNotice("已导出到 " + destination);
+      }
+    } catch (error) {
+      setExportNotice(error.message);
+    } finally {
+      setExporting(false);
+    }
+  }
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-statistics", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("aside", { className: "wg-stat-sidebar", "aria-label": "统计指标与分支", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-stat-sidebar-controls", children: [
@@ -61438,7 +61538,9 @@ function VersionStatistics({ detail, onSelect }) {
           " 统计分支",
           /* @__PURE__ */ jsxRuntimeExports.jsx("select", { "aria-label": "统计分支", value: branch, onChange: (e) => {
             setBranch(e.target.value);
-            setSelected(null);
+            setCompareBranch("");
+            setOnlyExclusive(false);
+            resetRange();
           }, children: Object.keys(detail.branchHeads).map((b) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { children: b }, b)) })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: "只改变统计范围，不切换编辑分支。" })
@@ -61448,22 +61550,25 @@ function VersionStatistics({ detail, onSelect }) {
           group,
           "指标"
         ] }),
-        definitions.filter((m) => m.group === group).map((m) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: active?.id === m.id ? "active" : "", style: { animationDelay: `${Math.min(450, definitions.indexOf(m) * 38)}ms` }, onClick: () => setMetric(m.id), children: [
+        definitions.filter((m) => m.group === group).map((m) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: !specials[metric] && active?.id === m.id ? "active" : "", style: { animationDelay: `${Math.min(450, definitions.indexOf(m) * 38)}ms` }, onClick: () => setMetric(m.id), children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(FileText, { size: 13 }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: m.label }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: m.unit })
         ] }, m.id))
       ] }, group)),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: metric === "activity" ? "active" : "", onClick: () => setMetric("activity"), children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(CalendarDays, { size: 14 }),
-        "保存活动"
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: "综合视图" }),
+        Object.entries(specials).filter(([id2]) => !["sections", "columns", "structure", "target"].includes(id2) || id2 === "sections" && allRows.some((v) => v.sections?.length) || id2 === "columns" && allRows.some((v) => v.columns?.length) || id2 === "structure" && allRows.some((v) => v.changes?.length) || id2 === "target" && definitions.some((m) => m.id === "wordCount")).map(([id2, label]) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: metric === id2 ? "active" : "", onClick: () => setMetric(id2), children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(CalendarDays, { size: 14 }),
+          label
+        ] }, id2))
       ] })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "wg-stat-content", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-stat-heading", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "MANUSCRIPT / ANALYTICS" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: metric === "activity" ? "保存活动" : active?.label ?? "正在分析版本" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: specials[metric] ?? active?.label ?? "正在分析版本" }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
             detail.title,
             " / ",
@@ -61472,38 +61577,286 @@ function VersionStatistics({ detail, onSelect }) {
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "wg-stat-scope", children: "真实历史快照 · 只读分析" })
       ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-stat-actions", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-button", disabled: exporting || !rows.length, onClick: () => void exportData(), children: "导出表格 CSV" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-button", disabled: exporting || !!specials[metric] || !valid.length, onClick: () => void exportData(true), children: "导出趋势 PNG" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-button", disabled: !current, onClick: () => current && onOpenVersion?.(current.id), children: "查看这份版本" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-button", disabled: !current || !data?.baselineId || current.id === data.baselineId, onClick: () => current && data?.baselineId && onCompare?.(data.baselineId, current.id), children: "与基准比较内容" })
+      ] }),
+      exportNotice && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "wg-stat-footnote", role: "status", children: exportNotice }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("details", { className: "wg-stat-filters", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("summary", { children: [
+          "统计范围与基准 ",
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("small", { children: [
+            rows.length,
+            " / ",
+            allRows.length,
+            " 个版本"
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+            "基准版本",
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { "aria-label": "基准版本", value: baselineId, onChange: (e) => setBaselineId(e.target.value), children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "首个版本" }),
+              detail.versions.filter((v) => !v.deletedAt).map((v) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: v.id, children: v.title }, v.id))
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+            "起始版本",
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { "aria-label": "起始版本", value: from, onChange: (e) => setFrom(e.target.value), children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "路线开头" }),
+              allRows.map((v) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: v.id, children: v.title }, v.id))
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+            "结束版本",
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { "aria-label": "结束版本", value: until, onChange: (e) => setUntil(e.target.value), children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "路线末尾" }),
+              allRows.map((v) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: v.id, children: v.title }, v.id))
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+            "起始日期",
+            /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "date", "aria-label": "统计起始日期", value: fromDate, onChange: (e) => setFromDate(e.target.value) })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+            "结束日期",
+            /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "date", "aria-label": "统计结束日期", value: untilDate, onChange: (e) => setUntilDate(e.target.value) })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+            "横轴",
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { "aria-label": "趋势横轴", value: axis, onChange: (e) => setAxis(e.target.value), children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "version", children: "版本序号" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "time", children: "记录时间" })
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+            "对照分支",
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { "aria-label": "对照分支", value: compareBranch, onChange: (e) => {
+              setCompareBranch(e.target.value);
+              setOnlyExclusive(false);
+              resetRange();
+            }, children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "不对照" }),
+              Object.keys(detail.branchHeads).filter((b) => b !== branch).map((b) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { children: b }, b))
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "wg-stat-check", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "checkbox", "aria-label": "仅分叉后版本", checked: onlyExclusive, disabled: !compareBranch, onChange: (e) => {
+              setOnlyExclusive(e.target.checked);
+              resetRange();
+            } }),
+            "仅显示本路线独有版本"
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-button", onClick: resetRange, children: "清除范围" })
+        ] }),
+        compareBranch && /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
+          "共同版本 ",
+          data?.summary?.commonVersions ?? "—",
+          " · 本路线独有 ",
+          data?.summary?.exclusiveVersions ?? "—"
+        ] })
+      ] }),
       query.isLoading ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { role: "status", className: "wg-stat-loading", children: "正在读取历史版本并分析内容…" }) : query.error ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { role: "alert", className: "wg-stat-loading", children: [
         query.error.message,
         /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-button", onClick: () => void query.refetch(), children: "重试" })
       ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-stat-reveal", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-stat-cards", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: "分支版本" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: "范围内版本" }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: rows.length }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "包含共同祖先" })
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: onlyExclusive ? "本路线独有版本" : "包含共同祖先" })
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: metric === "activity" ? "有记录的日期" : `所选版本 / ${unit}` }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: metric === "activity" ? data?.activity.length : pretty(value) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: metric === "activity" ? "有记录的周期" : specials[metric] ? "所选视图 / 数量" : "所选版本 / " + unit }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: metric === "activity" ? activities.size : metric === "distribution" ? distribution("category").length : metric === "ranking" ? rows.filter((v) => v.values.changed !== void 0).length : metric === "sections" ? current?.sections?.length ?? 0 : metric === "structure" ? current?.changeCount ?? 0 : metric === "columns" ? current?.columns?.length ?? 0 : metric === "target" ? pretty(current?.values.wordCount) : pretty(value) }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: current?.title ?? "暂无版本" })
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: metric === "activity" ? "保留覆盖次数" : "相比首个可统计版本" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: metric === "activity" ? rows.reduce((n, v) => n + (v.values.revisions ?? 0), 0) : value !== void 0 && first !== void 0 ? (value - first >= 0 ? "+" : "") + pretty(value - first) : "—" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: metric === "activity" ? "当前保留的修订深度" : "相同指标、相同计数规则" })
+            /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: metric === "activity" ? "保留覆盖次数" : specials[metric] ? "相同内容的额外版本" : "相对基准版本" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: metric === "activity" ? rows.reduce((n, v) => n + (v.values.revisions ?? 0), 0) : specials[metric] ? rows.length - new Set(rows.map((v) => v.contentId)).size : value !== void 0 && first !== void 0 ? (value - first >= 0 ? "+" : "") + pretty(value - first) : pretty(current?.baselineValues?.[active?.id ?? ""]) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: metric === "activity" ? "当前保留的修订深度" : specials[metric] ? "二进制内容完全相同" : data?.baseline?.title ?? "相同计数规则" })
           ] })
         ] }),
         metric === "activity" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "记录活动" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-stat-activity", children: data?.activity.map((day) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: day.date }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("i", { style: { width: Math.min(100, day.count * 12) + "%" } }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("h2", { children: [
+            "记录活动",
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { "aria-label": "活动统计周期", value: bucket, onChange: (e) => setBucket(e.target.value), children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "day", children: "按日" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "week", children: "按周" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "month", children: "按月" })
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-stat-activity", children: [...activities].map(([date, count2]) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: date }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("i", { style: { width: Math.min(100, count2 * 12) + "%" } }),
             /* @__PURE__ */ jsxRuntimeExports.jsxs("strong", { children: [
-              day.count,
+              count2,
               " 次"
             ] })
-          ] }, day.date)) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "这里只统计新版本创建记录，不代表编辑次数或实际写作时长。" })
+          ] }, date)) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-stat-calendar", children: [...activities].map(([date, count2]) => /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { title: date + " · " + count2 + "个版本", style: { background: "color-mix(in srgb,var(--wg-selected) " + (30 + Math.min(1, count2 / 5) * 70) + "%,var(--wg-surface))" }, children: [
+            date.slice(-2),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("b", { children: count2 })
+          ] }, date)) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
+            "完整统计路线：首稿 ",
+            data?.summary?.firstAt ? localDate(data.summary.firstAt) : "—",
+            " · 末稿 ",
+            data?.summary?.lastAt ? localDate(data.summary.lastAt) : "—",
+            " · 记录跨度 ",
+            pretty(data?.summary?.spanDays),
+            " 天 · 平均间隔 ",
+            pretty(data?.summary?.averageHours),
+            " 小时 · 中位间隔 ",
+            pretty(data?.summary?.medianHours),
+            " 小时。统计新版本创建记录，不代表编辑次数或实际写作时长。"
+          ] })
+        ] }) : metric === "distribution" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "分类与作者分布" }),
+          ["category", "author"].map((field) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: field === "category" ? "当前分类" : "作者标签" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-stat-bars", children: distribution(field).map(([label, count2]) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: label }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("i", { style: { width: count2 / Math.max(1, rows.length) * 100 + "%" } }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("b", { children: count2 })
+            ] }, label)) })
+          ] }, field)),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
+            "分类采用版本当前分类，作者为记录中的标签；相同二进制内容的额外版本 ",
+            data?.summary?.duplicateVersions ?? 0,
+            " 个。"
+          ] })
+        ] }) : metric === "ranking" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "大改版本排行" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-stat-bars", children: rows.filter((v) => v.values.changed !== void 0).sort((a, b) => b.values.changed - a.values.changed).slice(0, 10).map((v) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { onClick: () => choose(v.id), children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: v.title }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("b", { children: [
+              pretty(v.values.changed),
+              " 字符 · 强度 ",
+              pretty(v.values.intensity),
+              "%"
+            ] })
+          ] }, v.id)) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "按相邻版本的新增+删除量排行，净增量不能代替改动量。" })
+        ] }) : metric === "sections" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "章节字数、占比与基准变化" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "章节" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "所选版本" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "占正文" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "基准版本" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "变化" })
+            ] }) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("tbody", { children: sectionList.map((s) => {
+              const now2 = current?.sections?.find((c) => c.id === s.id), baseline = data?.baseline?.sections?.find((b) => b.id === s.id), count2 = now2?.characters;
+              return /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { children: [
+                  s.title,
+                  !now2 ? "（当前未匹配）" : ""
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { children: [
+                  pretty(count2),
+                  " 字符"
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: count2 !== void 0 && current?.values.characters ? pretty(count2 / current.values.characters * 100) + "%" : "—" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: baseline?.characters ?? "—" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: baseline && count2 !== void 0 ? (count2 - baseline.characters >= 0 ? "+" : "") + pretty(count2 - baseline.characters) : "未匹配" })
+              ] }, s.id);
+            }) })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-section-heatmap", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: "章节变化热区 · 最近12个范围内版本" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "章节" }),
+                rows.slice(-12).map((v) => /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: v.title }, v.id))
+              ] }) }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("tbody", { children: sectionList.map((s) => /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: s.title }),
+                rows.slice(-12).map((v) => {
+                  const count2 = v.sections?.find((c) => c.id === s.id)?.characters;
+                  return /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("button", { title: v.title + " / " + s.title, style: { background: "color-mix(in srgb,var(--wg-selected) " + (count2 === void 0 ? 0 : Math.min(100, 20 + count2 / Math.max(1, v.values.characters) * 100)) + "%,var(--wg-surface))" }, onClick: () => choose(v.id), children: count2 ?? "—" }) }, v.id);
+                })
+              ] }, s.id)) })
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "基于标题样式分段，按稳定段落标识或同名标题匹配。标题重命名且无稳定标识时显示未匹配，不推测章节含义；空白格不等于零字。" })
+        ] }) : metric === "structure" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("h2", { children: [
+            "与上一稿的结构变化 · ",
+            current?.changeCount ?? 0,
+            " 项"
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "类型 / 位置" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "修改前" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "修改后" })
+            ] }) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("tbody", { children: current?.changes?.map((c, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("b", { children: c.kind }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("br", {}),
+                c.name
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: c.before ?? "—" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: c.after ?? "—" })
+            ] }, i)) })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "最多展开80项、每项前后文字最多180字符；计数仍覆盖完整文件。首稿没有上一稿。" })
+        ] }) : metric === "columns" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "指定数值列" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+            "工作表 / 列",
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { "aria-label": "数值列", value: column, onChange: (e) => setColumn(e.target.value), children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "请选择，避免将无关数值相加" }),
+              Array.from(new Set(rows.flatMap((v) => v.columns?.map((c) => c.sheet + "!" + c.column) ?? []))).map((c) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { children: c }, c))
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "版本" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "数值数量" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "合计" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "均值" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("th", { children: "最小 / 最大" })
+            ] }) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("tbody", { children: rows.map((v) => {
+              const c = v.columns?.find((c2) => c2.sheet + "!" + c2.column === column);
+              return /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { onClick: () => choose(v.id), children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: v.title }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: pretty(c?.count) }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: pretty(c?.sum) }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: pretty(c?.mean) }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { children: [
+                  pretty(c?.min),
+                  " / ",
+                  pretty(c?.max)
+                ] })
+              ] }, v.id);
+            }) })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "只统计所选列的数值及公式缓存数值；缺少结果的公式不补算，不混合单位。" })
+        ] }) : metric === "target" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "字数目标" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+            "目标字数",
+            /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "number", min: "1", "aria-label": "目标字数", value: target, onChange: (e) => {
+              setTarget2(e.target.value);
+              localStorage.setItem(targetKey, e.target.value);
+            } })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
+            "当前 ",
+            pretty(current?.values.wordCount),
+            " 字/词；",
+            Number(target) > 0 && current?.values.wordCount !== void 0 ? `达成 ${(current.values.wordCount / Number(target) * 100).toFixed(1)}%，还差 ${Math.max(0, Number(target) - current.values.wordCount).toLocaleString()} 字/词` : "请设置目标"
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("progress", { max: Number(target) || 1, value: current?.values.wordCount ?? 0 }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "采用汉字+英文词，目标只表示数量，不评价论文质量。" })
         ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("h2", { children: [
             active?.label,
@@ -61514,7 +61867,7 @@ function VersionStatistics({ detail, onSelect }) {
               " · 点击节点查看对应版本"
             ] })
           ] }),
-          valid.length ? /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { viewBox: "0 0 800 270", role: "img", "aria-label": `${active?.label}版本趋势`, children: [
+          valid.length ? /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { ref: chart, viewBox: "0 0 800 270", role: "img", "aria-label": `${active?.label}版本趋势`, children: [
             [0, 0.5, 1].map((f) => /* @__PURE__ */ jsxRuntimeExports.jsxs("g", { children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("line", { x1: "60", x2: "745", y1: y(min + span * f), y2: y(min + span * f), className: "wg-stat-grid" }),
               /* @__PURE__ */ jsxRuntimeExports.jsx("text", { x: "4", y: y(min + span * f) + 4, children: pretty(min + span * f) })
@@ -61536,10 +61889,7 @@ function VersionStatistics({ detail, onSelect }) {
                 unit
               ] })
             ] }, rows[i].id)),
-            rows.filter((_, i) => rows.length < 10 || i % Math.ceil(rows.length / 8) === 0).map((v) => /* @__PURE__ */ jsxRuntimeExports.jsxs("text", { x: x(rows.indexOf(v)), y: "254", textAnchor: "middle", children: [
-              "v",
-              rows.indexOf(v) + 1
-            ] }, v.id))
+            rows.filter((_, i) => rows.length < 10 || i % Math.ceil(rows.length / 8) === 0).map((v) => /* @__PURE__ */ jsxRuntimeExports.jsx("text", { x: x(rows.indexOf(v)), y: "254", textAnchor: "middle", children: axis === "time" ? localDate(v.createdAt) : "v" + (rows.indexOf(v) + 1) }, v.id))
           ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "此路线尚无可计算数据。首稿没有上一稿，增删与保留率显示“—”。" })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-detail", children: [
@@ -61556,7 +61906,20 @@ function VersionStatistics({ detail, onSelect }) {
               " ",
               m.unit
             ] })
-          ] }, m.id)) })
+          ] }, m.id)) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
+            "相对基准 ",
+            detail.versions.find((v) => v.id === data?.baselineId)?.title ?? "—",
+            "：新增 ",
+            pretty(current?.baselineValues?.inserted),
+            "、删除 ",
+            pretty(current?.baselineValues?.deleted),
+            " 字符；净变化 ",
+            pretty(current?.baselineValues?.net),
+            "，体积变化 ",
+            pretty(current?.baselineValues?.sizeDelta),
+            " 字节。"
+          ] })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-table", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "逐版核对" }),
@@ -61661,9 +62024,11 @@ function HelpDocument({ repoRoot }) {
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "08 · 查看分支的量化统计" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "选中文档，打开“版本统计”。左侧选择统计分支和指标，右侧查看趋势、版本数与逐版数值。统计分支只改变查看范围，不改变当前编辑路线。点击图表节点可选中对应版本。" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "文本提供字符、汉字、英文词及新增、删除、总改动、净变化和保留率；Word还提供段落、表格、绘图对象及批注计数；Excel提供工作表、非空单元格、公式与错误值计数；PPT提供幻灯片与备注字符数。各格式只显示可计算的指标。" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "正文字符数不等同于Word/WPS字数，不统计页眉、页脚、脚注。首稿没有上一稿，增删数据为“—”。文件损坏、旧格式或超出差异计算限制时，缺失值不会画成零。覆盖同版本会更新该节点的统计，不新增版本节点。保存活动不代表实际编辑时长。" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "选中文档，打开“版本统计”。左侧选择统计分支和指标，右侧查看趋势、版本数与逐版数值。统计分支只改变查看范围，不改变当前编辑路线。点击图表节点可选中对应版本；“查看这份版本”返回历史预览，“与基准比较内容”打开两版对比。" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "展开“统计范围与基准”，可指定基准、起止版本、日期和横轴；选择对照分支后，可只看本路线独有的版本。导出CSV保存当前范围的全部指标，导出PNG保存当前趋势图；请保存到文档库外。" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "文本提供中英混合字数、字符、汉字、英文词、数字，以及新增、删除、改动量、强度、占比和保留率。Word提供章节热区、段落变动、脚注/尾注和可识别的批注状态；Excel提供有效行列、单元格及公式变化、指定数值列汇总；PPT统计幻灯片文本变化与换序。综合视图提供分类/作者分布、大改排行、按日/周/月保存活动和可自行设置的字数目标。" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "中英混合字数=汉字+英文词，不等同Word/WPS字数；正文不包含页眉、页脚、脚注文字。首稿没有上一稿，增删为“—”。章节改名且没有稳定标识时不自动猜测对应关系；Excel插列或复杂重排可能无法可靠对齐，统计说明会标出口径。文件损坏、旧格式或超出差异计算限制时，缺失值不会画成零。覆盖同版本更新当前节点，不新增节点。保存活动不代表实际编辑时长。" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "“查找版本”可按名称、说明、作者、日期及分类筛选。Excel历史预览可以切换工作表，并保留稀疏单元格的真实坐标；回收分支遇到同名时可填写新的恢复名称。" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "BlockFrame为新默认主题，可在顶栏切换其他主题。系统开启“减少动态效果”时，启动与统计入场运动会跳过。" })
     ] })
   ] });
@@ -61689,6 +62054,7 @@ function Workspace() {
   const [branchFilter, setBranchFilter] = reactExports.useState("all");
   const [showDeleted, setShowDeleted] = reactExports.useState(false);
   const [historyOpen, setHistoryOpen] = reactExports.useState(true);
+  const [versionSearch, setVersionSearch] = reactExports.useState(""), [categoryFilter, setCategoryFilter] = reactExports.useState("all");
   const [compareIds, setCompareIds] = reactExports.useState([]);
   const [compareMode, setCompareMode] = reactExports.useState(false);
   const [modal, setModal] = reactExports.useState(null);
@@ -61703,7 +62069,8 @@ function Workspace() {
   const docs = docsQuery.data ?? [];
   const detail = detailQuery.data;
   const visibleDocs = docs.filter((d) => !!d.deletedAt === showDeleted && (!search || (d.title + d.docName).toLowerCase().includes(search.toLowerCase())) && (fileFilter === "all" || fileFilter === extension(d.docName) || fileFilter === "docx" && extension(d.docName) === "doc" || fileFilter === "xlsx" && ["xls", "csv"].includes(extension(d.docName)) || fileFilter === "pptx" && extension(d.docName) === "ppt" || fileFilter === "other" && !["docx", "doc", "xlsx", "xls", "csv", "pptx", "ppt"].includes(extension(d.docName))));
-  const versions = reactExports.useMemo(() => (detail?.versions ?? []).filter((v) => !!v.deletedAt === showDeleted && (branchFilter === "all" || v.branches.includes(branchFilter))), [detail?.versions, showDeleted, branchFilter]);
+  const matchesVersion = (v) => (categoryFilter === "all" || v.categoryId === categoryFilter) && (!versionSearch || (v.title + " " + v.note + " " + v.author + " " + v.id + " " + new Date(v.createdAt).toLocaleDateString("zh-CN")).toLowerCase().includes(versionSearch.toLowerCase()));
+  const versions = reactExports.useMemo(() => (detail?.versions ?? []).filter((v) => !!v.deletedAt === showDeleted && (branchFilter === "all" || v.branches.includes(branchFilter)) && matchesVersion(v)), [detail?.versions, showDeleted, branchFilter, categoryFilter, versionSearch]);
   const selectedVersion = detail?.versions.find((v) => v.id === selectedVersionId) ?? null;
   const workingVersion = detail?.versions.find((v) => v.id === detail.workspace.versionId);
   reactExports.useEffect(() => {
@@ -61711,6 +62078,8 @@ function Workspace() {
     setCompareIds([]);
     setCompareMode(false);
     setBranchFilter("all");
+    setCategoryFilter("all");
+    setVersionSearch("");
   }, [selectedDocName, repoRoot]);
   reactExports.useEffect(() => {
     if (!detail) return;
@@ -62026,6 +62395,31 @@ function Workspace() {
             Object.keys(detail?.branchHeads ?? {}).map((branch) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: branch, children: branch }, branch))
           ] })
         ] }),
+        detail && /* @__PURE__ */ jsxRuntimeExports.jsxs("details", { className: "wg-version-filters", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("summary", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(Search, { size: 14 }),
+            " 查找版本",
+            versionSearch || categoryFilter !== "all" ? " · 已筛选" : ""
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+              "名称、说明、作者或日期",
+              /* @__PURE__ */ jsxRuntimeExports.jsx("input", { "aria-label": "查找版本", placeholder: "例如：导师意见、2026/10/11…", value: versionSearch, onChange: (e) => setVersionSearch(e.target.value) })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+              "分类",
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { "aria-label": "筛选版本分类", value: categoryFilter, onChange: (e) => setCategoryFilter(e.target.value), children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "all", children: "全部分类" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "未分类" }),
+                detail.categories.map((c) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: c.id, children: c.name }, c.id))
+              ] })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-button subtle", onClick: () => {
+              setVersionSearch("");
+              setCategoryFilter("all");
+            }, children: "清除筛选" })
+          ] })
+        ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-toolbar-spacer" }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: `wg-button subtle ${showDeleted ? "is-active" : ""}`, onClick: () => {
           setShowDeleted((s) => !s);
@@ -62041,7 +62435,14 @@ function Workspace() {
         ] })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `wg-main-area ${view === "overview" ? "overview" : view === "stats" ? "statistics" : ""}`, children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(AnimatePresence, { mode: "wait", initial: false, children: /* @__PURE__ */ jsxRuntimeExports.jsx(motion.div, { className: "wg-main-view", initial: { opacity: 0, y: 7 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -5 }, transition: { duration: 0.2 }, children: view === "stats" && detail ? /* @__PURE__ */ jsxRuntimeExports.jsx(VersionStatistics, { detail, onSelect: selectVersion }, detail.docName) : view === "overview" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-overview", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(AnimatePresence, { mode: "wait", initial: false, children: /* @__PURE__ */ jsxRuntimeExports.jsx(motion.div, { className: "wg-main-view", initial: { opacity: 0, y: 7 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -5 }, transition: { duration: 0.2 }, children: view === "stats" && detail ? /* @__PURE__ */ jsxRuntimeExports.jsx(VersionStatistics, { detail, onSelect: selectVersion, onOpenVersion: (id2) => {
+          setSelectedVersionId(id2);
+          setView("overview");
+          setHistoryOpen(true);
+        }, onCompare: (a, b) => {
+          setCompareIds([a, b]);
+          open("compare");
+        } }, detail.docName) : view === "overview" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-overview", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("aside", { className: "wg-nav", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "文档" }),
             /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: fileFilter === "all" ? "active" : "", onClick: () => setFileFilter("all"), children: [
@@ -62129,7 +62530,7 @@ function Workspace() {
               ] })
             ] })
           ] })
-        ] }) : detail ? view === "graph" ? /* @__PURE__ */ jsxRuntimeExports.jsx(VersionGraph, { detail, versions: detail.versions.filter((v) => branchFilter === "all" || v.branches.includes(branchFilter)), selectedId: selectedVersionId, compareIds, onSelect: selectVersion, onEdit: (v) => open("edit", v), onPosition: (id2, position) => void mutate({ type: "version", docName: detail.docName, versionId: id2, position }), onMoveBranch: moveBranch }, detail.docName) : /* @__PURE__ */ jsxRuntimeExports.jsx(VersionBoard, { detail, versions, selectedId: selectedVersionId, compareIds, onSelect: selectVersion, onMove: moveVersion, onCategory: categoryAction, onEdit: (v) => open("edit", v) }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-empty", children: "请先在总览工作台选择文档。" }) }, view) }),
+        ] }) : detail ? view === "graph" ? /* @__PURE__ */ jsxRuntimeExports.jsx(VersionGraph, { detail, versions: detail.versions.filter((v) => (branchFilter === "all" || v.branches.includes(branchFilter)) && matchesVersion(v)), selectedId: selectedVersionId, compareIds, onSelect: selectVersion, onEdit: (v) => open("edit", v), onPosition: (id2, position) => void mutate({ type: "version", docName: detail.docName, versionId: id2, position }), onMoveBranch: moveBranch }, detail.docName) : /* @__PURE__ */ jsxRuntimeExports.jsx(VersionBoard, { detail, versions, selectedId: selectedVersionId, compareIds, onSelect: selectVersion, onMove: moveVersion, onCategory: categoryAction, onEdit: (v) => open("edit", v) }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-empty", children: "请先在总览工作台选择文档。" }) }, view) }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("aside", { className: "wg-inspector", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: detail ? "文稿与版本详情" : "快速查看" }),

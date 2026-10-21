@@ -1768,16 +1768,18 @@ async function listQuarantine(repo) {
   }
   return entries.sort((a, b) => b.deletedAt.localeCompare(a.deletedAt));
 }
-async function restoreFromQuarantine(repo, entryId) {
-  return withRepoWrite(repo, () => restoreUnlocked(repo, entryId));
+async function restoreFromQuarantine(repo, entryId, branch) {
+  return withRepoWrite(repo, () => restoreUnlocked(repo, entryId, branch));
 }
-async function restoreUnlocked(repo, entryId) {
+async function restoreUnlocked(repo, entryId, branch) {
   validateDocName(entryId);
   const qDir = path$1.join(repo.root, "quarantine");
   const p = path$1.join(qDir, `${entryId}.json`);
   const entry = JSON.parse(await promises.readFile(p, "utf8"));
-  if (await readHead(repo, entry.docId, entry.branch)) throw new Error("同名分支已存在，请先为现有分支保留新的名称");
-  await writeHead(repo, entry.docId, entry.branch, entry.commitId);
+  const target = branch ?? entry.branch;
+  validateBranchName(target);
+  if (await readHead(repo, entry.docId, target)) throw new Error("同名分支已存在，请输入其他恢复名称");
+  await writeHead(repo, entry.docId, target, entry.commitId);
   await promises.rm(p);
 }
 async function purgeQuarantine(repo, beforeMs) {
@@ -6250,7 +6252,7 @@ objectType({
   checked: numberType().int().nonnegative(),
   corrupted: arrayType(ScrubCorruptionSchema)
 });
-const QuarantineRestoreReq = objectType({ entryId: stringType().min(1) });
+const QuarantineRestoreReq = objectType({ entryId: stringType().min(1), branch: stringType().min(1).optional() });
 const QuarantinePurgeReq = objectType({ beforeMs: numberType().optional() });
 objectType({ count: numberType().int().nonnegative() });
 const PreviewGetBytesReq = objectType({
@@ -40214,16 +40216,16 @@ function requireNonQuotedColumnParser() {
         return null;
       }
       const { parserOptions } = this;
-      const characters = [];
+      const characters2 = [];
       let nextToken = scanner.nextCharacterToken;
       for (; nextToken; nextToken = scanner.nextCharacterToken) {
         if (Token_1.Token.isTokenDelimiter(nextToken, parserOptions) || Token_1.Token.isTokenRowDelimiter(nextToken)) {
           break;
         }
-        characters.push(nextToken.token);
+        characters2.push(nextToken.token);
         scanner.advancePastToken(nextToken);
       }
-      return this.columnFormatter.format(characters.join(""));
+      return this.columnFormatter.format(characters2.join(""));
     }
   };
   NonQuotedColumnParser.NonQuotedColumnParser = NonQuotedColumnParser$1;
@@ -40263,7 +40265,7 @@ function requireQuotedColumnParser() {
       const { parserOptions } = this;
       let foundStartingQuote = false;
       let foundClosingQuote = false;
-      const characters = [];
+      const characters2 = [];
       let nextToken = scanner.nextCharacterToken;
       for (; !foundClosingQuote && nextToken !== null; nextToken = scanner.nextCharacterToken) {
         const isQuote = Token_1.Token.isTokenQuote(nextToken, parserOptions);
@@ -40274,22 +40276,22 @@ function requireQuotedColumnParser() {
             scanner.advancePastToken(nextToken);
             const tokenFollowingEscape = scanner.nextCharacterToken;
             if (tokenFollowingEscape !== null && (Token_1.Token.isTokenQuote(tokenFollowingEscape, parserOptions) || Token_1.Token.isTokenEscapeCharacter(tokenFollowingEscape, parserOptions))) {
-              characters.push(tokenFollowingEscape.token);
+              characters2.push(tokenFollowingEscape.token);
               nextToken = tokenFollowingEscape;
             } else if (isQuote) {
               foundClosingQuote = true;
             } else {
-              characters.push(nextToken.token);
+              characters2.push(nextToken.token);
             }
           } else if (isQuote) {
             foundClosingQuote = true;
           } else {
-            characters.push(nextToken.token);
+            characters2.push(nextToken.token);
           }
         }
         scanner.advancePastToken(nextToken);
       }
-      return { col: this.columnFormatter.format(characters.join("")), foundClosingQuote };
+      return { col: this.columnFormatter.format(characters2.join("")), foundClosingQuote };
     }
     checkForMalformedColumn(scanner) {
       const { parserOptions } = this;
@@ -64220,7 +64222,7 @@ function requireOpen() {
       };
       return directory2(source, options);
     },
-    url: function(request, params, options) {
+    url: function(request2, params, options) {
       if (typeof params === "string")
         params = { url: params };
       if (!params.url)
@@ -64231,11 +64233,11 @@ function requireOpen() {
           var options2 = Object.create(params);
           options2.headers = Object.create(params.headers);
           options2.headers.range = "bytes=" + offset + "-" + (length ? length : "");
-          return request(options2);
+          return request2(options2);
         },
         size: function() {
           return new Promise2(function(resolve2, reject2) {
-            var req = request(params);
+            var req = request2(params);
             req.on("response", function(d) {
               req.abort();
               if (!d.headers["content-length"])
@@ -65569,8 +65571,8 @@ async function quarantineList(_args) {
   return listQuarantine(getRepo());
 }
 async function quarantineRestore(args) {
-  const { entryId } = QuarantineRestoreReq.parse(args);
-  await restoreFromQuarantine(getRepo(), entryId);
+  const { entryId, branch } = QuarantineRestoreReq.parse(args);
+  await restoreFromQuarantine(getRepo(), entryId, branch);
 }
 async function quarantinePurge(args) {
   const { beforeMs } = QuarantinePurgeReq.parse(args);
@@ -65671,54 +65673,54 @@ async function blankDocument(filePath, format) {
   }, { mtime: new Date(1980, 0, 1) }));
 }
 async function libraryMutationHandler(args) {
-  const request = LibraryMutationSchema.parse(args);
+  const request2 = LibraryMutationSchema.parse(args);
   const repo = getRepo();
-  switch (request.type) {
+  switch (request2.type) {
     case "document":
-      await updateDocument(repo, request.docName, request);
+      await updateDocument(repo, request2.docName, request2);
       break;
     case "version":
-      await updateVersion(repo, request.docName, request.versionId, request);
+      await updateVersion(repo, request2.docName, request2.versionId, request2);
       break;
     case "category":
-      return { categoryId: await updateCategory(repo, request.docName, request.action, request.name, request.categoryId) };
+      return { categoryId: await updateCategory(repo, request2.docName, request2.action, request2.name, request2.categoryId) };
     case "arrange":
-      await arrangeVersions(repo, request.docName, request.categoryId, request.versionIds);
+      await arrangeVersions(repo, request2.docName, request2.categoryId, request2.versionIds);
       break;
     case "importVersion":
-      return { versionId: await importVersion(repo, request.docName, request.sourcePath, request) };
+      return { versionId: await importVersion(repo, request2.docName, request2.sourcePath, request2) };
     case "save":
-      return saveWorkspace(repo, request.docName, request.mode, request.message);
+      return saveWorkspace(repo, request2.docName, request2.mode, request2.message);
     case "undoReplacement":
-      await undoReplacement(repo, request.docName, request.versionId);
+      await undoReplacement(repo, request2.docName, request2.versionId);
       break;
     case "export":
-      await exportVersion(repo, request.docName, request.versionId, request.destination);
+      await exportVersion(repo, request2.docName, request2.versionId, request2.destination);
       break;
     case "edit": {
-      if (request.versionId) await beginVersionEdit(repo, request.docName, request.versionId, request.branch);
-      const workspacePath = path$1.join(repo.root, "workspace", validateDocName(request.docName));
+      if (request2.versionId) await beginVersionEdit(repo, request2.docName, request2.versionId, request2.branch);
+      const workspacePath = path$1.join(repo.root, "workspace", validateDocName(request2.docName));
       await promises.access(workspacePath);
       await openFile(workspacePath);
-      watchDoc(request.docName, workspacePath);
+      watchDoc(request2.docName, workspacePath);
       return { workspacePath };
     }
     case "openCopy": {
       const temporary = await promises.mkdtemp(path$1.join(os.tmpdir(), "wordgit-preview-"));
-      const copy = path$1.join(temporary, validateDocName(request.docName));
-      await exportVersion(repo, request.docName, request.versionId, copy);
+      const copy = path$1.join(temporary, validateDocName(request2.docName));
+      await exportVersion(repo, request2.docName, request2.versionId, copy);
       await openFile(copy);
       return { workspacePath: copy };
     }
     case "moveBranch":
-      return moveBranchHead(repo, request.docName, request.branch, request.versionId);
+      return moveBranchHead(repo, request2.docName, request2.branch, request2.versionId);
     case "createDocument": {
-      const requested = request.name.trim();
-      const name = validateDocName(requested.toLowerCase().endsWith("." + request.format) ? requested : requested + "." + request.format);
+      const requested = request2.name.trim();
+      const name = validateDocName(requested.toLowerCase().endsWith("." + request2.format) ? requested : requested + "." + request2.format);
       const temporary = await promises.mkdtemp(path$1.join(os.tmpdir(), "wordgit-new-"));
       try {
         const source = path$1.join(temporary, name);
-        await blankDocument(source, request.format);
+        await blankDocument(source, request2.format);
         const result = await importDoc(repo, source, name);
         return { docName: name, versionId: result.commitId };
       } finally {
@@ -67529,6 +67531,55 @@ function requireSaxes() {
   return saxes;
 }
 var saxesExports = requireSaxes();
+const characters = (text) => Array.from(text.normalize("NFC").replace(/\s/gu, "")).length;
+function wordStructure(xml, styles) {
+  const headings = /* @__PURE__ */ new Set();
+  let styleId = "";
+  if (styles) {
+    const parser22 = new saxesExports.SaxesParser({ xmlns: true });
+    parser22.on("opentag", (tag) => {
+      if (tag.name === "w:style") styleId = String(tag.attributes["w:styleId"]?.value ?? "");
+      if (tag.name === "w:name" && /^(heading\s*\d|标题\s*\d)/i.test(String(tag.attributes["w:val"]?.value ?? ""))) headings.add(styleId);
+      if (tag.name === "w:outlineLvl" && Number(tag.attributes["w:val"]?.value) < 9) headings.add(styleId);
+    });
+    parser22.write(styles).close();
+  }
+  const paragraphs = [];
+  let current, capture = false;
+  const parser2 = new saxesExports.SaxesParser({ xmlns: true });
+  parser2.on("opentag", (tag) => {
+    if (tag.name === "w:p") current = { id: String(tag.attributes["w14:paraId"]?.value ?? ""), text: "", heading: false };
+    if (tag.name === "w:t") capture = true;
+    if (current && tag.name === "w:pStyle") {
+      const id = String(tag.attributes["w:val"]?.value ?? "");
+      current.heading = headings.has(id) || /^Heading\d$/i.test(id);
+    }
+    if (current && tag.name === "w:outlineLvl" && Number(tag.attributes["w:val"]?.value) < 9) current.heading = true;
+    if (current && ["w:tab", "w:br"].includes(tag.name)) current.text += " ";
+  });
+  parser2.on("text", (value) => {
+    if (current && capture) current.text += value;
+  });
+  parser2.on("closetag", (tag) => {
+    if (tag.name === "w:t") capture = false;
+    if (tag.name === "w:p" && current) {
+      paragraphs.push(current);
+      current = void 0;
+    }
+  });
+  parser2.write(xml).close();
+  const sections = [];
+  const seen = /* @__PURE__ */ new Map();
+  for (const p of paragraphs) {
+    if (p.heading || !sections.length) {
+      const title = p.heading ? p.text.trim() : "正文（首个标题前）", n = (seen.get(title) ?? 0) + 1;
+      seen.set(title, n);
+      sections.push({ id: p.id || title + "#" + n, title, characters: 0 });
+    }
+    sections.at(-1).characters += characters(p.text);
+  }
+  return { paragraphs: paragraphs.filter((p) => p.text.trim()).map((p) => ({ id: p.id, text: p.text })), sections, headings: paragraphs.filter((p) => p.heading).length };
+}
 function xmlStats(xml, textTag) {
   const counts = {}, texts = [];
   const parser2 = new saxesExports.SaxesParser({ xmlns: true });
@@ -67551,6 +67602,7 @@ async function analyzeVersion(bytes, ext) {
   const values = { size: bytes.byteLength };
   try {
     let text;
+    const structure = {};
     if ([".txt", ".md", ".csv", ".json", ".xml", ".html"].includes(ext)) text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
     else if (ext === ".docx" || ext === ".pptx") {
       const files = unzipSync(bytes), decode = (key) => {
@@ -67564,10 +67616,41 @@ async function analyzeVersion(bytes, ext) {
         values.tables = body.counts["w:tbl"] ?? 0;
         values.images = body.counts["w:drawing"] ?? 0;
         values.comments = files["word/comments.xml"] ? xmlStats(decode("word/comments.xml"), "w:t").counts["w:comment"] ?? 0 : 0;
+        const parts = wordStructure(decode("word/document.xml"), files["word/styles.xml"] ? decode("word/styles.xml") : void 0);
+        structure.paragraphs = parts.paragraphs;
+        structure.sections = parts.sections;
+        values.headings = parts.headings;
+        values.sections = parts.sections.length;
+        for (const [part, tag, metric] of [["footnotes", "w:footnote", "footnotes"], ["endnotes", "w:endnote", "endnotes"]]) {
+          values[metric] = 0;
+          if (files[`word/${part}.xml`]) {
+            const parser2 = new saxesExports.SaxesParser({ xmlns: true });
+            parser2.on("opentag", (t) => {
+              if (t.name === tag && Number(t.attributes["w:id"]?.value) > 0) values[metric]++;
+            });
+            parser2.write(decode(`word/${part}.xml`)).close();
+          }
+        }
+        if (files["word/commentsExtended.xml"]) {
+          let done = 0, total = 0;
+          const parser2 = new saxesExports.SaxesParser({ xmlns: true });
+          parser2.on("opentag", (t) => {
+            if (t.name === "w15:commentEx") {
+              total++;
+              if (["1", "true"].includes(String(t.attributes["w15:done"]?.value))) done++;
+            }
+          });
+          parser2.write(decode("word/commentsExtended.xml")).close();
+          if (total === values.comments) {
+            values.commentsResolved = done;
+            values.commentsOpen = total - done;
+          }
+        }
       } else {
         const slides = Object.keys(files).filter((k) => /^ppt\/slides\/slide\d+\.xml$/.test(k)).sort((a, b) => a.localeCompare(b, void 0, { numeric: true }));
         if (!slides.length) throw new Error("缺少幻灯片");
         text = slides.map((k) => xmlStats(decode(k), "a:t").text).join("\n");
+        structure.slides = slides.map((k) => ({ id: k, text: xmlStats(decode(k), "a:t").text }));
         values.slides = slides.length;
         const notes = Object.keys(files).filter((k) => /^ppt\/notesSlides\/notesSlide\d+\.xml$/.test(k));
         values.notes = Array.from(notes.map((k) => xmlStats(decode(k), "a:t").text).join("").replace(/\s/gu, "")).length;
@@ -67579,22 +67662,246 @@ async function analyzeVersion(bytes, ext) {
       values.cells = 0;
       values.formulas = 0;
       values.errors = 0;
-      for (const sheet of book.worksheets) sheet.eachRow((row2) => row2.eachCell((cell2) => {
-        if (cell2.value !== null && cell2.value !== "") values.cells++;
-        if (cell2.type === ExcelJS.ValueType.Formula) values.formulas++;
-        if (cell2.type === ExcelJS.ValueType.Error || typeof cell2.value === "object" && cell2.value !== null && "result" in cell2.value && typeof cell2.value.result === "object" && cell2.value.result !== null && "error" in cell2.value.result) values.errors++;
-      }));
+      values.rows = 0;
+      values.columns = 0;
+      let effectiveSlots = 0;
+      structure.sheets = [];
+      structure.columns = [];
+      for (const sheet of book.worksheets) {
+        const cells = {}, usedRows = /* @__PURE__ */ new Set(), usedCols = /* @__PURE__ */ new Set(), numbers = /* @__PURE__ */ new Map();
+        sheet.eachRow((row2) => row2.eachCell((cell2) => {
+          if (cell2.value === null || cell2.value === "") return;
+          values.cells++;
+          usedRows.add(Number(cell2.row));
+          usedCols.add(Number(cell2.col));
+          if (cell2.type === ExcelJS.ValueType.Formula) values.formulas++;
+          if (cell2.type === ExcelJS.ValueType.Error || typeof cell2.value === "object" && cell2.value !== null && "result" in cell2.value && typeof cell2.value.result === "object" && cell2.value.result !== null && "error" in cell2.value.result) values.errors++;
+          const raw = cell2.value, formula = cell2.type === ExcelJS.ValueType.Formula ? cell2.formula : void 0;
+          const resolved = typeof raw === "object" && raw !== null && "result" in raw ? raw.result : raw;
+          cells[cell2.address] = { value: JSON.stringify(resolved) ?? "", formula };
+          if (typeof resolved === "number" && Number.isFinite(resolved)) {
+            const col = cell2.address.replace(/\d/g, "");
+            if (!numbers.has(col)) numbers.set(col, []);
+            numbers.get(col).push(resolved);
+          }
+        }));
+        values.rows += usedRows.size;
+        values.columns += usedCols.size;
+        effectiveSlots += usedRows.size * usedCols.size;
+        structure.sheets.push({ id: String(sheet.id), name: sheet.name, cells });
+        for (const [column2, nums] of numbers) {
+          const sum = nums.reduce((a, b) => a + b, 0);
+          structure.columns.push({ sheet: sheet.name, column: column2, count: nums.length, sum, mean: sum / nums.length, min: nums.reduce((a, b) => Math.min(a, b)), max: nums.reduce((a, b) => Math.max(a, b)) });
+        }
+      }
+      if (effectiveSlots) values.emptyRatio = (effectiveSlots - values.cells) / effectiveSlots * 100;
     } else return { values, unavailable: "此格式暂支持文件大小与版本记录统计；内容解析尚不支持。" };
     if (text !== void 0) {
       text = text.normalize("NFC").replace(/\s+/gu, " ").trim();
       values.characters = Array.from(text.replace(/\s/gu, "")).length;
       values.hanzi = (text.match(new RegExp("\\p{Script=Han}", "gu")) ?? []).length;
       values.words = (text.match(/[A-Za-z]+(?:['’-][A-Za-z]+)*/g) ?? []).length;
+      values.digits = (text.match(new RegExp("\\p{Number}", "gu")) ?? []).length;
+      values.wordCount = values.hanzi + values.words;
     }
-    return { text, values };
+    return { text, values, ...structure };
   } catch {
     return { values: { size: bytes.byteLength }, unavailable: "文件内容无法解析；保留文件大小与版本记录统计，内容指标显示不可用。" };
   }
+}
+function compareAnalyses(before, after) {
+  const values = {}, changes = [];
+  let changeCount = 0;
+  const record = (kind, name, old2, next) => {
+    changeCount++;
+    if (changes.length < 80) changes.push({ kind, name, before: old2?.slice(0, 180), after: next?.slice(0, 180) });
+  };
+  values.sizeDelta = after.values.size - before.values.size;
+  if (before.values.size) values.sizeGrowth = values.sizeDelta / before.values.size * 100;
+  if (before.text !== void 0 && after.text !== void 0 && before.text.length + after.text.length <= 16e4) {
+    const chunks = diffTextBounded(before.text.replace(/\s/gu, ""), after.text.replace(/\s/gu, ""));
+    if (chunks) {
+      const count = (kind) => chunks.filter((c) => kind === "insert" ? c.added : kind === "delete" ? c.removed : !c.added && !c.removed).reduce((n, c) => n + Array.from(c.value).length, 0);
+      values.inserted = count("insert");
+      values.deleted = count("delete");
+      values.changed = values.inserted + values.deleted;
+      values.net = values.inserted - values.deleted;
+      const total = before.values.characters + after.values.characters;
+      if (total) values.intensity = values.changed / total * 100;
+      if (before.values.characters) {
+        values.retained = count("equal") / before.values.characters * 100;
+        values.deletedRatio = values.deleted / before.values.characters * 100;
+      }
+      if (after.values.characters) values.insertedRatio = values.inserted / after.values.characters * 100;
+    }
+  }
+  if (before.paragraphs && after.paragraphs) {
+    const a = before.paragraphs, b = after.paragraphs, stable = a.every((p) => p.id) && b.every((p) => p.id) && new Set(a.map((p) => p.id)).size === a.length && new Set(b.map((p) => p.id)).size === b.length;
+    if (stable) {
+      const old2 = new Map(a.map((p) => [p.id, p])), next = new Map(b.map((p) => [p.id, p]));
+      values.paragraphsAdded = 0;
+      values.paragraphsDeleted = 0;
+      values.paragraphsChanged = 0;
+      values.paragraphsMoved = 0;
+      const commonA = new Map(a.filter((p) => next.has(p.id)).map((p, i2) => [p.id, i2])), commonB = new Map(b.filter((p) => old2.has(p.id)).map((p, i2) => [p.id, i2]));
+      for (const p of a) if (!next.has(p.id)) {
+        values.paragraphsDeleted++;
+        record("删除段落", p.id, p.text);
+      }
+      for (const p of b) {
+        const prev = old2.get(p.id);
+        if (!prev) {
+          values.paragraphsAdded++;
+          record("新增段落", p.id, void 0, p.text);
+        } else {
+          if (prev.text !== p.text) {
+            values.paragraphsChanged++;
+            record("修改段落", p.id, prev.text, p.text);
+          }
+          if (commonA.get(p.id) !== commonB.get(p.id)) values.paragraphsMoved++;
+        }
+      }
+    } else {
+      const counts = (items) => {
+        const map2 = /* @__PURE__ */ new Map();
+        for (const p of items) map2.set(p.text, (map2.get(p.text) ?? 0) + 1);
+        return map2;
+      };
+      const old2 = counts(a), next = counts(b);
+      values.paragraphsAdded = 0;
+      values.paragraphsDeleted = 0;
+      for (const [text, n] of old2) {
+        const count = Math.max(0, n - (next.get(text) ?? 0));
+        values.paragraphsDeleted += count;
+        if (count) record("删除/改写前段落", String(count) + "段", text);
+      }
+      for (const [text, n] of next) {
+        const count = Math.max(0, n - (old2.get(text) ?? 0));
+        values.paragraphsAdded += count;
+        if (count) record("新增/改写后段落", String(count) + "段", void 0, text);
+      }
+    }
+  }
+  if (before.sheets && after.sheets) {
+    values.sheetsAdded = 0;
+    values.sheetsDeleted = 0;
+    values.sheetsRenamed = 0;
+    values.cellsAdded = 0;
+    values.cellsCleared = 0;
+    values.cellsChanged = 0;
+    values.formulasAdded = 0;
+    values.formulasDeleted = 0;
+    values.formulasChanged = 0;
+    values.rowsMoved = 0;
+    const matched = /* @__PURE__ */ new Set();
+    for (const sheet of after.sheets) {
+      const prev = before.sheets.find((s) => s.name === sheet.name && !matched.has(s.id)) ?? before.sheets.find((s) => s.id === sheet.id && !matched.has(s.id));
+      if (!prev) {
+        values.sheetsAdded++;
+        values.cellsAdded += Object.keys(sheet.cells).length;
+        values.formulasAdded += Object.values(sheet.cells).filter((c) => c.formula).length;
+        record("新增工作表", sheet.name);
+        continue;
+      }
+      matched.add(prev.id);
+      if (prev.name !== sheet.name) {
+        values.sheetsRenamed++;
+        record("工作表重命名", sheet.name, prev.name, sheet.name);
+      }
+      const rowSignatures = (cells) => {
+        const rows = /* @__PURE__ */ new Map();
+        for (const [address, cell2] of Object.entries(cells)) {
+          const row2 = address.match(/\d+$/)[0], col = address.replace(/\d+$/, "");
+          if (!rows.has(row2)) rows.set(row2, []);
+          rows.get(row2).push(col + ":" + JSON.stringify(cell2));
+        }
+        return new Map([...rows].map(([row2, list]) => [row2, list.sort().join("|")]));
+      };
+      const oldRows = rowSignatures(prev.cells), newRows = rowSignatures(sheet.cells), mapping = /* @__PURE__ */ new Map(), claimed = /* @__PURE__ */ new Set(), positions = /* @__PURE__ */ new Map();
+      for (const [row2, signature2] of newRows) {
+        if (!positions.has(signature2)) positions.set(signature2, []);
+        positions.get(signature2).push(row2);
+      }
+      const oldCounts = /* @__PURE__ */ new Map();
+      for (const signature2 of oldRows.values()) oldCounts.set(signature2, (oldCounts.get(signature2) ?? 0) + 1);
+      for (const [row2, signature2] of oldRows) {
+        const targets = positions.get(signature2);
+        if (targets?.length === 1 && oldCounts.get(signature2) === 1) {
+          mapping.set(row2, targets[0]);
+          claimed.add(targets[0]);
+          if (row2 !== targets[0]) values.rowsMoved++;
+        }
+      }
+      const aligned = {};
+      for (const [address, cell2] of Object.entries(prev.cells)) {
+        const row2 = address.match(/\d+$/)[0];
+        const target = mapping.get(row2) ?? (claimed.has(row2) ? "old-" + row2 : row2);
+        aligned[address.replace(/\d+$/, target)] = cell2;
+      }
+      for (const address of /* @__PURE__ */ new Set([...Object.keys(aligned), ...Object.keys(sheet.cells)])) {
+        const a = aligned[address], b = sheet.cells[address], name = sheet.name + "!" + address;
+        if (!a && b) {
+          values.cellsAdded++;
+          record("新增单元格", name, void 0, b.value);
+        } else if (a && !b) {
+          values.cellsCleared++;
+          record("清空单元格", name, a.value);
+        } else if (a && b && a.value !== b.value) {
+          values.cellsChanged++;
+          record("单元格改值", name, a.value, b.value);
+        }
+        if (!a?.formula && b?.formula) {
+          values.formulasAdded++;
+          record("新增公式", name, void 0, b.formula);
+        } else if (a?.formula && !b?.formula) {
+          values.formulasDeleted++;
+          record("删除公式", name, a.formula);
+        } else if (a?.formula && b?.formula && a.formula !== b.formula) {
+          values.formulasChanged++;
+          record("改写公式", name, a.formula, b.formula);
+        }
+      }
+    }
+    for (const sheet of before.sheets) if (!matched.has(sheet.id)) {
+      values.sheetsDeleted++;
+      values.cellsCleared += Object.keys(sheet.cells).length;
+      values.formulasDeleted += Object.values(sheet.cells).filter((c) => c.formula).length;
+      record("删除工作表", sheet.name);
+    }
+  }
+  if (before.slides && after.slides) {
+    values.slidesAdded = 0;
+    values.slidesDeleted = 0;
+    values.slidesChanged = 0;
+    values.slidesMoved = 0;
+    const remaining = new Set(before.slides.map((s) => s.id)), matches = /* @__PURE__ */ new Map();
+    for (const slide of after.slides) {
+      const exact = before.slides.find((s) => remaining.has(s.id) && s.text === slide.text);
+      if (exact) {
+        remaining.delete(exact.id);
+        matches.set(slide.id, exact.id);
+      }
+    }
+    const oldOrder = before.slides.filter((s) => [...matches.values()].includes(s.id)).map((s) => s.id), newOrder = after.slides.filter((s) => matches.has(s.id)).map((s) => matches.get(s.id));
+    values.slidesMoved = newOrder.filter((id, i2) => oldOrder[i2] !== id).length;
+    for (const slide of after.slides) {
+      if (matches.has(slide.id)) continue;
+      const prev = before.slides.find((s) => s.id === slide.id && remaining.has(s.id));
+      if (prev) {
+        remaining.delete(prev.id);
+        values.slidesChanged++;
+        record("幻灯片文本修改", slide.id, prev.text, slide.text);
+      } else {
+        values.slidesAdded++;
+        record("新增幻灯片文本", slide.id, void 0, slide.text);
+      }
+    }
+    for (const slide of before.slides) if (remaining.has(slide.id)) {
+      values.slidesDeleted++;
+      record("删除幻灯片文本", slide.id, slide.text);
+    }
+  }
+  return { values, changes, changeCount };
 }
 const cache = /* @__PURE__ */ new Map();
 const definitions = [
@@ -67617,56 +67924,136 @@ const definitions = [
   ["formulas", "公式数", "个", "Excel"],
   ["errors", "错误值单元格", "格", "Excel"],
   ["slides", "幻灯片数", "页", "PPT"],
-  ["notes", "备注字符数", "字符", "PPT"]
+  ["notes", "备注字符数", "字符", "PPT"],
+  ["wordCount", "中英混合字数", "字/词", "文本"],
+  ["digits", "数字字符数", "字符", "文本"],
+  ["sizeDelta", "体积变化", "字节", "版本"],
+  ["sizeGrowth", "体积增长率", "%", "版本"],
+  ["interval", "相邻记录间隔", "小时", "版本"],
+  ["intensity", "修改强度", "%", "改动"],
+  ["insertedRatio", "新增占比", "%", "改动"],
+  ["deletedRatio", "删除占比", "%", "改动"],
+  ["headings", "标题数", "个", "Word"],
+  ["sections", "章节区间数", "个", "Word"],
+  ["footnotes", "脚注数", "条", "Word"],
+  ["endnotes", "尾注数", "条", "Word"],
+  ["commentsOpen", "未解决批注", "条", "Word"],
+  ["commentsResolved", "已解决批注", "条", "Word"],
+  ["paragraphsAdded", "新增/改写后段落", "段", "Word"],
+  ["paragraphsDeleted", "删除/改写前段落", "段", "Word"],
+  ["paragraphsChanged", "修改段落（稳定标识）", "段", "Word"],
+  ["paragraphsMoved", "移动段落（稳定标识）", "段", "Word"],
+  ["rows", "有效行数", "行", "Excel"],
+  ["columns", "有效列数", "列", "Excel"],
+  ["sheetsAdded", "新增工作表", "张", "Excel"],
+  ["sheetsDeleted", "删除工作表", "张", "Excel"],
+  ["sheetsRenamed", "工作表重命名", "张", "Excel"],
+  ["cellsAdded", "新增单元格", "格", "Excel"],
+  ["cellsCleared", "清空单元格", "格", "Excel"],
+  ["cellsChanged", "单元格改值", "格", "Excel"],
+  ["rowsMoved", "对齐的行位置变化", "行", "Excel"],
+  ["formulasAdded", "新增公式", "个", "Excel"],
+  ["formulasDeleted", "删除公式", "个", "Excel"],
+  ["formulasChanged", "改写公式", "个", "Excel"],
+  ["emptyRatio", "有效行列交叉空值比例", "%", "Excel"],
+  ["slidesAdded", "新增幻灯片文本", "页", "PPT"],
+  ["slidesDeleted", "删除幻灯片文本", "页", "PPT"],
+  ["slidesChanged", "幻灯片文本修改", "页", "PPT"],
+  ["slidesMoved", "幻灯片文本换序", "页", "PPT"]
 ].map(([id, label, unit, group]) => ({ id, label, unit, group }));
+const request = objectType({ docName: stringType().min(1), branch: stringType().min(1), baselineId: stringType().regex(/^[a-f0-9]{64}$/).optional(), compareBranch: stringType().min(1).optional(), onlyExclusive: booleanType().optional() });
 async function versionStatsHandler(args) {
-  const { docName: docName2, branch } = objectType({ docName: stringType().min(1), branch: stringType().min(1) }).parse(args);
+  const { docName: docName2, branch, baselineId, compareBranch, onlyExclusive } = request.parse(args);
   const repo = getRepo(), detail = await documentDetail(repo, docName2), head = detail.branchHeads[branch];
   if (!head) throw new Error("所选统计分支不存在");
-  const byId = new Map(detail.versions.map((v) => [v.id, v])), line = [], visited = /* @__PURE__ */ new Set();
-  let cursor = head;
-  while (cursor && !visited.has(cursor)) {
-    visited.add(cursor);
-    const node2 = byId.get(cursor);
-    if (!node2) break;
-    line.push(node2);
-    cursor = node2.parents[0];
-  }
-  line.reverse();
-  const versions = [], activity = /* @__PURE__ */ new Map();
+  const byId = new Map(detail.versions.map((v) => [v.id, v]));
+  const ancestry = (start) => {
+    const nodes = [], visited = /* @__PURE__ */ new Set();
+    let cursor = start;
+    while (cursor && !visited.has(cursor)) {
+      visited.add(cursor);
+      const node2 = byId.get(cursor);
+      if (!node2) break;
+      nodes.push(node2);
+      cursor = node2.parents[0];
+    }
+    return nodes.reverse().filter((v) => !v.deletedAt);
+  };
+  const line = ancestry(head);
+  if (compareBranch && !detail.branchHeads[compareBranch]) throw new Error("对照分支不存在");
+  if (onlyExclusive && !compareBranch) throw new Error("仅分叉后统计需要选择对照分支");
+  const other = new Set(compareBranch ? ancestry(detail.branchHeads[compareBranch]).map((v) => v.id) : []);
+  const baselineVersion = baselineId ? byId.get(baselineId) : line[0];
+  if (baselineId && !baselineVersion) throw new Error("基准版本不属于当前文档");
+  const read = async (v) => {
+    const key = [repo.root, docName2, v.contentId].join("\0");
+    let a = cache.get(key);
+    if (!a) {
+      a = await analyzeVersion(await versionBytes(repo, docName2, v.id), path$1.extname(docName2).toLowerCase());
+      if ((a.values.cells ?? 0) < 2e4 && (a.paragraphs?.length ?? 0) < 1e4) {
+        if (cache.size >= 256) cache.delete(cache.keys().next().value);
+        cache.set(key, a);
+      }
+    }
+    return a;
+  };
+  const baseline = baselineVersion ? await read(baselineVersion) : void 0;
+  const versions = [];
   let previous;
   for (const v of line) {
     if (v.deletedAt) continue;
-    const key = [repo.root, docName2, v.contentId].join("\0");
-    let analysis = cache.get(key);
-    if (!analysis) {
-      analysis = await analyzeVersion(await versionBytes(repo, docName2, v.id), path$1.extname(docName2).toLowerCase());
-      if (cache.size >= 256) cache.delete(cache.keys().next().value);
-      cache.set(key, analysis);
-    }
+    const analysis = await read(v);
     const values = { ...analysis.values, revisions: v.revisionCount };
-    if (previous?.text !== void 0 && analysis.text !== void 0) {
-      if (previous.text.length + analysis.text.length <= 16e4) {
-        const chunks = diffTextBounded(previous.text.replace(/\s/gu, ""), analysis.text.replace(/\s/gu, ""));
-        if (chunks) {
-          const count = (type2) => chunks.filter((c) => type2 === "insert" ? c.added : type2 === "delete" ? c.removed : !c.added && !c.removed).reduce((n, c) => n + Array.from(c.value).length, 0);
-          values.inserted = count("insert");
-          values.deleted = count("delete");
-          values.changed = values.inserted + values.deleted;
-          values.net = values.inserted - values.deleted;
-          if (previous.values.characters > 0) values.retained = Number((count("equal") / previous.values.characters * 100).toFixed(1));
-        }
-      }
-    }
-    versions.push({ id: v.id, title: v.title, createdAt: v.createdAt, values, unavailable: analysis.unavailable });
-    const date = new Date(v.createdAt).toLocaleDateString("en-CA");
-    activity.set(date, (activity.get(date) ?? 0) + 1);
+    const comparison = previous ? compareAnalyses(previous, analysis) : void 0;
+    if (comparison) Object.assign(values, comparison.values);
+    if (versions.length) values.interval = (Date.parse(v.createdAt) - Date.parse(versions.at(-1).createdAt)) / 36e5;
+    versions.push({ id: v.id, title: v.title, createdAt: v.createdAt, values, unavailable: analysis.unavailable, author: v.author, category: detail.categories.find((c) => c.id === v.categoryId)?.name ?? "未分类", contentId: v.contentId, baselineValues: baseline ? compareAnalyses(baseline, analysis).values : void 0, sections: analysis.sections, columns: analysis.columns, changes: comparison?.changes, changeCount: comparison?.changeCount });
     previous = analysis;
   }
-  return { branch, versions, metrics: definitions.filter((m) => versions.some((v) => m.id in v.values)), activity: Array.from(activity, ([date, count]) => ({ date, count })), scope: "沿分支头的第一父版本路线，包含共同祖先；不计回收版本。文本只统计正文，不等同 Word/WPS 字数；160000字符以上、改动过大或超时的版本不计算逐字差异，以“—”表示。" };
+  const visible = onlyExclusive ? versions.filter((v) => !other.has(v.id)) : versions;
+  const countBy = (field) => {
+    const map2 = /* @__PURE__ */ new Map();
+    for (const v of visible) {
+      const label = v[field] || "未标注";
+      map2.set(label, (map2.get(label) ?? 0) + 1);
+    }
+    return Array.from(map2, ([label, count]) => ({ label, count }));
+  };
+  const intervals = visible.slice(1).map((v, i2) => (Date.parse(v.createdAt) - Date.parse(visible[i2].createdAt)) / 36e5).sort((a, b) => a - b), middle = Math.floor(intervals.length / 2);
+  const dates = /* @__PURE__ */ new Map();
+  for (const v of visible) {
+    const date = new Date(v.createdAt).toLocaleDateString("en-CA");
+    dates.set(date, (dates.get(date) ?? 0) + 1);
+  }
+  return { branch, versions: visible, metrics: definitions.filter((m) => versions.some((v) => m.id in v.values)), activity: Array.from(dates, ([date, count]) => ({ date, count })), baselineId: baselineVersion?.id, baseline: baseline && baselineVersion ? { title: baselineVersion.title, values: { ...baseline.values, revisions: baselineVersion.revisionCount }, sections: baseline.sections } : void 0, distribution: { categories: countBy("category"), authors: countBy("author") }, summary: { firstAt: visible[0]?.createdAt, lastAt: visible.at(-1)?.createdAt, spanDays: visible.length ? (Date.parse(visible.at(-1).createdAt) - Date.parse(visible[0].createdAt)) / 864e5 : 0, averageHours: intervals.length ? intervals.reduce((a, b) => a + b, 0) / intervals.length : void 0, medianHours: intervals.length ? intervals.length % 2 ? intervals[middle] : (intervals[middle - 1] + intervals[middle]) / 2 : void 0, duplicateVersions: visible.length - new Set(visible.map((v) => v.contentId)).size, commonVersions: compareBranch ? line.filter((v) => other.has(v.id)).length : void 0, exclusiveVersions: compareBranch ? line.filter((v) => !other.has(v.id)).length : void 0 }, scope: "沿第一父版本路线追溯，不计回收版本。字数=汉字+英文词；字符数计标点和数字，均不等同Word/WPS字数。逐字差异超过160000字符、改动过大或超时显示“—”。章节按稳定段落标识或同名标题匹配；无段落标识时改写计为删除+新增。Excel优先对齐内容完全相同的唯一行，其余按工作表标识及地址比较；插列和重建表的对齐可能不确定。PPT只比较文本，不计图片和布局。" };
+}
+async function exportStatistics(args) {
+  const parsed = request.extend({ destination: stringType().min(1), versionIds: arrayType(stringType().regex(/^[a-f0-9]{64}$/)), png: stringType().max(2e7).optional() }).parse(args);
+  if (!path$1.isAbsolute(parsed.destination)) throw new Error("导出位置需要是绝对路径");
+  const relative2 = path$1.relative(getRepo().root, path$1.resolve(parsed.destination));
+  if (relative2 === "" || !relative2.startsWith(".." + path$1.sep) && relative2 !== ".." && !path$1.isAbsolute(relative2)) throw new Error("请把统计结果导出到文档库之外，避免覆盖历史或工作稿");
+  const data = await versionStatsHandler(parsed), ids = new Set(parsed.versionIds), rows = data.versions.filter((v) => ids.has(v.id));
+  let bytes;
+  if (parsed.png) {
+    if (path$1.extname(parsed.destination).toLowerCase() !== ".png" || !parsed.png.startsWith("data:image/png;base64,")) throw new Error("请使用PNG图片路径");
+    bytes = Buffer.from(parsed.png.split(",")[1], "base64");
+    if (Buffer.from(bytes.subarray(0, 8)).toString("hex") !== "89504e470d0a1a0a") throw new Error("无效PNG图片");
+  } else {
+    if (path$1.extname(parsed.destination).toLowerCase() !== ".csv") throw new Error("请使用CSV文件路径");
+    const cell2 = (v) => {
+      let text = String(v ?? "");
+      if (typeof v === "string" && /^[=+@-]/.test(text)) text = "'" + text;
+      return '"' + text.replaceAll('"', '""') + '"';
+    };
+    const header = ["版本ID", "版本名称", "分支", "记录时间", "分类", "作者", ...data.metrics.map((m) => m.label + "（" + m.unit + "）"), ...data.metrics.map((m) => "相对基准/" + m.label + "（" + m.unit + "）")];
+    const csv2 = [header, ...rows.map((v) => [v.id, v.title, data.branch, v.createdAt, v.category, v.author, ...data.metrics.map((m) => v.values[m.id]), ...data.metrics.map((m) => v.baselineValues?.[m.id])])].map((r) => r.map(cell2).join(",")).join("\r\n");
+    bytes = new TextEncoder().encode("\uFEFF" + csv2);
+  }
+  await writeFileAtomic(parsed.destination, bytes);
 }
 function registerVersionStatsHandlers() {
   ipcMain.handle("stats.versions", (_e, args) => versionStatsHandler(args));
+  ipcMain.handle("stats.export", (_e, args) => exportStatistics(args));
 }
 function registerAllHandlers() {
   registerRepoHandlers();
