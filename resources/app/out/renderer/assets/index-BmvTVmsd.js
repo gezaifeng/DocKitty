@@ -61351,7 +61351,7 @@ function Workspace() {
   const detailQuery = useQuery({ queryKey: detailKey, queryFn: () => api.library.detail(selectedDocName), enabled: !!selectedDocName, refetchInterval: 4e3 });
   const docs = docsQuery.data ?? [];
   const detail = detailQuery.data;
-  const visibleDocs = docs.filter((d) => !!d.deletedAt === showDeleted && (!search || (d.title + d.docName).toLowerCase().includes(search.toLowerCase())) && (fileFilter === "all" || fileFilter === extension(d.docName) || fileFilter === "docx" && extension(d.docName) === "doc" || fileFilter === "xlsx" && ["xls", "csv"].includes(extension(d.docName)) || fileFilter === "pptx" && extension(d.docName) === "ppt" || fileFilter === "other" && !["docx", "doc", "xlsx", "xls", "csv", "pptx", "ppt"].includes(extension(d.docName))));
+  const visibleDocs = docs.filter((d) => !!d.deletedAt === showDeleted && (!search || (d.title + d.docName).toLowerCase().includes(search.toLowerCase())) && (fileFilter === "all" || fileFilter === extension(d.docName) || fileFilter === "other" && !["docx", "doc", "xlsx", "xls", "pptx", "ppt"].includes(extension(d.docName))));
   const versions = reactExports.useMemo(() => (detail?.versions ?? []).filter((v) => !!v.deletedAt === showDeleted && (branchFilter === "all" || v.branches.includes(branchFilter))), [detail?.versions, showDeleted, branchFilter]);
   const selectedVersion = detail?.versions.find((v) => v.id === selectedVersionId) ?? null;
   const workingVersion = detail?.versions.find((v) => v.id === detail.workspace.versionId);
