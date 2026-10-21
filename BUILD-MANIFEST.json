@@ -1,0 +1,17 @@
+{
+  "archiveKind": "compiled-application-snapshot",
+  "originalTypeScriptAvailable": false,
+  "version": "0.1.0",
+  "originalDirectory": "word_git-0.1.0-windows-x64",
+  "electronVersion": "32.3.3",
+  "files": {
+    "resources/app/out/main/index.js": "3af316ec110658c71f6b111c78c5b481da549034ecf0d527366614d56f54e7bf",
+    "resources/app/out/preload/index.cjs": "5b28ae325a4b4e2b1efc966ab94e5ce5ffc583595e1e56545d2d15c1b6758492",
+    "resources/app/out/renderer/assets/index-DCHnA-8x.css": "8aeba182f8c361edb92472de7a8d6586e88b99388be82d7833c4a2bbf218d363",
+    "resources/app/out/renderer/assets/index-r_e4aGzW.js": "1b87a4b1ad35b727ee54a2ac35ff1e02cd1e9f28f577f696544a7fc3819ca210",
+    "resources/app/out/renderer/index.html": "9a236774a79fd87a8b8f0adf4506b2b84cb57f0a1a1711fdcced80a6d6ba328d",
+    "resources/app/package.json": "949c17016a2d60165322492dc47ba7fd108d407b2cef3591cce3acc6da366da0",
+    "使用教程.md": "f99ee2cedfd4002090fd5f02c75352b6b8033dd86684a5fa71d678dada33f7da",
+    "验收记录.md": "bfbe3764b79968c1c82a4dcf17533511f559e880452c47c9a0e333cdf81d2908"
+  }
+}
