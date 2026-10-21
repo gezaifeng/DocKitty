@@ -1,8 +1,8 @@
 {
   "archiveKind": "compiled-application-snapshot",
   "originalTypeScriptAvailable": false,
-  "version": "0.5.5",
-  "originalDirectory": "gaomiao-windows-TJ4Okd",
+  "version": "0.5.6",
+  "originalDirectory": "gaomiao-windows-NcVwo3",
   "electronVersion": "32.3.3",
   "files": {
     "Hairline-LICENSE.txt": "948d56f0bc8c383c04c453136dcfb78407f97de65ff8bb4fabff2b79ddd17f59",
@@ -23,14 +23,14 @@
     "resources/app/out/preload/index.cjs": "9b7a00eb56418d3b6e8265307ee81aef2047cbb9b615e919b5a5f1703d863682",
     "resources/app/out/renderer/assets/cat-D_fsyJ-0.png": "ca72804eb1178fcc1fe98b23c99bc386e909f5aca12c8aca14df37e4ccfe6b3a",
     "resources/app/out/renderer/assets/gaomiao-D-Hjr120.png": "3d5821b769db49e20ae2301205ddeeeadc227123b9c981c9bcb4ff40118c38ce",
-    "resources/app/out/renderer/assets/index-DRvocM4u.js": "18c13e8b76a9a019b65ca7777137ee9b0aadfecc5e74ecefca689dd17ee2bfa2",
+    "resources/app/out/renderer/assets/index-CdFzBv7i.js": "36beb88b5190326fd6f0cd2e4a7c8f0c5fd5942269f859041c491c73517ce7e8",
     "resources/app/out/renderer/assets/index-lKKp619f.css": "43dcdcb6642e29b758e857c45aaa542f5521e2a4cdba7067db1899420ad2d667",
     "resources/app/out/renderer/assets/paper-CsFc-hZ7.png": "f45dff6f97cebeba52dfb8b9ff5c94debd9bc0942814aee6a34856bbc6dc54de",
-    "resources/app/out/renderer/index.html": "7aeec391204547bc99f613a8b8c72bc6d09e24bea3d0efccec7d8a247dd3afbd",
-    "resources/app/package.json": "bb777cb430d8c3f163019ead23e430bc7cc8409d241649948e77549a602b7cdf",
+    "resources/app/out/renderer/index.html": "6ec0bb582e8ba707de5a4d4648e53721c1009598f785a0df90b9f89f5a4daaa5",
+    "resources/app/package.json": "0341e2984b41778025e0a2311d31c3f7225d3dd965a0094215c4e1453ea59b61",
     "resources/app/resources/icon.ico": "9fc2dd00a90413ce71fe6c31e63d41591a287f0c72647562b3dbfb10b5162bc2",
     "resources/app/resources/icon.png": "3d5821b769db49e20ae2301205ddeeeadc227123b9c981c9bcb4ff40118c38ce",
     "resources/app/resources/installer-mode.json": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-    "使用教程.md": "093dc341297b7f4ebaace8024c38cd354324e6562d1d2493bc7821477c05c663"
+    "使用教程.md": "9935e9c35ff9ce0ae73bca4057f714a7f669245c509c621578fa04aed2b3325b"
   }
 }

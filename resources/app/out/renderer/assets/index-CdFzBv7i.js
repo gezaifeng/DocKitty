@@ -26120,7 +26120,7 @@ const useUiStore = create$1()(
     {
       name: "word-git-ui-v1",
       version: 2,
-      migrate: (state) => ({ theme: "blockframe", themeButtonPos: state?.themeButtonPos ?? null }),
+      migrate: (state) => ({ theme: state?.theme ?? "blockframe", themeButtonPos: state?.themeButtonPos ?? null }),
       partialize: (s) => ({ theme: s.theme, themeButtonPos: s.themeButtonPos, showGraphWidget: s.showGraphWidget, glassBackgroundMotion: s.glassBackgroundMotion, glassPointerLight: s.glassPointerLight, reduceMotion: s.reduceMotion, reduceTransparency: s.reduceTransparency })
     }
   )
