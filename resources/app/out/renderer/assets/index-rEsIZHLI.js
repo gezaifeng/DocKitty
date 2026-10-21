@@ -26107,9 +26107,11 @@ const useUiStore = create$1()(
       showGraphWidget: true,
       glassBackgroundMotion: true,
       glassPointerLight: true,
+      glassPalette: "jade",
       reduceMotion: false,
       reduceTransparency: false,
       setFeature: (feature, enabled) => set({ [feature]: enabled }),
+      setGlassPalette: (glassPalette) => set({ glassPalette }),
       selectDoc: (docName2) => set({ selectedDocName: docName2 }),
       setPendingCommit: (docName2, workspacePath) => set({ pendingCommitDocName: docName2, pendingCommitWorkspacePath: workspacePath }),
       clearPendingCommit: () => set({ pendingCommitDocName: null, pendingCommitWorkspacePath: null }),
@@ -26121,7 +26123,7 @@ const useUiStore = create$1()(
       name: "word-git-ui-v1",
       version: 2,
       migrate: (state) => ({ theme: state?.theme ?? "blockframe", themeButtonPos: state?.themeButtonPos ?? null }),
-      partialize: (s) => ({ theme: s.theme, themeButtonPos: s.themeButtonPos, showGraphWidget: s.showGraphWidget, glassBackgroundMotion: s.glassBackgroundMotion, glassPointerLight: s.glassPointerLight, reduceMotion: s.reduceMotion, reduceTransparency: s.reduceTransparency })
+      partialize: (s) => ({ theme: s.theme, themeButtonPos: s.themeButtonPos, showGraphWidget: s.showGraphWidget, glassBackgroundMotion: s.glassBackgroundMotion, glassPointerLight: s.glassPointerLight, glassPalette: s.glassPalette, reduceMotion: s.reduceMotion, reduceTransparency: s.reduceTransparency })
     }
   )
 );
@@ -68130,6 +68132,14 @@ function FileMenu({ children, busy = false, onError, onNotice }) {
     ] })
   ] });
 }
+const glassPalettes = [
+  { id: "jade", label: "玉绿珍珠", colors: ["#91b49a", "#e5b79d"] },
+  { id: "blue-white", label: "蓝白", colors: ["#87bce9", "#f6faff"] },
+  { id: "pink-green", label: "粉绿", colors: ["#efb5c7", "#96c3a5"] },
+  { id: "yellow-black", label: "黄黑", colors: ["#efd168", "#393b35"] },
+  { id: "lavender", label: "紫白", colors: ["#c4b2e6", "#f5effa"] },
+  { id: "peach", label: "橙米", colors: ["#ecb08a", "#f8e9cb"] }
+];
 function FeaturesMenu() {
   const state = useUiStore(), menu = reactExports.useRef(null);
   const glass = state.theme === "liquid" || state.theme === "liquid-dark";
@@ -68167,7 +68177,14 @@ function FeaturesMenu() {
         /* @__PURE__ */ jsxRuntimeExports.jsx("hr", {}),
         /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { className: "wg-feature-heading", children: "液态玻璃效果" }),
         toggle("glassBackgroundMotion", "背景流动"),
-        toggle("glassPointerLight", "指针光效")
+        toggle("glassPointerLight", "指针光效"),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("hr", {}),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { className: "wg-feature-heading", children: "背景配色" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-glass-palettes", role: "group", "aria-label": "玻璃背景配色", children: glassPalettes.map((palette) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { role: "menuitemradio", "aria-checked": state.glassPalette === palette.id, onClick: () => state.setGlassPalette(palette.id), children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "wg-palette-swatch", "aria-hidden": "true", style: { background: `linear-gradient(135deg,${palette.colors[0]},${palette.colors[1]})` } }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: palette.label }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Check, { size: 12, "aria-hidden": "true", style: { visibility: state.glassPalette === palette.id ? "visible" : "hidden" } })
+        ] }, palette.id)) })
       ] })
     ] })
   ] });
@@ -70676,9 +70693,9 @@ function installGlassLight() {
     window.removeEventListener("blur", clear);
   };
 }
-const background = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="silk-jade" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f0f0c8"/><stop offset=".38" stop-color="#b4c59e"/><stop offset=".64" stop-color="#6c9f89"/><stop offset="1" stop-color="#c7d7bc"/></linearGradient><linearGradient id="silk-peach" x1="0" y1="0" x2=".5" y2="1"><stop stop-color="#f5ddbd"/><stop offset=".5" stop-color="#d99178"/><stop offset="1" stop-color="#f1e4c8"/></linearGradient><linearGradient id="silk-light" x1="0" y1="0" x2="1" y2=".7"><stop stop-color="#fff" stop-opacity=".1"/><stop offset=".48" stop-color="#fff" stop-opacity=".85"/><stop offset=".66" stop-color="#fff" stop-opacity=".1"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs><path class="jade-ribbon" d="M-350 120 C170 -250 230 130 460 190 C790 280 660 600 1000 720 C1360 850 1430 1180 1730 970 L1740 1350 L-380 1350Z" fill="url(#silk-jade)"><animate attributeName="d" dur="14s" begin="-3s" repeatCount="indefinite" calcMode="spline" keyTimes="0;.5;1" keySplines=".4 0 .6 1;.4 0 .6 1" values="M-350 120 C170 -250 230 130 460 190 C790 280 660 600 1000 720 C1360 850 1430 1180 1730 970 L1740 1350 L-380 1350Z;M-350 120 C150 -170 380 90 480 280 C690 450 800 460 1070 650 C1390 780 1415 1130 1730 970 L1740 1350 L-380 1350Z;M-350 120 C170 -250 230 130 460 190 C790 280 660 600 1000 720 C1360 850 1430 1180 1730 970 L1740 1350 L-380 1350Z"/></path><path class="peach-ribbon" d="M680 -270 C610 40 1010 20 930 370 C890 550 1180 690 1640 400 L1860 -230Z" fill="url(#silk-peach)"><animate attributeName="d" dur="17s" begin="-7s" repeatCount="indefinite" calcMode="spline" keyTimes="0;.5;1" keySplines=".35 0 .65 1;.35 0 .65 1" values="M680 -270 C610 40 1010 20 930 370 C890 550 1180 690 1640 400 L1860 -230Z;M680 -270 C770 90 960 -45 1050 300 C1000 530 1180 870 1640 500 L1860 -230Z;M680 -270 C610 40 1010 20 930 370 C890 550 1180 690 1640 400 L1860 -230Z"/></path><path class="ambient-sheen" d="M-200 560 C190 260 420 670 680 740 C1060 835 1270 650 1620 880" fill="none" stroke="url(#silk-light)" stroke-width="160"><animate attributeName="d" dur="12s" begin="-5s" repeatCount="indefinite" calcMode="spline" keyTimes="0;.5;1" keySplines=".4 0 .6 1;.4 0 .6 1" values="M-200 560 C190 260 420 670 680 740 C1060 835 1270 650 1620 880;M-200 600 C200 440 360 750 750 600 C1100 430 1220 770 1620 780;M-200 560 C190 260 420 670 680 740 C1060 835 1270 650 1620 880"/></path><g fill="none" stroke="white" stroke-opacity=".46" stroke-width="2"><path d="M-160 360 C250 60 300 360 670 490 S1020 920 1660 1020"/><path d="M-160 383 C250 83 300 383 670 513 S1020 943 1660 1043"/><path d="M-160 406 C250 106 300 406 670 536 S1020 966 1660 1066"/><path d="M960 -80 C870 240 1260 200 1400 460"/></g></svg>';
+const background = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="silk-jade" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="var(--wg-ribbon-j1,#f0f0c8)"/><stop offset=".38" stop-color="var(--wg-ribbon-j2,#b4c59e)"/><stop offset=".64" stop-color="var(--wg-ribbon-j3,#6c9f89)"/><stop offset="1" stop-color="var(--wg-ribbon-j4,#c7d7bc)"/></linearGradient><linearGradient id="silk-peach" x1="0" y1="0" x2=".5" y2="1"><stop stop-color="var(--wg-ribbon-p1,#f5ddbd)"/><stop offset=".5" stop-color="var(--wg-ribbon-p2,#d99178)"/><stop offset="1" stop-color="var(--wg-ribbon-p3,#f1e4c8)"/></linearGradient><linearGradient id="silk-light" x1="0" y1="0" x2="1" y2=".7"><stop stop-color="#fff" stop-opacity=".1"/><stop offset=".48" stop-color="#fff" stop-opacity=".85"/><stop offset=".66" stop-color="#fff" stop-opacity=".1"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs><path class="jade-ribbon" d="M-350 120 C170 -250 230 130 460 190 C790 280 660 600 1000 720 C1360 850 1430 1180 1730 970 L1740 1350 L-380 1350Z" fill="url(#silk-jade)"><animate attributeName="d" dur="14s" begin="-3s" repeatCount="indefinite" calcMode="spline" keyTimes="0;.5;1" keySplines=".4 0 .6 1;.4 0 .6 1" values="M-350 120 C170 -250 230 130 460 190 C790 280 660 600 1000 720 C1360 850 1430 1180 1730 970 L1740 1350 L-380 1350Z;M-350 120 C150 -170 380 90 480 280 C690 450 800 460 1070 650 C1390 780 1415 1130 1730 970 L1740 1350 L-380 1350Z;M-350 120 C170 -250 230 130 460 190 C790 280 660 600 1000 720 C1360 850 1430 1180 1730 970 L1740 1350 L-380 1350Z"/></path><path class="peach-ribbon" d="M680 -270 C610 40 1010 20 930 370 C890 550 1180 690 1640 400 L1860 -230Z" fill="url(#silk-peach)"><animate attributeName="d" dur="17s" begin="-7s" repeatCount="indefinite" calcMode="spline" keyTimes="0;.5;1" keySplines=".35 0 .65 1;.35 0 .65 1" values="M680 -270 C610 40 1010 20 930 370 C890 550 1180 690 1640 400 L1860 -230Z;M680 -270 C770 90 960 -45 1050 300 C1000 530 1180 870 1640 500 L1860 -230Z;M680 -270 C610 40 1010 20 930 370 C890 550 1180 690 1640 400 L1860 -230Z"/></path><path class="ambient-sheen" d="M-200 560 C190 260 420 670 680 740 C1060 835 1270 650 1620 880" fill="none" stroke="url(#silk-light)" stroke-width="160"><animate attributeName="d" dur="12s" begin="-5s" repeatCount="indefinite" calcMode="spline" keyTimes="0;.5;1" keySplines=".4 0 .6 1;.4 0 .6 1" values="M-200 560 C190 260 420 670 680 740 C1060 835 1270 650 1620 880;M-200 600 C200 440 360 750 750 600 C1100 430 1220 770 1620 780;M-200 560 C190 260 420 670 680 740 C1060 835 1270 650 1620 880"/></path><g fill="none" stroke="white" stroke-opacity=".46" stroke-width="2"><path d="M-160 360 C250 60 300 360 670 490 S1020 920 1660 1020"/><path d="M-160 383 C250 83 300 383 670 513 S1020 943 1660 1043"/><path d="M-160 406 C250 106 300 406 670 536 S1020 966 1660 1066"/><path d="M960 -80 C870 240 1260 200 1400 460"/></g></svg>';
 function LiquidGlassEffects() {
-  const { theme, glassBackgroundMotion, glassPointerLight, reduceMotion } = useUiStore();
+  const { theme, glassBackgroundMotion, glassPointerLight, glassPalette, reduceMotion } = useUiStore();
   const [systemReduced, setSystemReduced] = reactExports.useState(() => matchMedia("(prefers-reduced-motion: reduce)").matches);
   const backdrop = reactExports.useRef(null), enabled = theme === "liquid" || theme === "liquid-dark";
   const reduced2 = reduceMotion || systemReduced;
@@ -70693,19 +70710,35 @@ function LiquidGlassEffects() {
   }, [enabled, reduced2, glassPointerLight]);
   reactExports.useEffect(() => {
     if (!enabled) return;
+    let zooming = false, resume;
     const sync = () => {
       const svg = backdrop.current?.querySelector("svg");
       if (!svg) return;
-      const paused = reduced2 || !glassBackgroundMotion || document.hidden;
+      const paused = reduced2 || !glassBackgroundMotion || document.hidden || zooming;
       backdrop.current.dataset.paused = String(paused);
       if (paused) svg.pauseAnimations();
       else svg.unpauseAnimations();
     };
+    const wheel = (event) => {
+      if (!(event.target instanceof Element) || !event.target.closest(".wg-graph-canvas")) return;
+      zooming = true;
+      clearTimeout(resume);
+      sync();
+      resume = setTimeout(() => {
+        zooming = false;
+        sync();
+      }, 160);
+    };
     sync();
     document.addEventListener("visibilitychange", sync);
-    return () => document.removeEventListener("visibilitychange", sync);
+    document.addEventListener("wheel", wheel, true);
+    return () => {
+      clearTimeout(resume);
+      document.removeEventListener("visibilitychange", sync);
+      document.removeEventListener("wheel", wheel, true);
+    };
   }, [enabled, reduced2, glassBackgroundMotion]);
-  return enabled ? reactDomExports.createPortal(/* @__PURE__ */ jsxRuntimeExports.jsx("div", { ref: backdrop, className: "wg-liquid-background", "aria-hidden": "true", dangerouslySetInnerHTML: { __html: background } }), document.body) : null;
+  return enabled ? reactDomExports.createPortal(/* @__PURE__ */ jsxRuntimeExports.jsx("div", { ref: backdrop, className: "wg-liquid-background", "data-palette": glassPalette, "aria-hidden": "true", dangerouslySetInnerHTML: { __html: background } }), document.body) : null;
 }
 function App() {
   const { repoRoot, setRepo } = useRepoStore();
