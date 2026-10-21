@@ -47,7 +47,19 @@ async function writeFileAtomic(target, data) {
   } finally {
     await fh.close();
   }
-  await promises.rename(tmp2, target);
+  try {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await promises.rename(tmp2, target);
+        break;
+      } catch (error2) {
+        if (attempt >= 4 || !["EPERM", "EBUSY", "EACCES"].includes(error2.code ?? "")) throw error2;
+        await new Promise((resolve2) => setTimeout(resolve2, 25 * 2 ** attempt));
+      }
+    }
+  } finally {
+    await promises.rm(tmp2, { force: true });
+  }
 }
 function teeHash(stream2) {
   const hash = createHash("sha256");
@@ -2421,11 +2433,13 @@ async function exportVersion(repo, docName2, id, destination) {
 }
 async function beginVersionEdit(repo, docName2, id, branch) {
   return withRepoWrite(repo, async () => {
-    await requireVersion(repo, docName2, id);
+    const version2 = await requireVersion(repo, docName2, id);
     const d = await documentDetail(repo, docName2);
     const target = branch ?? d.currentBranch;
     if (!d.branchHeads[target]) await createBranchUnlocked(repo, docName2, target, { commitId: id });
     else if (d.branchHeads[target] !== id) throw new Error("该版本不是目标分支最新稿，请填写新分支名，或先移动分支起点");
+    const meta = await readLibraryMeta(repo, docName2);
+    if (target === d.currentBranch && d.workspace.exists && meta.workingVersionId === id && meta.workingContentId === version2.contentId) return;
     await switchBranchUnlocked(repo, docName2, target);
   });
 }

@@ -2,10 +2,10 @@
   "archiveKind": "compiled-application-snapshot",
   "originalTypeScriptAvailable": false,
   "version": "0.1.0",
-  "originalDirectory": "word_git-windows-DF0pPM",
+  "originalDirectory": "word_git-windows-bwi0RX",
   "electronVersion": "32.3.3",
   "files": {
-    "resources/app/out/main/index.js": "d866f3c92ce0b574615a6b83c62fbd47a1eda05d471f73d9a35169f8e9a81b35",
+    "resources/app/out/main/index.js": "3af316ec110658c71f6b111c78c5b481da549034ecf0d527366614d56f54e7bf",
     "resources/app/out/preload/index.cjs": "5b28ae325a4b4e2b1efc966ab94e5ce5ffc583595e1e56545d2d15c1b6758492",
     "resources/app/out/renderer/assets/index-BmvTVmsd.js": "7bfc951493a74c9a646a52404f7f37f900c1ba1e7a529136fb68f9f2efc0a7ce",
     "resources/app/out/renderer/assets/index-DCHnA-8x.css": "8aeba182f8c361edb92472de7a8d6586e88b99388be82d7833c4a2bbf218d363",
