@@ -70573,7 +70573,7 @@ function StartupScreen({ ready, revealRef, onFinish, reduceMotion = false }) {
     /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: ready ? "文档已就绪" : "正在打开你的文档…" })
   ] }) }) });
 }
-const glassSurfaces = ".wg-menubar,.wg-project-actions,.wg-viewbar nav,.wg-theme-trigger,.wg-button,.wg-icon-button,.wg-viewbar nav button,.wg-nav>button,.wg-stat-sidebar section button,.wg-search,.wg-nav,.wg-inspector,.wg-file-center,.wg-graph-canvas,.wg-document-card,.wg-graph-node,.wg-version-card,.wg-stat-sidebar,.wg-stat-chart-panel,.wg-stat-cards section,.wg-stat-detail,.wg-stat-table,.wg-theme-options,.wg-menu>div,.wg-version-menu,.wg-cat-menu,.wg-edge-style-menu,.wg-dialog,.wg-project-library-list,.wg-column";
+const glassSurfaces = ".wg-menubar,.wg-project-actions,.wg-viewbar nav,.wg-theme-trigger,.wg-button,.wg-icon-button,.wg-viewbar nav button,.wg-nav>button,.wg-stat-sidebar section button,.wg-search,.wg-nav,.wg-inspector,.wg-file-center,.wg-graph-canvas,.wg-document-card,.wg-graph-node,.wg-version-card,.wg-stat-sidebar,.wg-stat-chart-panel,.wg-stat-cards section,.wg-stat-detail,.wg-stat-table,.wg-theme-options,.wg-menu>div,.wg-version-menu,.wg-cat-menu,.wg-edge-style-menu,.wg-dialog,.wg-project-library-list,.wg-column,.wg-settings .bg-card,.wg-settings button";
 function glassPoint(panel, clientX, clientY) {
   const rect = panel.getBoundingClientRect();
   return { x: (clientX - rect.left) * panel.offsetWidth / rect.width - panel.clientLeft, y: (clientY - rect.top) * panel.offsetHeight / rect.height - panel.clientTop };
