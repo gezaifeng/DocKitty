@@ -1,7 +1,9 @@
 {
-  "name": "word_git",
+  "name": "dockitty",
   "productName": "稿喵",
-  "version": "0.3.6",
+  "version": "0.4.0",
   "type": "module",
-  "main": "out/main/index.js"
+  "main": "out/main/index.js",
+  "author": "gezaifeng",
+  "description": "Local document version manager"
 }
