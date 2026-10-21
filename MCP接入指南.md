@@ -1,6 +1,6 @@
 # 稿喵 MCP 接入指南
 
-适用稿喵 0.5，普通用户无需额外安装 Node.js。先打开稿喵，左上角选择“项目管理”，再点击“接入 Agent”。弹窗生成当前软件路径与文档库路径的完整配置。
+适用稿喵 0.5.1，普通用户无需额外安装 Node.js。先打开稿喵，左上角选择“项目管理”，再点击“接入 Agent”。弹窗生成当前软件路径与文档库路径的完整配置。
 
 ## Codex、Claude Code 与 Cursor
 
@@ -32,7 +32,8 @@
 - **只同步当前内容**：调用 dockitty_refresh_library，不增加历史。
 - **明确保留一轮**：修改完成后，在再次刷新或其他写入前调用 dockitty_record_iteration；保存上次受管内容，再读取来源最新内容。
 - **每轮单独一个目录**：调用 dockitty_import_items 导入新目录，unpackFolder=false，previousNodeId 指向上一轮文件夹。旧目录快照保留，并自动创建迭代关系。
-- **记录参考/示例**：dockitty_set_relation 指定 from、to、kind、label、note。跨文件夹端点允许属于同一文档库，桌面详情可跳转。
+- **连接资料**：dockitty_set_relation 指定 from、to、label、note；箭头从 from 指向 to，标签自由填写，无需选择关系类型。文件、文件夹可两两连接，跨文件夹端点允许属于同一文档库，桌面详情可跳转。编辑时传入已有 relation.id，可改标签或端点。
+- **分类资料**：dockitty_set_category 创建或改名，dockitty_update_item 的 categoryId 分配分类；传 null 或空字符串回到未分类。分类名称全项目共用，桌面看板只展示当前层，关系图标签同步更新。
 
 导入/记录传入固定 requestId，失败重试沿用它，同参数不会重复创建节点。不同迭代使用不同标识。所有节点编号来自工具返回值，不要用文件名代替编号。
 
@@ -41,17 +42,22 @@
 | 工具 | 用途 |
 | --- | --- |
 | dockitty_list_libraries / dockitty_create_library | 列出、创建项目文档库 |
-| dockitty_list_items | 读取当前层节点及涉及的关系 |
+| dockitty_list_items | 读取当前层节点、项目共用分类及涉及的关系 |
 | dockitty_import_items | 批量导入文件/文件夹，选择父层或上一轮 |
 | dockitty_refresh_library | 同步来源变化，更新当前卡片 |
 | dockitty_record_iteration | 明确保留一轮文件或完整文件夹快照 |
-| dockitty_update_item | 修改显示名称、备注与位置 |
+| dockitty_update_item | 修改显示名称、备注、分类归属与位置 |
+| dockitty_list_categories | 列出本项目的共用分类 |
+| dockitty_set_category | 创建分类，或带 category.id 重命名 |
+| dockitty_remove_category | 删除分类，资料回到未分类，保留文件与连线 |
 | dockitty_set_relation / dockitty_remove_relation | 创建、编辑、删除带标签关系 |
 | dockitty_remove_item | 移除受管节点及子项，不删来源 |
 | dockitty_read_file | 读取文本或二进制 base64，最多 1 MiB |
 | dockitty_export_item | 将文件或完整文件夹导出到新的绝对路径 |
 
 MCP 修改完成后会同步来源，桌面会显示相同资料。刷新本身不保存历史。来源真实删除会移除当前与历史卡片；需要永久留存的内容请提前导出。链接入口只返回目标路径，代码只作为文本读取，不运行。
+
+旧客户端传入的 kind 参数仍兼容；新建手工关系可以省略。自动记录的迭代关系保持原有循环检查，手工关系允许两个方向和循环。自连接与跨项目连接仍不允许。
 
 ## 验证范围与参考
 

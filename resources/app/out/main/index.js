@@ -2862,7 +2862,7 @@ async function createProject(repo, name) {
   name = text(name, "文档库名称");
   return withRepoWrite(repo, async () => {
     const data = await readIndex(repo);
-    const project = { id: randomUUID(), name, createdAt: (/* @__PURE__ */ new Date()).toISOString(), nodes: [], relations: [] };
+    const project = { id: randomUUID(), name, createdAt: (/* @__PURE__ */ new Date()).toISOString(), nodes: [], relations: [], categories: [] };
     data.projects.push(project);
     await saveIndex(repo, data);
     return project;
@@ -2994,6 +2994,7 @@ async function importProjectItems(repo, request2) {
     }
     const parentId = request2.parentId ?? null;
     if (parentId && findNode(project, parentId).kind !== "folder") throw new Error("导入目标必须是文件夹");
+    if (parentId && findNode(project, parentId).snapshot) throw new Error("历史文件夹为快照，请返回当前文件夹或文档库根目录导入");
     if (request2.previousNodeId) findNode(project, request2.previousNodeId);
     const repoRoot = await promises.realpath(repo.root);
     const sources = [];
@@ -3073,9 +3074,13 @@ async function recordProjectIteration(repo, projectId, nodeId, title, requestId)
 }
 async function updateProjectNode(repo, projectId, nodeId, patch) {
   return withRepoWrite(repo, async () => {
-    const data = await readIndex(repo), node2 = findNode(findProject(data, projectId), nodeId);
+    const data = await readIndex(repo), project = findProject(data, projectId), node2 = findNode(project, nodeId);
     if (patch.title !== void 0) node2.title = text(patch.title, "名称");
     if (patch.note !== void 0) node2.note = text(patch.note, "备注", true);
+    if (patch.categoryId !== void 0) {
+      if (patch.categoryId && !project.categories?.some((c) => c.id === patch.categoryId)) throw new Error("分类不存在");
+      node2.categoryId = patch.categoryId ?? "";
+    }
     if (patch.position !== void 0) {
       if (!Number.isFinite(patch.position.x) || !Number.isFinite(patch.position.y)) throw new Error("位置无效");
       node2.position = patch.position;
@@ -3084,9 +3089,32 @@ async function updateProjectNode(repo, projectId, nodeId, patch) {
     return node2;
   });
 }
-async function setProjectRelation(repo, projectId, relation) {
+async function setProjectCategory(repo, projectId, category) {
+  return withRepoWrite(repo, async () => {
+    const data = await readIndex(repo), project = findProject(data, projectId), name = text(category.name, "分类名称");
+    project.categories ??= [];
+    if (category.id && !project.categories.some((c) => c.id === category.id)) throw new Error("分类不存在");
+    if (project.categories.some((c) => c.id !== category.id && c.name.toLowerCase() === name.toLowerCase())) throw new Error("分类名称已存在");
+    const saved = { id: category.id ?? randomUUID(), name };
+    if (category.id) project.categories = project.categories.map((c) => c.id === category.id ? saved : c);
+    else project.categories.push(saved);
+    await saveIndex(repo, data);
+    return saved;
+  });
+}
+async function deleteProjectCategory(repo, projectId, categoryId) {
   return withRepoWrite(repo, async () => {
     const data = await readIndex(repo), project = findProject(data, projectId);
+    if (!project.categories?.some((c) => c.id === categoryId)) throw new Error("分类不存在");
+    project.categories = project.categories.filter((c) => c.id !== categoryId);
+    for (const node2 of project.nodes) if (node2.categoryId === categoryId) node2.categoryId = "";
+    await saveIndex(repo, data);
+  });
+}
+async function setProjectRelation(repo, projectId, input) {
+  return withRepoWrite(repo, async () => {
+    const data = await readIndex(repo), project = findProject(data, projectId);
+    const relation = { ...input, kind: input.kind ?? project.relations.find((e) => e.id === input.id)?.kind ?? "custom" };
     if (relation.id && !project.relations.some((e) => e.id === relation.id)) throw new Error("关系不存在");
     checkRelation(project, relation, relation.id);
     const edge = { ...relation, id: relation.id ?? randomUUID(), label: text(relation.label, "标签", true), note: text(relation.note, "备注", true) };
@@ -6908,7 +6936,7 @@ const booleanType = ZodBoolean.create;
 ZodNever.create;
 const arrayType = ZodArray.create;
 const objectType = ZodObject.create;
-ZodUnion.create;
+const unionType = ZodUnion.create;
 const discriminatedUnionType = ZodDiscriminatedUnion.create;
 ZodIntersection.create;
 ZodTuple.create;
@@ -7061,9 +7089,11 @@ const ProjectRequest = discriminatedUnionType("action", [
   objectType({ action: literalType("import"), projectId: id, paths: arrayType(stringType().min(1)).min(1), parentId: id.nullable().optional(), unpackFolder: booleanType().optional(), previousNodeId: id.optional(), requestId: label.optional(), snapshot: booleanType().optional(), title: label.optional() }),
   objectType({ action: literalType("refresh"), projectId: id }),
   objectType({ action: literalType("recordIteration"), projectId: id, nodeId: id, title: label, requestId: label.optional() }),
-  objectType({ action: literalType("updateNode"), projectId: id, nodeId: id, title: label.optional(), note: note$1.optional(), position: objectType({ x: numberType().finite(), y: numberType().finite() }).optional() }),
+  objectType({ action: literalType("updateNode"), projectId: id, nodeId: id, title: label.optional(), note: note$1.optional(), categoryId: unionType([id, literalType("")]).nullable().optional(), position: objectType({ x: numberType().finite(), y: numberType().finite() }).optional() }),
+  objectType({ action: literalType("setCategory"), projectId: id, category: objectType({ id: id.optional(), name: label }) }),
+  objectType({ action: literalType("deleteCategory"), projectId: id, categoryId: id }),
   objectType({ action: literalType("deleteNode"), projectId: id, nodeId: id }),
-  objectType({ action: literalType("setRelation"), projectId: id, relation: objectType({ id: id.optional(), from: id, to: id, kind: enumType(["iteration", "reference", "example", "dependency", "custom"]), label: note$1, note: note$1 }) }),
+  objectType({ action: literalType("setRelation"), projectId: id, relation: objectType({ id: id.optional(), from: id, to: id, kind: enumType(["iteration", "reference", "example", "dependency", "custom"]).optional(), label: note$1, note: note$1.default("") }) }),
   objectType({ action: literalType("deleteRelation"), projectId: id, relationId: id }),
   objectType({ action: literalType("readFile"), projectId: id, nodeId: id }),
   objectType({ action: literalType("editFile"), projectId: id, nodeId: id }),
@@ -69035,6 +69065,10 @@ async function projectRequest(args) {
       return recordProjectIteration(repo, req.projectId, req.nodeId, req.title, req.requestId);
     case "updateNode":
       return updateProjectNode(repo, req.projectId, req.nodeId, req);
+    case "setCategory":
+      return setProjectCategory(repo, req.projectId, req.category);
+    case "deleteCategory":
+      return deleteProjectCategory(repo, req.projectId, req.categoryId);
     case "deleteNode":
       return deleteProjectNode(repo, req.projectId, req.nodeId);
     case "setRelation":

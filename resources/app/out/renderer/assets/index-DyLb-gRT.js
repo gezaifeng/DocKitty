@@ -32910,6 +32910,7 @@ function GraphRiffle() {
   ] });
 }
 function VersionGraph({ detail, versions, selectedId, compareIds, connecting, layoutEpoch = 0, onArrange, onSelect, onContext, onPosition, onMoveBranch }) {
+  const arrowId = `version-arrow-${reactExports.useId().replace(/:/g, "")}`;
   const [menu, setMenu] = reactExports.useState(null);
   reactExports.useEffect(() => {
     if (!menu) return;
@@ -33037,12 +33038,21 @@ function VersionGraph({ detail, versions, selectedId, compareIds, connecting, la
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "请调整分支或版本筛选；历史文件仍保留在文档库中。" })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-graph-world", style: { width, height, transform: `translate(${pan.x}px,${pan.y}px) scale(${zoom})` }, children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("svg", { className: "wg-edges", width, height, "aria-hidden": "true", children: versions.flatMap((v) => v.parents.map((parent) => {
-          if (!points.has(parent)) return null;
-          const a = point(parent), b = point(v.id);
-          const startX = a.x + 225, endX = b.x;
-          return /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: `M${startX},${a.y + 63} C${(startX + endX) / 2},${a.y + 63} ${(startX + endX) / 2},${b.y + 63} ${endX},${b.y + 63}` }, parent + v.id);
-        })) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { className: "wg-edges", width, height, "aria-hidden": "true", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("defs", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("marker", { id: arrowId, markerWidth: "8", markerHeight: "8", refX: "7", refY: "4", orient: "auto", markerUnits: "userSpaceOnUse", children: /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M0 0 L8 4 L0 8 Z", className: "wg-edge-arrow" }) }) }),
+          versions.flatMap((v) => v.parents.map((parent) => {
+            if (!points.has(parent)) return null;
+            const a = point(parent), b = point(v.id);
+            const horizontal = Math.abs(b.x - a.x) >= 225;
+            const forward = horizontal ? b.x >= a.x : b.y >= a.y;
+            const startX = horizontal ? a.x + (forward ? 225 : 0) : a.x + 112.5;
+            const endX = horizontal ? b.x + (forward ? -10 : 235) : b.x + 112.5;
+            const startY = horizontal ? a.y + 56 : a.y + (forward ? 112 : 0);
+            const endY = horizontal ? b.y + 56 : b.y + (forward ? -10 : 122);
+            const d = horizontal ? `M${startX},${startY} C${(startX + endX) / 2},${startY} ${(startX + endX) / 2},${endY} ${endX},${endY}` : `M${startX},${startY} C${startX},${(startY + endY) / 2} ${endX},${(startY + endY) / 2} ${endX},${endY}`;
+            return /* @__PURE__ */ jsxRuntimeExports.jsx("path", { className: "wg-edge-line", "data-from": parent, "data-to": v.id, d, markerEnd: `url(#${arrowId})` }, parent + v.id);
+          }))
+        ] }),
         versions.map((v) => {
           const p = point(v.id);
           const category = detail.categories.find((c) => c.id === v.categoryId);
@@ -65063,12 +65073,28 @@ function ManagementPicker({ mode, onChange }) {
     ] }, value)) })
   ] });
 }
-function ProjectGraph({ nodes, relations, selectedId, onSelect, onOpen, onContext, onMove, onRelation }) {
+function projectEdge(from, to) {
+  const x = from.x + 112.5, y = from.y + 56, tx = to.x + 112.5, ty = to.y + 56;
+  const dx = tx - x, dy = ty - y, length = Math.hypot(dx, dy);
+  if (!length) return { d: `M${x},${y} L${tx},${ty}`, labelX: x, labelY: y - 12 };
+  const ux = dx / length, uy = dy / length;
+  const boundary = Math.min(ux ? 112.5 / Math.abs(ux) : Infinity, uy ? 56 / Math.abs(uy) : Infinity);
+  const gap = Math.min(length, boundary + 12);
+  return { d: `M${x},${y} L${tx - ux * gap},${ty - uy * gap} L${tx},${ty}`, labelX: (x + tx) / 2 + uy * 12, labelY: (y + ty) / 2 - ux * 12 };
+}
+function ProjectGraph({ nodes, relations, categories = [], selectedId, focusRequest, onSelect, onOpen, onContext, onMove, onRelation }) {
+  const arrowId = `project-arrow-${reactExports.useId().replace(/:/g, "")}`;
   const [zoom, setZoom] = reactExports.useState(1), [pan, setPan] = reactExports.useState({ x: 20, y: 100 });
   const [positions, setPositions] = reactExports.useState({});
   const drag2 = reactExports.useRef(null);
   const viewport = reactExports.useRef(null), moved = reactExports.useRef(false);
   const nodePosition = (n) => positions[n.id] ?? n.position;
+  reactExports.useLayoutEffect(() => {
+    const target = nodes.find((n) => n.id === focusRequest?.id), bounds = viewport.current?.getBoundingClientRect();
+    if (!target || !bounds) return;
+    const position = nodePosition(target);
+    setPan({ x: bounds.width / 2 - (position.x + 112.5) * zoom, y: bounds.height / 2 - (position.y + 56) * zoom });
+  }, [focusRequest]);
   reactExports.useEffect(() => {
     if (drag2.current) return;
     setPositions((previous) => {
@@ -65135,30 +65161,24 @@ function ProjectGraph({ nodes, relations, selectedId, onSelect, onOpen, onContex
       else setPan({ x: active.origin.x + dx, y: active.origin.y + dy });
     }, onPointerUp: finish, onPointerCancel: finish, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-graph-world", style: { transform: `translate(${pan.x}px,${pan.y}px) scale(${zoom})` }, children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { className: "wg-edges wg-project-edges", width: "1", height: "1", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("defs", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("marker", { id: "project-arrow", markerWidth: "8", markerHeight: "8", refX: "7", refY: "4", orient: "auto", children: /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M0 0 L8 4 L0 8 Z", style: { fill: "var(--wg-accent)", stroke: "none" } }) }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("defs", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("marker", { id: arrowId, markerWidth: "8", markerHeight: "8", refX: "7", refY: "4", orient: "auto", markerUnits: "userSpaceOnUse", children: /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M0 0 L8 4 L0 8 Z", className: "wg-edge-arrow" }) }) }),
         relations.map((edge) => {
           const from = nodes.find((n) => n.id === edge.from), to = nodes.find((n) => n.id === edge.to);
           if (!from || !to) return null;
-          const a = nodePosition(from), b = nodePosition(to), vertical = Math.abs(a.x - b.x) < 225;
-          const spansCards = Math.abs(a.x - b.x) > 500 && Math.abs(a.y - b.y) < 112;
-          const forward = b.x >= a.x, direction = forward ? 1 : -1;
-          const x = vertical || forward ? a.x + 225 : a.x, y = a.y + 56, tx = vertical || !forward ? b.x + 225 : b.x, ty = b.y + 56, offset = Math.max(20, Math.min(90, Math.abs(tx - x) * 0.5));
-          const bus = Math.max(x, tx) + 45;
-          const upper = Math.min(a.y, b.y) - 45, ax = a.x + 112.5, bx = b.x + 112.5;
-          const d = spansCards ? `M${ax},${a.y} C${ax},${upper} ${ax},${upper} ${(ax + bx) / 2},${upper} S${bx},${upper} ${bx},${b.y}` : vertical ? `M${x},${y} C${bus},${y} ${bus},${ty} ${tx},${ty}` : `M${x},${y} C${x + offset * direction},${y} ${tx - offset * direction},${ty} ${tx},${ty}`;
-          return /* @__PURE__ */ jsxRuntimeExports.jsxs("g", { role: "button", tabIndex: 0, "aria-label": `关系 ${edge.label || edge.kind}`, onDoubleClick: (e) => {
+          const { d, labelX, labelY } = projectEdge(nodePosition(from), nodePosition(to));
+          return /* @__PURE__ */ jsxRuntimeExports.jsxs("g", { role: "button", tabIndex: 0, "aria-label": `关系 ${edge.label || "未命名关系"}`, onDoubleClick: (e) => {
             e.stopPropagation();
             onRelation(edge);
           }, onKeyDown: (e) => {
             if (e.key === "Enter") onRelation(edge);
           }, children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d, markerEnd: "url(#project-arrow)" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("path", { className: "wg-edge-line", d, markerMid: `url(#${arrowId})` }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("path", { className: "wg-edge-hit", d }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("text", { x: spansCards ? (ax + bx) / 2 : vertical ? bus + 4 : (x + tx) / 2, y: spansCards ? upper - 8 : (y + ty) / 2 - 10, textAnchor: "middle", children: edge.label || edge.kind })
+            /* @__PURE__ */ jsxRuntimeExports.jsx("text", { x: labelX, y: labelY, textAnchor: "middle", children: edge.label || "未命名关系" })
           ] }, edge.id);
         })
       ] }),
-      nodes.map((node) => /* @__PURE__ */ jsxRuntimeExports.jsx("div", { role: "button", tabIndex: 0, "aria-label": `项目节点 ${node.title}`, className: `wg-graph-node ${node.id === selectedId ? "selected" : ""}`, style: nodePosition(node) && { left: nodePosition(node).x, top: nodePosition(node).y }, onClick: () => {
+      nodes.map((node) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { role: "button", tabIndex: 0, "aria-label": `项目节点 ${node.title}`, className: `wg-graph-node ${node.id === selectedId ? "selected" : ""}`, style: nodePosition(node) && { left: nodePosition(node).x, top: nodePosition(node).y }, onClick: () => {
         if (!moved.current) onSelect(node.id);
       }, onDoubleClick: () => onOpen(node.id), onKeyDown: (e) => {
         if (e.key === "Enter") onOpen(node.id);
@@ -65171,19 +65191,116 @@ function ProjectGraph({ nodes, relations, selectedId, onSelect, onOpen, onContex
         e.currentTarget.setPointerCapture(e.pointerId);
         moved.current = false;
         drag2.current = { id: node.id, x: e.clientX, y: e.clientY, origin: nodePosition(node), moved: false };
-      }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-node-body", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "wg-node-code", children: [
-          node.kind === "folder" ? /* @__PURE__ */ jsxRuntimeExports.jsx(Folder, { size: 16 }) : /* @__PURE__ */ jsxRuntimeExports.jsx(File, { size: 16 }),
-          " ",
-          node.kind === "folder" ? "文件夹" : node.name.split(".").pop()?.toUpperCase(),
-          " ",
-          node.snapshot ? "· 历史快照" : ""
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: node.title }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: node.note || "独立资料 · 可连接与整理" })
-      ] }) }, node.id))
+      }, children: [
+        categories.find((c) => c.id === node.categoryId) && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-branch-tags", children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "wg-category-tag", title: categories.find((c) => c.id === node.categoryId).name, children: categories.find((c) => c.id === node.categoryId).name }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-node-body", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "wg-node-code", children: [
+            node.kind === "folder" ? /* @__PURE__ */ jsxRuntimeExports.jsx(Folder, { size: 16 }) : /* @__PURE__ */ jsxRuntimeExports.jsx(File, { size: 16 }),
+            " ",
+            node.kind === "folder" ? "文件夹" : node.name.split(".").pop()?.toUpperCase(),
+            " ",
+            node.snapshot ? "· 历史快照" : ""
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: node.title }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: node.note || "独立资料 · 可连接与整理" })
+        ] })
+      ] }, node.id))
     ] }) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(GraphRiffle, {})
+  ] });
+}
+function ProjectBoard({ categories, nodes, selectedId, onSelect, onOpen, onMove, onCategory, onContext }) {
+  const [dragging, setDragging] = reactExports.useState(null), [over, setOver] = reactExports.useState(null);
+  const columns = [{ id: "", name: "未分类" }, ...categories];
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-board wg-project-board", "aria-label": "项目分类看板", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { className: "wg-board-heading", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "把这一层资料，归到合适的分类。" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "全项目共用分类，此处只展示当前层。拖动文件或文件夹分类，也可在详情中选择；分类不会移动来源文件。" })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "wg-button", onClick: () => onCategory("create"), children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(Plus, { size: 15 }),
+        " 添加分类"
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-columns", children: [
+      columns.map((category) => {
+        const cards = nodes.filter((n) => (n.categoryId ?? "") === category.id);
+        return /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: `wg-column ${over === category.id ? "drag-over" : ""}`, "aria-label": `项目分类 ${category.name}`, onDragOver: (e) => {
+          if (e.dataTransfer.types.includes("application/dockitty-project-item")) {
+            e.preventDefault();
+            setOver(category.id);
+          }
+        }, onDragLeave: (e) => {
+          if (!e.currentTarget.contains(e.relatedTarget)) setOver(null);
+        }, onDrop: (e) => {
+          const id2 = e.dataTransfer.getData("application/dockitty-project-item");
+          if (nodes.some((n) => n.id === id2)) {
+            e.preventDefault();
+            onMove(id2, category.id);
+          }
+          setDragging(null);
+          setOver(null);
+        }, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { className: "wg-column-heading", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "wg-category-dot" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: category.name }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: cards.length })
+            ] }),
+            category.id && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-column-tools", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("button", { "aria-label": `重命名项目分类 ${category.name}`, onClick: () => onCategory("rename", category), children: /* @__PURE__ */ jsxRuntimeExports.jsx(Pencil, { size: 13 }) }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("button", { "aria-label": `删除项目分类 ${category.name}`, onClick: () => onCategory("delete", category), children: /* @__PURE__ */ jsxRuntimeExports.jsx(Trash2, { size: 13 }) })
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-cards", children: cards.map((node) => /* @__PURE__ */ jsxRuntimeExports.jsxs("article", { tabIndex: 0, role: "button", "aria-label": `看板资料 ${node.title}`, draggable: true, className: `wg-version-card ${selectedId === node.id ? "selected" : ""} ${dragging === node.id ? "dragging" : ""}`, onClick: () => onSelect(node.id), onDoubleClick: () => onOpen(node.id), onContextMenu: (e) => {
+            e.preventDefault();
+            onContext(node, e.clientX, e.clientY);
+          }, onKeyDown: (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onSelect(node.id);
+            }
+            if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+              e.preventDefault();
+              const index = columns.indexOf(category), offset = e.key === "ArrowRight" ? 1 : -1;
+              onMove(node.id, columns[Math.max(0, Math.min(columns.length - 1, index + offset))].id);
+            }
+          }, onDragStart: (e) => {
+            e.dataTransfer.setData("application/dockitty-project-item", node.id);
+            e.dataTransfer.effectAllowed = "move";
+            setDragging(node.id);
+          }, onDragEnd: () => {
+            setDragging(null);
+            setOver(null);
+          }, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-card-eyebrow", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+                node.kind === "folder" ? /* @__PURE__ */ jsxRuntimeExports.jsx(Folder, { size: 14 }) : /* @__PURE__ */ jsxRuntimeExports.jsx(File, { size: 14 }),
+                " ",
+                node.kind === "folder" ? "文件夹" : node.name.split(".").pop()?.toUpperCase()
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(GripVertical, { size: 13 })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: node.title }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: node.note || node.name }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("footer", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: node.linkTarget ? "链接入口" : node.snapshot ? "历史快照" : "当前内容" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "wg-project-card-category", children: category.name })
+            ] })
+          ] }, node.id)) }),
+          !cards.length && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-column-empty", children: [
+            "将当前层的资料拖到这里",
+            /* @__PURE__ */ jsxRuntimeExports.jsx("br", {}),
+            "或在详情中选择分类"
+          ] })
+        ] }, category.id);
+      }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "wg-add-column", onClick: () => onCategory("create"), children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(Plus, { size: 20 }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "新分类" })
+      ] })
+    ] })
   ] });
 }
 async function safeProjectHtml(source, resolve) {
@@ -65268,7 +65385,7 @@ Bearer Token：${local.token}` : config.data?.[target];
   ] }) });
 }
 const request = (value) => api.projects.request(value);
-const relationLabels = { iteration: "迭代", reference: "参考", example: "示例", dependency: "依赖", custom: "自定义" };
+const relationLabels = { iteration: "迭代", reference: "参考", example: "示例", dependency: "依赖", custom: "未命名关系" };
 const typeLabels = { folder: "文件夹", document: "办公文档", sheet: "表格与数据", slide: "演示", markdown: "Markdown", html: "网页", script: "脚本与代码", image: "图片", other: "其他" };
 function nodeType(node) {
   if (node.linkTarget) return "other";
@@ -65373,6 +65490,7 @@ function ProjectWorkspace({ modePicker }) {
   const typesPicker = reactExports.useRef(null);
   const [modal, setModal] = reactExports.useState(null), [form, setForm] = reactExports.useState({}), [busy, setBusy] = reactExports.useState(false), [error, setError] = reactExports.useState(""), [notice, setNotice] = reactExports.useState("");
   const [connection, setConnection] = reactExports.useState(null), [menu, setMenu] = reactExports.useState(null);
+  const [focusRequest, setFocusRequest] = reactExports.useState(null);
   const [width, setWidth] = reactExports.useState(() => Number(localStorage.getItem("dockitty-project-inspector-width")) || 320), resize2 = reactExports.useRef(null);
   const libraries = useQuery({ queryKey: ["projects", repoRoot], queryFn: () => request({ action: "list" }), refetchInterval: 2e3 });
   const detail = useQuery({ queryKey: ["project", repoRoot, projectId], queryFn: () => request({ action: "get", projectId }), enabled: !!projectId, refetchInterval: 2e3 }).data;
@@ -65470,7 +65588,12 @@ function ProjectWorkspace({ modePicker }) {
   function editNode(node, kind) {
     setMenu(null);
     setModal({ kind, node });
-    setForm({ title: kind === "iteration" ? `${node.title} · 下一轮` : node.title, note: node.note });
+    setForm({ title: kind === "iteration" ? `${node.title} · 下一轮` : node.title, note: node.note, categoryId: node.categoryId ?? "" });
+  }
+  function editCategory(action, category) {
+    setModal({ kind: "category", action, category });
+    setForm({ name: category?.name ?? "" });
+    setError("");
   }
   function editRelation(edge) {
     setModal({ kind: "relation", edge });
@@ -65487,8 +65610,11 @@ function ProjectWorkspace({ modePicker }) {
         const target = form.target === "new" ? (await request({ action: "create", name: form.name })).id : form.target;
         await request({ action: "import", projectId: target, paths: modal.paths, unpackFolder: form.unpack === "yes", parentId: target === projectId ? parentId : null });
         enter(target);
-      } else if (modal.kind === "node") await request({ action: "updateNode", projectId, nodeId: modal.node.id, title: form.title, note: form.note });
-      else if (modal.kind === "delete") await request({ action: "deleteNode", projectId, nodeId: modal.node.id });
+      } else if (modal.kind === "node") await request({ action: "updateNode", projectId, nodeId: modal.node.id, title: form.title, note: form.note, categoryId: form.categoryId });
+      else if (modal.kind === "category") {
+        if (modal.action === "delete") await request({ action: "deleteCategory", projectId, categoryId: modal.category.id });
+        else await request({ action: "setCategory", projectId, category: { id: modal.category?.id, name: form.name } });
+      } else if (modal.kind === "delete") await request({ action: "deleteNode", projectId, nodeId: modal.node.id });
       else if (modal.kind === "iteration") {
         const result = await request({ action: "recordIteration", projectId, nodeId: modal.node.id, title: form.title, requestId: crypto.randomUUID() });
         setSelectedId(result.nodeIds[0]);
@@ -65519,11 +65645,11 @@ function ProjectWorkspace({ modePicker }) {
         /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: detail ? `${detail.nodes.filter((n) => !n.parentId).length} 项资料 · ${detail.relations.length} 条关系` : "文件、文件夹与每一轮迭代" })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-project-actions", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "wg-button", disabled: busy, onClick: () => void importFiles(false), children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "wg-button", disabled: busy || !!parent?.snapshot, title: parent?.snapshot ? "历史文件夹快照，请返回当前层导入" : void 0, onClick: () => void importFiles(false), children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(Import, { size: 15 }),
           " 批量导入文件"
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "wg-button primary", disabled: busy, onClick: () => void importFiles(true), children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "wg-button primary", disabled: busy || !!parent?.snapshot, title: parent?.snapshot ? "历史文件夹快照，请返回当前层导入" : void 0, onClick: () => void importFiles(true), children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(Folder, { size: 15 }),
           " 导入文件夹"
         ] })
@@ -65538,6 +65664,10 @@ function ProjectWorkspace({ modePicker }) {
         /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: view === "graph" ? "active" : "", "aria-pressed": view === "graph", onClick: () => setView("graph"), children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(GitBranch, { size: 16 }),
           " 文件关系图"
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: view === "board" ? "active" : "", "aria-pressed": view === "board", onClick: () => setView("board"), children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Columns3, { size: 16 }),
+          " 分类看板"
         ] })
       ] }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-view-context", children: parent ? filePath(detail, parent) : detail ? "文档库根目录" : "把相关资料收进一个文档库" })
@@ -65633,12 +65763,15 @@ function ProjectWorkspace({ modePicker }) {
         ] })
       ] })
     ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("section", { className: "wg-project-content", children: view === "graph" ? /* @__PURE__ */ jsxRuntimeExports.jsx(ProjectGraph, { nodes, relations: detail.relations, selectedId, onSelect: select, onOpen: openNode, onContext: (node, x, y) => {
+      /* @__PURE__ */ jsxRuntimeExports.jsx("section", { className: "wg-project-content", children: view === "graph" ? /* @__PURE__ */ jsxRuntimeExports.jsx(ProjectGraph, { focusRequest, nodes, categories: detail.categories ?? [], relations: detail.relations, selectedId, onSelect: select, onOpen: openNode, onContext: (node, x, y) => {
         setSelectedId(node.id);
         setMenu({ node, x: Math.min(x, window.innerWidth - 245), y: Math.min(y, window.innerHeight - 340) });
       }, onMove: async (nodeId, position) => {
         await run2(() => request({ action: "updateNode", projectId, nodeId, position }));
-      }, onRelation: editRelation }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-document-grid-scroll", children: [
+      }, onRelation: editRelation }, projectId + ":" + (parentId ?? "root")) : view === "board" ? /* @__PURE__ */ jsxRuntimeExports.jsx(ProjectBoard, { categories: detail.categories ?? [], nodes, selectedId, onSelect: select, onOpen: openNode, onMove: (nodeId, categoryId) => act(() => request({ action: "updateNode", projectId, nodeId, categoryId }), "分类已更新"), onCategory: editCategory, onContext: (node, x, y) => {
+        setSelectedId(node.id);
+        setMenu({ node, x: Math.min(x, window.innerWidth - 245), y: Math.min(y, window.innerHeight - 340) });
+      } }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-document-grid-scroll", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-document-grid", role: "list", "aria-label": "当前层项目资料", children: nodes.map((node) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { role: "listitem", className: `wg-document-card ${selectedId === node.id ? "selected" : ""}`, "aria-label": `资料 ${node.title}`, onClick: () => select(node.id), onDoubleClick: () => openNode(node.id), onContextMenu: (e) => {
           e.preventDefault();
           setSelectedId(node.id);
@@ -65662,6 +65795,7 @@ function ProjectWorkspace({ modePicker }) {
             node.linkTarget ? "链接入口" : node.snapshot ? "历史快照" : "当前内容"
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("footer", { children: [
+            detail.categories?.find((c) => c.id === node.categoryId) && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "wg-project-card-category", children: detail.categories.find((c) => c.id === node.categoryId).name }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("time", { children: node.note || (node.kind === "folder" ? "双击进入文件夹" : "点击查看详情") }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "wg-document-state", children: node.snapshot ? "已记录" : "可刷新" })
           ] })
@@ -65719,6 +65853,13 @@ function ProjectWorkspace({ modePicker }) {
               " 移除"
             ] })
           ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "wg-project-category-field", children: [
+            "资料分类",
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { "aria-label": "资料分类", value: selected.categoryId ?? "", disabled: busy, onChange: (e) => act(() => request({ action: "updateNode", projectId, nodeId: selected.id, categoryId: e.target.value }), "分类已更新"), children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "未分类" }),
+              detail.categories?.map((c) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: c.id, children: c.name }, c.id))
+            ] })
+          ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: "备注" }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: selected.note || "暂无备注，可记录用途、修改内容或待办。" })
@@ -65730,12 +65871,18 @@ function ProjectWorkspace({ modePicker }) {
               if (!other) return null;
               return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-project-relation", children: [
                 /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { onClick: () => {
+                  setTypes([]);
+                  setSearch("");
                   setParentId(other.parentId);
                   setSelectedId(other.id);
+                  setFocusRequest({ id: other.id });
                 }, children: [
                   /* @__PURE__ */ jsxRuntimeExports.jsx(ExternalLink, { size: 14 }),
                   /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: edge.label || relationLabels[edge.kind] }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsxs("strong", { children: [
+                      edge.from === selected.id ? "→ " : "← ",
+                      edge.label || relationLabels[edge.kind]
+                    ] }),
                     /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: filePath(detail, other) })
                   ] })
                 ] }),
@@ -65806,7 +65953,9 @@ function ProjectWorkspace({ modePicker }) {
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "“编辑原文件”会打开导入来源，修改后点击刷新。打开软件以及 MCP 写入后也会同步。刷新更新当前卡片，不生成历史；需要保存一轮时，在再次刷新之前点击“记录下一轮”，保留上次受管内容并读取当前来源形成下一轮。文件夹可以整体记录。" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "来源删除会同步移除当前和历史卡片及连线；来源改名按新文件导入。若想长期保留历史，可先导出副本。软件中的“移除”只删除管理卡片，不删除来源。" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: "资料关系" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "点击“连接资料”，依次点击两个节点，填写迭代、参考、示例、依赖或自定义标签。双击连线可编辑标签与备注。可按 Esc 或点击“取消连接”退出。跨文件夹关系在详情里列出，点击路径跳转到目标资料。" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "点击“连接资料”，依次点击两个节点，自行填写连线标签，不需要选择关系类型；箭头从第一项指向第二项。连线按卡片中心连接并位于卡片下层。双击连线可编辑起点、目标、标签与备注。可按 Esc 或点击“取消连接”退出。跨文件夹关系在详情里列出，点击路径跳转到目标资料。" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: "分类看板" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "项目内共用分类名称，看板只展示当前文件夹这一层的资料。添加分类后可拖动卡片归类，或在详情和名称编辑窗口中选择分类。重命名会同步更新图卡标签；删除分类只让资料回到未分类，文件、文件夹与关系都会保留。" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: "查看与 Agent" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "链接入口只保留卡片与目标路径，不展开或复制目标内容；可进入普通子文件夹导出资料。Markdown 与脚本按文本查看，脚本不会执行。HTML 仅显示安全页面效果，不执行脚本或访问外部网络。办公文档复用内置预览，其他格式可导出查看。点击“接入 Agent”获取 Codex、Claude Code、Cursor 和 DSH 的配置。" })
       ] }),
@@ -65816,9 +65965,16 @@ function ProjectWorkspace({ modePicker }) {
     /* @__PURE__ */ jsxRuntimeExports.jsx(Dialog, { open: !!modal, onOpenChange: (open2) => {
       if (!open2 && !busy) setModal(null);
     }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(DialogContent, { className: "wg-dialog", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(DialogTitle, { children: modal?.kind === "import" ? "导入项目资料" : modal?.kind === "relation" ? "编辑资料关系" : modal?.kind === "iteration" ? "记录下一轮迭代" : modal?.kind === "delete" ? "从文档库移除资料" : "编辑名称与备注" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(DialogDescription, { children: modal?.kind === "import" ? "选择已有文档库，或把这一组资料创建为新文档库。" : modal?.kind === "relation" ? "连线表达迭代、参考、示例或自定义含义；跨文件夹关系可在详情中跳转。" : modal?.kind === "iteration" ? "保留当前卡片为历史，读取来源最新内容形成下一轮。刷新不会自动创建迭代。" : modal?.kind === "delete" ? "只移除受管卡片、其子项和相关连线，不删除原文件或文件夹。" : "显示名称与备注不会改写来源文件。" }),
-      modal?.kind === "import" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-form", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(DialogTitle, { children: modal?.kind === "category" ? modal.action === "create" ? "添加项目分类" : modal.action === "rename" ? "重命名项目分类" : "删除项目分类" : modal?.kind === "import" ? "导入项目资料" : modal?.kind === "relation" ? "编辑资料关系" : modal?.kind === "iteration" ? "记录下一轮迭代" : modal?.kind === "delete" ? "从文档库移除资料" : "编辑名称与备注" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(DialogDescription, { children: modal?.kind === "category" ? modal.action === "delete" ? "资料将回到未分类，保留所有文件、文件夹与连线。" : "分类在整个项目内共用，看板只展示当前层资料。" : modal?.kind === "import" ? "选择已有文档库，或把这一组资料创建为新文档库。" : modal?.kind === "relation" ? "箭头从起点指向目标；标签可以自由填写。跨文件夹关系可在详情中跳转。" : modal?.kind === "iteration" ? "保留当前卡片为历史，读取来源最新内容形成下一轮。刷新不会自动创建迭代。" : modal?.kind === "delete" ? "只移除受管卡片、其子项和相关连线，不删除原文件或文件夹。" : "显示名称与备注不会改写来源文件。" }),
+      modal?.kind === "category" ? modal.action === "delete" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
+        "确认删除“",
+        modal.category?.name,
+        "”分类？所有层级中使用此分类的资料都会回到未分类。"
+      ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-form", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "wg-field", children: [
+        "分类名称",
+        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { autoFocus: true, "aria-label": "项目分类名称", value: form.name ?? "", onChange: (e) => setForm((p) => ({ ...p, name: e.target.value })) })
+      ] }) }) : modal?.kind === "import" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-form", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "wg-field", children: [
           "导入到",
           /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { "aria-label": "导入目标文档库", value: form.target, onChange: (e) => setForm((p) => ({ ...p, target: e.target.value })), children: [
@@ -65852,10 +66008,6 @@ function ProjectWorkspace({ modePicker }) {
           /* @__PURE__ */ jsxRuntimeExports.jsx("select", { "aria-label": "关系目标", value: form.to, onChange: (e) => setForm((p) => ({ ...p, to: e.target.value })), children: detail?.nodes.filter((n) => n.id !== form.from).map((n) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: n.id, children: filePath(detail, n) }, n.id)) })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "wg-field", children: [
-          "关系类型",
-          /* @__PURE__ */ jsxRuntimeExports.jsx("select", { "aria-label": "关系类型", value: form.kind, onChange: (e) => setForm((p) => ({ ...p, kind: e.target.value })), children: Object.entries(relationLabels).map(([value, label]) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value, children: label }, value)) })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "wg-field", children: [
           "关系标签",
           /* @__PURE__ */ jsxRuntimeExports.jsx("input", { "aria-label": "关系标签", value: form.label, placeholder: "例如：参考文档、示例脚本、第二轮修改", onChange: (e) => setForm((p) => ({ ...p, label: e.target.value })) })
         ] }),
@@ -65877,6 +66029,13 @@ function ProjectWorkspace({ modePicker }) {
         modal?.kind !== "iteration" && /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "wg-field", children: [
           "备注",
           /* @__PURE__ */ jsxRuntimeExports.jsx("textarea", { "aria-label": "资料备注", value: form.note ?? "", onChange: (e) => setForm((p) => ({ ...p, note: e.target.value })) })
+        ] }),
+        modal?.kind === "node" && /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "wg-field", children: [
+          "分类",
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { "aria-label": "编辑资料分类", value: form.categoryId ?? "", onChange: (e) => setForm((p) => ({ ...p, categoryId: e.target.value })), children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "未分类" }),
+            detail?.categories?.map((c) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: c.id, children: c.name }, c.id))
+          ] })
         ] })
       ] }),
       error && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { role: "alert", children: error }),

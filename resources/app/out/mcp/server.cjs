@@ -34,7 +34,7 @@ __export(server_exports, {
 });
 module.exports = __toCommonJS(server_exports);
 
-// C:/Users/29807/AppData/Local/Temp/dockitty-mcp-build-deps/node_modules/.pnpm/@modelcontextprotocol+server@2.3.1/node_modules/@modelcontextprotocol/server/dist/chunk-Br0eD_fh.mjs
+// ../../node_modules/.pnpm/@modelcontextprotocol+server@2.3.1/node_modules/@modelcontextprotocol/server/dist/chunk-Br0eD_fh.mjs
 var __create2 = Object.create;
 var __defProp2 = Object.defineProperty;
 var __getOwnPropDesc2 = Object.getOwnPropertyDescriptor;
@@ -74,7 +74,7 @@ var __toESM2 = (mod, isNodeMode, target) => (target = mod != null ? __create2(__
   enumerable: true
 }) : target, mod));
 
-// C:/Users/29807/AppData/Local/Temp/dockitty-mcp-build-deps/node_modules/.pnpm/@modelcontextprotocol+server@2.3.1/node_modules/@modelcontextprotocol/server/dist/dialects-DoSzNhcb.mjs
+// ../../node_modules/.pnpm/@modelcontextprotocol+server@2.3.1/node_modules/@modelcontextprotocol/server/dist/dialects-DoSzNhcb.mjs
 var DRAFT_2020_12_URIS = /* @__PURE__ */ new Set(["https://json-schema.org/draft/2020-12/schema", "http://json-schema.org/draft/2020-12/schema"]);
 var DRAFT_2019_09_URIS = /* @__PURE__ */ new Set(["https://json-schema.org/draft/2019-09/schema", "http://json-schema.org/draft/2019-09/schema"]);
 var DRAFT_07_URIS = /* @__PURE__ */ new Set(["https://json-schema.org/draft-07/schema", "http://json-schema.org/draft-07/schema"]);
@@ -91,7 +91,7 @@ function declaredDialect(schema, remedy) {
   throw new Error(`JSON Schema declares an unsupported dialect ("$schema": "${schema.$schema.slice(0, 200)}"). The default validator supports JSON Schema 2020-12, 2019-09, draft-07, and draft-06; ${remedy}`);
 }
 
-// C:/Users/29807/AppData/Local/Temp/dockitty-mcp-build-deps/node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/core/util.js
+// ../../node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/core/util.js
 var util_exports = {};
 __export(util_exports, {
   BIGINT_FORMAT_RANGES: () => BIGINT_FORMAT_RANGES,
@@ -947,7 +947,7 @@ function constantCatch(value) {
   return fn;
 }
 
-// C:/Users/29807/AppData/Local/Temp/dockitty-mcp-build-deps/node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/core/core.js
+// ../../node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/core/core.js
 var _a;
 var NEVER = /* @__PURE__ */ Object.freeze({
   status: "aborted"
@@ -1068,7 +1068,7 @@ function config(newConfig) {
   return globalConfig;
 }
 
-// C:/Users/29807/AppData/Local/Temp/dockitty-mcp-build-deps/node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/core/errors.js
+// ../../node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/core/errors.js
 function _getMessage() {
   const internals = this._zod;
   internals.message ?? (internals.message = JSON.stringify(internals.def, jsonStringifyReplacer, 2));
@@ -1183,7 +1183,7 @@ function formatError(error2, mapper = (issue2) => issue2.message) {
   return fieldErrors;
 }
 
-// C:/Users/29807/AppData/Local/Temp/dockitty-mcp-build-deps/node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/core/parse.js
+// ../../node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/core/parse.js
 function finalizeParams(callee, params) {
   return { callee: params?.callee ?? callee, Err: params?.Err };
 }
@@ -1331,7 +1331,7 @@ var _safeDecodeAsync = (_Err) => async (schema, value, _ctx) => {
   return _safeParseAsync(_Err)(schema, value, _ctx);
 };
 
-// C:/Users/29807/AppData/Local/Temp/dockitty-mcp-build-deps/node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/core/regexes.js
+// ../../node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/core/regexes.js
 var cuid = /^[cC][0-9a-z]{6,}$/;
 var cuid2 = /^[0-9a-z]+$/;
 var ulid = /^[0-7][0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{25}$/;
@@ -1391,7 +1391,7 @@ var _null = /^null$/i;
 var lowercase = /^[^A-Z]*$/;
 var uppercase = /^[^a-z]*$/;
 
-// C:/Users/29807/AppData/Local/Temp/dockitty-mcp-build-deps/node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/core/checks.js
+// ../../node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/core/checks.js
 var $ZodCheck = /* @__PURE__ */ $constructor("$ZodCheck", (inst, def) => {
   var _a3;
   inst._zod ?? (inst._zod = {});
@@ -1711,7 +1711,7 @@ var $ZodCheckOverwrite = /* @__PURE__ */ $constructor("$ZodCheckOverwrite", (ins
   };
 });
 
-// C:/Users/29807/AppData/Local/Temp/dockitty-mcp-build-deps/node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/core/doc.js
+// ../../node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/core/doc.js
 var Doc = class {
   constructor(args = [], closed = {}) {
     this.content = [];
@@ -1752,14 +1752,14 @@ ${content.join("\n")}
   }
 };
 
-// C:/Users/29807/AppData/Local/Temp/dockitty-mcp-build-deps/node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/core/versions.js
+// ../../node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/core/versions.js
 var version = {
   major: 4,
   minor: 6,
   patch: 6
 };
 
-// C:/Users/29807/AppData/Local/Temp/dockitty-mcp-build-deps/node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/core/schemas.js
+// ../../node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/core/schemas.js
 var $ZodType = /* @__PURE__ */ $constructor("$ZodType", (inst, def) => {
   var _a3;
   inst ?? (inst = {});
@@ -3491,7 +3491,7 @@ function handleRefineResult(result, payload, input, inst) {
   }
 }
 
-// C:/Users/29807/AppData/Local/Temp/dockitty-mcp-build-deps/node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/core/memoizer.js
+// ../../node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/core/memoizer.js
 var $ZodCyclicError = class extends Error {
   constructor() {
     super(`Cannot parse a reference cycle that closes through a transform`);
@@ -3765,7 +3765,7 @@ function isBackEdge(ctx, value) {
   return backEdges !== void 0 && isRef(value) && backEdges.has(value);
 }
 
-// C:/Users/29807/AppData/Local/Temp/dockitty-mcp-build-deps/node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/locales/en.js
+// ../../node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/locales/en.js
 var error = () => {
   const Sizable = {
     string: { unit: "characters", verb: "to have" },
@@ -3890,7 +3890,7 @@ function en_default() {
   };
 }
 
-// C:/Users/29807/AppData/Local/Temp/dockitty-mcp-build-deps/node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/core/registries.js
+// ../../node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/core/registries.js
 var _a2;
 var $ZodRegistry = class {
   constructor() {
@@ -3938,7 +3938,7 @@ function registry() {
 (_a2 = globalThis).__zod_globalRegistry ?? (_a2.__zod_globalRegistry = registry());
 var globalRegistry = globalThis.__zod_globalRegistry;
 
-// C:/Users/29807/AppData/Local/Temp/dockitty-mcp-build-deps/node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/core/api.js
+// ../../node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/core/api.js
 function snapshotChecks(def) {
   if (def.checks)
     def.checks = [...def.checks];
@@ -4491,7 +4491,7 @@ function _check(fn, params) {
   return ch;
 }
 
-// C:/Users/29807/AppData/Local/Temp/dockitty-mcp-build-deps/node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/core/to-json-schema.js
+// ../../node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/core/to-json-schema.js
 function assignProps(target, ...sources) {
   for (const source of sources) {
     for (const key of Reflect.ownKeys(source)) {
@@ -5021,7 +5021,7 @@ var createStandardJSONSchemaMethod = (schema, io, processors = {}) => (params) =
   return finalize(ctx, schema);
 };
 
-// C:/Users/29807/AppData/Local/Temp/dockitty-mcp-build-deps/node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/core/json-schema-processors.js
+// ../../node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/core/json-schema-processors.js
 var narrowMin = (agg, key, value) => {
   if (agg[key] === void 0 || value > agg[key])
     agg[key] = value;
@@ -5769,7 +5769,7 @@ function toJSONSchema(input, params) {
   return finalize(ctx, input);
 }
 
-// C:/Users/29807/AppData/Local/Temp/dockitty-mcp-build-deps/node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/classic/errors.js
+// ../../node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/classic/errors.js
 var _installedErrorProtos = /* @__PURE__ */ new WeakSet([Object.prototype, Error.prototype]);
 function _lazyMethod(proto, key, make) {
   Object.defineProperty(proto, key, {
@@ -5814,7 +5814,7 @@ var ZodRealError = /* @__PURE__ */ $constructor("ZodError", initializer2, void 0
   Parent: Error
 });
 
-// C:/Users/29807/AppData/Local/Temp/dockitty-mcp-build-deps/node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/classic/parse.js
+// ../../node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/classic/parse.js
 var parse = /* @__PURE__ */ _parse(ZodRealError);
 var parseAsync = /* @__PURE__ */ _parseAsync(ZodRealError);
 var safeParse = /* @__PURE__ */ _safeParse(ZodRealError);
@@ -5828,7 +5828,7 @@ var safeDecode = /* @__PURE__ */ _safeDecode(ZodRealError);
 var safeEncodeAsync = /* @__PURE__ */ _safeEncodeAsync(ZodRealError);
 var safeDecodeAsync = /* @__PURE__ */ _safeDecodeAsync(ZodRealError);
 
-// C:/Users/29807/AppData/Local/Temp/dockitty-mcp-build-deps/node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/classic/schemas.js
+// ../../node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/classic/schemas.js
 function _ensureDefaultLocale() {
   if (!globalConfig.localeError)
     config(en_default());
@@ -6865,7 +6865,7 @@ function preprocess(fn, schema) {
   });
 }
 
-// C:/Users/29807/AppData/Local/Temp/dockitty-mcp-build-deps/node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/classic/compat.js
+// ../../node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/classic/compat.js
 var ZodIssueCode = {
   invalid_type: "invalid_type",
   too_big: "too_big",
@@ -6883,7 +6883,7 @@ var ZodFirstPartyTypeKind;
 /* @__PURE__ */ (function(ZodFirstPartyTypeKind2) {
 })(ZodFirstPartyTypeKind || (ZodFirstPartyTypeKind = {}));
 
-// C:/Users/29807/AppData/Local/Temp/dockitty-mcp-build-deps/node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/classic/iso.js
+// ../../node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/classic/iso.js
 var iso_exports = {};
 __export(iso_exports, {
   ZodISODate: () => ZodISODate,
@@ -6908,7 +6908,7 @@ function duration2(params) {
   return _isoDuration(ZodISODuration, params);
 }
 
-// C:/Users/29807/AppData/Local/Temp/dockitty-mcp-build-deps/node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/classic/coerce.js
+// ../../node_modules/.pnpm/zod@4.6.6/node_modules/zod/v4/classic/coerce.js
 var coerce_exports = {};
 __export(coerce_exports, {
   bigint: () => bigint2,
@@ -6933,7 +6933,7 @@ function date3(params) {
   return _coercedDate(ZodDate, params);
 }
 
-// C:/Users/29807/AppData/Local/Temp/dockitty-mcp-build-deps/node_modules/.pnpm/@modelcontextprotocol+core@2.3.1/node_modules/@modelcontextprotocol/core/dist/auth-BNDyLTqp.mjs
+// ../../node_modules/.pnpm/@modelcontextprotocol+core@2.3.1/node_modules/@modelcontextprotocol/core/dist/auth-BNDyLTqp.mjs
 var LATEST_PROTOCOL_VERSION = "2025-11-25";
 var DEFAULT_NEGOTIATED_PROTOCOL_VERSION = "2025-03-26";
 var SUPPORTED_PROTOCOL_VERSIONS = [
@@ -7875,7 +7875,7 @@ var OAuthTokenRevocationRequestSchema = object({
   token_type_hint: string2().optional()
 }).strip();
 
-// C:/Users/29807/AppData/Local/Temp/dockitty-mcp-build-deps/node_modules/.pnpm/@modelcontextprotocol+server@2.3.1/node_modules/@modelcontextprotocol/server/dist/src-Cqbh3MYc.mjs
+// ../../node_modules/.pnpm/@modelcontextprotocol+server@2.3.1/node_modules/@modelcontextprotocol/server/dist/src-Cqbh3MYc.mjs
 var BRANDS = Symbol.for("mcp.sdk.errorBrands");
 function stampErrorBrands(instance, ctor) {
   const brands = /* @__PURE__ */ new Set();
@@ -12510,7 +12510,7 @@ function normalizeRawShapeSchema(schema) {
   return schema;
 }
 
-// C:/Users/29807/AppData/Local/Temp/dockitty-mcp-build-deps/node_modules/.pnpm/@modelcontextprotocol+server@2.3.1/node_modules/@modelcontextprotocol/server/dist/ajvProvider-CEoC__sr.mjs
+// ../../node_modules/.pnpm/@modelcontextprotocol+server@2.3.1/node_modules/@modelcontextprotocol/server/dist/ajvProvider-CEoC__sr.mjs
 var require_code$1 = /* @__PURE__ */ __commonJSMin(((exports2) => {
   Object.defineProperty(exports2, "__esModule", { value: true });
   exports2.regexpCode = exports2.getEsmExportName = exports2.getProperty = exports2.safeStringify = exports2.stringify = exports2.strConcat = exports2.addCodeArg = exports2.str = exports2._ = exports2.nil = exports2._Code = exports2.Name = exports2.IDENTIFIER = exports2._CodeOrName = void 0;
@@ -19520,10 +19520,10 @@ var AjvJsonSchemaValidator = class {
 };
 var Ajv = import_ajv.Ajv;
 
-// C:/Users/29807/AppData/Local/Temp/dockitty-mcp-build-deps/node_modules/.pnpm/@modelcontextprotocol+server@2.3.1/node_modules/@modelcontextprotocol/server/dist/shimsNode.mjs
+// ../../node_modules/.pnpm/@modelcontextprotocol+server@2.3.1/node_modules/@modelcontextprotocol/server/dist/shimsNode.mjs
 var import_node_process = __toESM(require("node:process"), 1);
 
-// C:/Users/29807/AppData/Local/Temp/dockitty-mcp-build-deps/node_modules/.pnpm/@modelcontextprotocol+server@2.3.1/node_modules/@modelcontextprotocol/server/dist/mcp-DIH4cS6P.mjs
+// ../../node_modules/.pnpm/@modelcontextprotocol+server@2.3.1/node_modules/@modelcontextprotocol/server/dist/mcp-DIH4cS6P.mjs
 var COMPLETABLE_SYMBOL = Symbol.for("mcp.completable");
 function isCompletable(schema) {
   return !!schema && typeof schema === "object" && COMPLETABLE_SYMBOL in schema;
@@ -21016,7 +21016,7 @@ function unwrapOptionalSchema(schema) {
   return schema.def?.innerType ?? schema;
 }
 
-// C:/Users/29807/AppData/Local/Temp/dockitty-mcp-build-deps/node_modules/.pnpm/@modelcontextprotocol+server@2.3.1/node_modules/@modelcontextprotocol/server/dist/index.mjs
+// ../../node_modules/.pnpm/@modelcontextprotocol+server@2.3.1/node_modules/@modelcontextprotocol/server/dist/index.mjs
 var DEFAULT_MAX_REQUEST_BODY_SIZE = 4 * 1024 * 1024;
 var MAX_BATCH_SIZE = 100;
 function requestBodyTooLargeMessage(maxBytes) {
@@ -21787,7 +21787,7 @@ function validateOriginHeader(originHeader, allowedOriginHostnames) {
   };
 }
 
-// C:/Users/29807/AppData/Local/Temp/dockitty-mcp-build-deps/node_modules/.pnpm/@modelcontextprotocol+server@2.3.1/node_modules/@modelcontextprotocol/server/dist/stdio.mjs
+// ../../node_modules/.pnpm/@modelcontextprotocol+server@2.3.1/node_modules/@modelcontextprotocol/server/dist/stdio.mjs
 var swallowsErrorsAfterClose = Symbol("swallowsErrorsAfterClose");
 var StdioServerTransport = class {
   _readBuffer;
@@ -21894,7 +21894,7 @@ var import_node_path6 = __toESM(require("node:path"), 1);
 var import_node_http = require("node:http");
 var import_node_crypto2 = require("node:crypto");
 
-// C:/Users/29807/AppData/Local/Temp/dockitty-mcp-build-deps/node_modules/.pnpm/@hono+node-server@1.19.17_hono@4.13.13/node_modules/@hono/node-server/dist/index.mjs
+// ../../node_modules/.pnpm/@hono+node-server@1.19.17_hono@4.13.13/node_modules/@hono/node-server/dist/index.mjs
 var import_http2 = require("http2");
 var import_http22 = require("http2");
 var import_stream = require("stream");
@@ -22515,7 +22515,7 @@ var getRequestListener = (fetchCallback, options = {}) => {
   };
 };
 
-// C:/Users/29807/AppData/Local/Temp/dockitty-mcp-build-deps/node_modules/.pnpm/@modelcontextprotocol+node@_d6806a8e11d0e919eed37ffb8f75fbc3/node_modules/@modelcontextprotocol/node/dist/index.mjs
+// ../../node_modules/.pnpm/@modelcontextprotocol+node@_d6806a8e11d0e919eed37ffb8f75fbc3/node_modules/@modelcontextprotocol/node/dist/index.mjs
 function hostHeaderValidation(allowedHostnames) {
   return (req, res) => {
     const result = validateHostHeader(req.headers.host, allowedHostnames);
@@ -22928,7 +22928,7 @@ async function createProject(repo, name) {
   name = text(name, "\u6587\u6863\u5E93\u540D\u79F0");
   return withRepoWrite(repo, async () => {
     const data = await readIndex(repo);
-    const project2 = { id: (0, import_node_crypto.randomUUID)(), name, createdAt: (/* @__PURE__ */ new Date()).toISOString(), nodes: [], relations: [] };
+    const project2 = { id: (0, import_node_crypto.randomUUID)(), name, createdAt: (/* @__PURE__ */ new Date()).toISOString(), nodes: [], relations: [], categories: [] };
     data.projects.push(project2);
     await saveIndex(repo, data);
     return project2;
@@ -23060,6 +23060,7 @@ async function importProjectItems(repo, request) {
     }
     const parentId = request.parentId ?? null;
     if (parentId && findNode(project2, parentId).kind !== "folder") throw new Error("\u5BFC\u5165\u76EE\u6807\u5FC5\u987B\u662F\u6587\u4EF6\u5939");
+    if (parentId && findNode(project2, parentId).snapshot) throw new Error("\u5386\u53F2\u6587\u4EF6\u5939\u4E3A\u5FEB\u7167\uFF0C\u8BF7\u8FD4\u56DE\u5F53\u524D\u6587\u4EF6\u5939\u6216\u6587\u6863\u5E93\u6839\u76EE\u5F55\u5BFC\u5165");
     if (request.previousNodeId) findNode(project2, request.previousNodeId);
     const repoRoot = await import_node_fs5.promises.realpath(repo.root);
     const sources = [];
@@ -23139,9 +23140,13 @@ async function recordProjectIteration(repo, projectId, nodeId, title, requestId)
 }
 async function updateProjectNode(repo, projectId, nodeId, patch) {
   return withRepoWrite(repo, async () => {
-    const data = await readIndex(repo), node2 = findNode(findProject(data, projectId), nodeId);
+    const data = await readIndex(repo), project2 = findProject(data, projectId), node2 = findNode(project2, nodeId);
     if (patch.title !== void 0) node2.title = text(patch.title, "\u540D\u79F0");
     if (patch.note !== void 0) node2.note = text(patch.note, "\u5907\u6CE8", true);
+    if (patch.categoryId !== void 0) {
+      if (patch.categoryId && !project2.categories?.some((c) => c.id === patch.categoryId)) throw new Error("\u5206\u7C7B\u4E0D\u5B58\u5728");
+      node2.categoryId = patch.categoryId ?? "";
+    }
     if (patch.position !== void 0) {
       if (!Number.isFinite(patch.position.x) || !Number.isFinite(patch.position.y)) throw new Error("\u4F4D\u7F6E\u65E0\u6548");
       node2.position = patch.position;
@@ -23150,9 +23155,32 @@ async function updateProjectNode(repo, projectId, nodeId, patch) {
     return node2;
   });
 }
-async function setProjectRelation(repo, projectId, relation2) {
+async function setProjectCategory(repo, projectId, category) {
+  return withRepoWrite(repo, async () => {
+    const data = await readIndex(repo), project2 = findProject(data, projectId), name = text(category.name, "\u5206\u7C7B\u540D\u79F0");
+    project2.categories ??= [];
+    if (category.id && !project2.categories.some((c) => c.id === category.id)) throw new Error("\u5206\u7C7B\u4E0D\u5B58\u5728");
+    if (project2.categories.some((c) => c.id !== category.id && c.name.toLowerCase() === name.toLowerCase())) throw new Error("\u5206\u7C7B\u540D\u79F0\u5DF2\u5B58\u5728");
+    const saved = { id: category.id ?? (0, import_node_crypto.randomUUID)(), name };
+    if (category.id) project2.categories = project2.categories.map((c) => c.id === category.id ? saved : c);
+    else project2.categories.push(saved);
+    await saveIndex(repo, data);
+    return saved;
+  });
+}
+async function deleteProjectCategory(repo, projectId, categoryId) {
   return withRepoWrite(repo, async () => {
     const data = await readIndex(repo), project2 = findProject(data, projectId);
+    if (!project2.categories?.some((c) => c.id === categoryId)) throw new Error("\u5206\u7C7B\u4E0D\u5B58\u5728");
+    project2.categories = project2.categories.filter((c) => c.id !== categoryId);
+    for (const node2 of project2.nodes) if (node2.categoryId === categoryId) node2.categoryId = "";
+    await saveIndex(repo, data);
+  });
+}
+async function setProjectRelation(repo, projectId, input) {
+  return withRepoWrite(repo, async () => {
+    const data = await readIndex(repo), project2 = findProject(data, projectId);
+    const relation2 = { ...input, kind: input.kind ?? project2.relations.find((e) => e.id === input.id)?.kind ?? "custom" };
     if (relation2.id && !project2.relations.some((e) => e.id === relation2.id)) throw new Error("\u5173\u7CFB\u4E0D\u5B58\u5728");
     checkRelation(project2, relation2, relation2.id);
     const edge = { ...relation2, id: relation2.id ?? (0, import_node_crypto.randomUUID)(), label: text(relation2.label, "\u6807\u7B7E", true), note: text(relation2.note, "\u5907\u6CE8", true) };
@@ -23275,10 +23303,10 @@ async function exportProjectNode(repo, projectId, nodeId, destination) {
 var id = uuid2();
 var project = { projectId: id };
 var item = { ...project, nodeId: id };
-var relation = object({ id: id.optional(), from: id, to: id, kind: _enum(["iteration", "reference", "example", "dependency", "custom"]), label: string2().max(1e4), note: string2().max(1e4).default("") });
+var relation = object({ id: id.optional(), from: id, to: id, kind: _enum(["iteration", "reference", "example", "dependency", "custom"]).optional().describe("Legacy compatibility only. Omit for free-text relationships; edits preserve the stored kind."), label: string2().max(1e4), note: string2().max(1e4).default("") });
 var importSchema = object({ ...project, paths: array(string2().min(1)).min(1), parentId: id.nullable().optional(), unpackFolder: boolean2().default(false), previousNodeId: id.optional(), requestId: string2().min(1).max(1e4).optional(), snapshot: boolean2().default(false), title: string2().min(1).max(1e4).optional() });
 function createDocKittyServer(repo) {
-  const server = new McpServer({ name: "dockitty", version: "0.5.0" });
+  const server = new McpServer({ name: "dockitty", version: "0.5.1" });
   function tool(name, description, inputSchema, action, readOnly = false, destructive = false) {
     server.registerTool(name, { description, inputSchema, annotations: { readOnlyHint: readOnly, destructiveHint: destructive, openWorldHint: false } }, async (request) => {
       try {
@@ -23303,7 +23331,7 @@ function createDocKittyServer(repo) {
     const p = await getProject(repo, req.projectId);
     if (req.parentId && !p.nodes.some((n) => n.id === req.parentId && n.kind === "folder")) throw new Error("\u76EE\u6807\u6587\u4EF6\u5939\u4E0D\u5B58\u5728");
     const nodes = p.nodes.filter((n) => n.parentId === (req.parentId ?? null)), ids = new Set(nodes.map((n) => n.id));
-    return { nodes, relations: p.relations.filter((r) => ids.has(r.from) || ids.has(r.to)) };
+    return { nodes, categories: p.categories ?? [], relations: p.relations.filter((r) => ids.has(r.from) || ids.has(r.to)) };
   }, true);
   tool("dockitty_import_items", "Import multiple files or folders into an existing library. unpackFolder imports one parent folder\u2019s direct children. Only an explicit previousNodeId creates iteration links; refresh never creates iterations. requestId makes identical retries idempotent.", importSchema, async (req) => {
     return importProjectItems(repo, req);
@@ -23312,8 +23340,11 @@ function createDocKittyServer(repo) {
   tool("dockitty_record_iteration", "Explicitly preserve the current stored card as history, read latest source bytes into the next card, and connect them. Future refresh updates only the latest card. Source deletions remove both current and historical cards. requestId makes retries idempotent.", object({ ...item, title: string2().min(1).max(1e4), requestId: string2().min(1).max(1e4).optional() }), async (req) => {
     return recordProjectIteration(repo, req.projectId, req.nodeId, req.title, req.requestId);
   });
-  tool("dockitty_update_item", "Edit display title, note or canvas position; never renames or edits the source file.", object({ ...item, title: string2().min(1).max(1e4).optional(), note: string2().max(1e4).optional(), position: object({ x: number2(), y: number2() }).optional() }), async (req) => updateProjectNode(repo, req.projectId, req.nodeId, req));
-  tool("dockitty_set_relation", "Create or update a labeled relationship. Supply relation.id to edit. Iteration edges cannot form cycles; reference/example/custom relationships can. Nodes may belong to different folders within the same library.", object({ ...project, relation }), async (req) => setProjectRelation(repo, req.projectId, req.relation));
+  tool("dockitty_update_item", "Edit display title, note, categoryId or canvas position; never renames or edits the source file. Categories are project-wide. Use categoryId null or empty string to clear classification.", object({ ...item, title: string2().min(1).max(1e4).optional(), note: string2().max(1e4).optional(), categoryId: union([id, literal("")]).nullable().optional(), position: object({ x: number2().finite(), y: number2().finite() }).optional() }), async (req) => updateProjectNode(repo, req.projectId, req.nodeId, req));
+  tool("dockitty_list_categories", "List shared categories for this project. The desktop board displays only the currently opened folder level.", object(project), async (req) => (await getProject(repo, req.projectId)).categories ?? [], true);
+  tool("dockitty_set_category", "Create a project-wide category, or rename it by providing category.id. Existing card labels follow renames automatically. Does not move source files or change graph connections.", object({ ...project, category: object({ id: id.optional(), name: string2().min(1).max(1e4) }) }), async (req) => setProjectCategory(repo, req.projectId, req.category));
+  tool("dockitty_remove_category", "Remove a project category. Its items become unclassified; preserve all cards, file contents and relationships.", object({ ...project, categoryId: id }), async (req) => deleteProjectCategory(repo, req.projectId, req.categoryId), false, true);
+  tool("dockitty_set_relation", "Create or edit a directed relationship from relation.from to relation.to, between any files or folders in the same project. Use any free-text label; no preset kind is required. Supply relation.id to edit the endpoints or label. Manual relationships can point both ways and form cycles. Existing explicit iteration edges retain their cycle checks.", object({ ...project, relation }), async (req) => setProjectRelation(repo, req.projectId, req.relation));
   tool("dockitty_remove_relation", "Remove only the relationship; preserve both endpoint items.", object({ ...project, relationId: id }), async (req) => deleteProjectRelation(repo, req.projectId, req.relationId), false, true);
   tool("dockitty_remove_item", "Remove a managed card and its descendants and relations, without deleting source files. Current cards removed manually stay excluded from subsequent refresh.", object(item), async (req) => deleteProjectNode(repo, req.projectId, req.nodeId), false, true);
   tool("dockitty_read_file", "Read the managed contents of a file. Text source is returned as text, not executed. Office and binary files are base64 encoded. Maximum response payload is 1 MiB; export larger files instead.", object(item), async (req) => {

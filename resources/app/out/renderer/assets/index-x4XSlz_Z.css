@@ -29,6 +29,7 @@
 .wg-project-breadcrumb { font-size: 12px; color: var(--wg-muted); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wg-project-toolbar .wg-search { width: min(260px, 25vw); }
 .wg-project-toolbar .wg-search input { width: 100%; }
+.wg-project-workspace .wg-project-actions .wg-button:disabled { color: var(--wg-muted); background: var(--wg-soft); border-color: var(--wg-line); box-shadow: none; }
 .wg-project-inspector { flex-shrink: 0; overflow: auto; min-width: 260px; max-width: calc(100vw - 450px); }
 .wg-project-inspector h2 { font-size: 22px; line-height: 1.5; margin: 22px 0 10px; overflow-wrap: anywhere; }
 .wg-project-inspector section { margin: 20px 0; padding-top: 15px; border-top: 1px solid var(--wg-line); }
@@ -49,6 +50,14 @@
 .wg-project-menu { z-index: 45; min-width: 230px; max-height: calc(100vh - 24px); overflow: auto; }
 .wg-project-menu > strong { display: block; font-size: 12px; padding: 12px; border-bottom: 1px solid var(--wg-line); max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
 .wg-project-edges g { pointer-events: auto; cursor: pointer; }
+.wg-project-edges { z-index: 0; }
+.wg-project-graph .wg-graph-node { z-index: 1; }
+.wg-edges path.wg-edge-arrow { fill: var(--wg-accent); stroke: none; opacity: 1; }
+.wg-edges path.wg-edge-line { opacity: .85; }
+.wg-project-board .wg-version-card .wg-card-eyebrow > span { display: flex; align-items: center; gap: 6px; }
+.wg-project-card-category { font-size: 10px; color: var(--wg-text); background: var(--wg-soft); border: var(--wg-stroke) solid var(--wg-line); border-radius: var(--wg-radius); padding: 3px 7px; max-width: 130px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wg-project-category-field { display: grid; gap: 10px; font-size: 12px; margin: 18px 0; }
+.wg-project-category-field select { width: 100%; padding: 10px; border: var(--wg-stroke) solid var(--wg-line); border-radius: var(--wg-radius); background: var(--wg-surface); color: var(--wg-text); }
 .wg-project-edges path.wg-edge-hit { pointer-events: stroke; stroke: transparent; stroke-width: 18; opacity: 1; }
 .wg-project-edges text { fill: var(--wg-text); stroke: var(--wg-bg); stroke-width: 6px; paint-order: stroke; font-size: 11px; font-weight: 600; }
 .wg-project-graph .wg-node-code { display: flex; align-items: center; gap: 6px; }
