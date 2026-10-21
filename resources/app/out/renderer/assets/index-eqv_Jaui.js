@@ -67760,7 +67760,7 @@ function HelpDocument({ repoRoot }) {
         "按“初稿 / 导师审阅 / 定稿”等自定义分类整理版本。拖动卡片改变分类和顺序；也可以用排序按钮，或聚焦卡片后按 Alt + 左 / 右切换分类。"
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "版本名称、说明和分类可直接修改。所有版本卡的右键菜单提供“编辑备注”，右侧版本详情展示备注，也可直接编辑；备注不会修改文档正文。分支指向各路线末端。所选节点是目标分支末端时可继续，即使其他分支已有后继；位于目标分支历史中则需从此节点新建分支。分支用于保留不同编辑路线，分类用于整理稿件，两者互不替代。右键菜单可修改分支归属，断开或手动连接前后版本；移动归属先断开旧连接，可接到目标分支的指定稿件，也可保持独立。连接不能形成循环。" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "左键选中卡片后，按住右键拖到另一张卡片，松开即可连接；源卡片保持不动，默认不命名。松到空白处取消，Esc 或 Ctrl+Z 可取消未完成连线。双击或右键连线均打开同一个“编辑连线”面板，可填写关系标签与关系备注、反转箭头、调整箭头形状和大小、线型与粗细。参数改变立即在关系图中预览；点击“保存”保留全部修改，取消、点击面板外或按 Esc 恢复原样。版本反转会交换前后关系，保留正文、分支与位置，不能形成循环；关系备注与稿件备注分别保存。" })
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "左键选中卡片后，按住右键拖到另一张卡片，松开即可连接；源卡片保持不动，默认不命名。松到空白处取消，Esc 或 Ctrl+Z 可取消未完成连线。双击或右键连线均打开同一个“编辑连线”面板，可填写关系标签与关系备注、反转箭头、调整箭头形状和大小、线型与粗细。面板标题栏可拖动，位置限制在窗口内。参数改变立即在关系图中预览；点击“保存”保留全部修改，取消、点击面板外或按 Esc 恢复原样。版本反转会交换前后关系，保留正文、分支与位置，不能形成循环；关系备注与稿件备注分别保存。" })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "05 · 预览、比较与导出" }),
@@ -67878,6 +67878,24 @@ function SidebarCat() {
 }
 function EdgeEditor({ x, y, label: label2, note: note2, style, onPreview, onSave, onDelete, onClose }) {
   const menu = reactExports.useRef(null), [value, setValue] = reactExports.useState({ label: label2, note: note2, reverse: false, style: resolvedEdgeStyle(style) }), [saving, setSaving] = reactExports.useState(false);
+  const [position2, setPosition] = reactExports.useState({ left: x, top: y });
+  const drag2 = reactExports.useRef(null);
+  const clamp2 = (point) => {
+    const box = menu.current?.getBoundingClientRect();
+    const left = Math.max(8, Math.min(point.left, window.innerWidth - (box?.width ?? 360) - 8)), top = Math.max(8, Math.min(point.top, window.innerHeight - (box?.height ?? 584) - 8));
+    return point.left === left && point.top === top ? point : { left, top };
+  };
+  reactExports.useLayoutEffect(() => {
+    setPosition(clamp2({ left: x, top: y }));
+    const fit2 = () => setPosition(clamp2);
+    const observer2 = new ResizeObserver(fit2);
+    if (menu.current) observer2.observe(menu.current);
+    window.addEventListener("resize", fit2);
+    return () => {
+      observer2.disconnect();
+      window.removeEventListener("resize", fit2);
+    };
+  }, [x, y]);
   const [sizeInput, setSizeInput] = reactExports.useState(String(value.style.arrowSize)), [widthInput, setWidthInput] = reactExports.useState(String(value.style.width));
   const savingRef = reactExports.useRef(saving);
   savingRef.current = saving;
@@ -67913,8 +67931,26 @@ function EdgeEditor({ x, y, label: label2, note: note2, style, onPreview, onSave
       setSaving(false);
     }
   };
-  return reactDomExports.createPortal(/* @__PURE__ */ jsxRuntimeExports.jsxs("div", { ref: menu, className: "wg-cat-menu wg-edge-style-menu wg-edge-editor", role: "dialog", "aria-label": "编辑连线", style: { left: Math.max(8, Math.min(x, window.innerWidth - 376)), top: Math.max(8, Math.min(y, window.innerHeight - 592)) }, onContextMenu: (e) => e.preventDefault(), onPointerDown: (e) => e.stopPropagation(), children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { children: [
+  return reactDomExports.createPortal(/* @__PURE__ */ jsxRuntimeExports.jsxs("div", { ref: menu, className: "wg-cat-menu wg-edge-style-menu wg-edge-editor", role: "dialog", "aria-label": "编辑连线", style: position2, onContextMenu: (e) => e.preventDefault(), onPointerDown: (e) => e.stopPropagation(), children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { title: "按住标题栏拖动", onPointerDown: (e) => {
+      if (e.button !== 0 || saving || e.target.closest("button")) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const box = menu.current.getBoundingClientRect();
+      drag2.current = { pointerId: e.pointerId, x: e.clientX, y: e.clientY, left: box.left, top: box.top };
+      e.currentTarget.setPointerCapture(e.pointerId);
+    }, onPointerMove: (e) => {
+      const start2 = drag2.current;
+      if (start2?.pointerId === e.pointerId) setPosition(clamp2({ left: start2.left + e.clientX - start2.x, top: start2.top + e.clientY - start2.y }));
+    }, onPointerUp: (e) => {
+      if (drag2.current?.pointerId !== e.pointerId) return;
+      drag2.current = null;
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }, onPointerCancel: () => {
+      drag2.current = null;
+    }, onLostPointerCapture: () => {
+      drag2.current = null;
+    }, children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "编辑连线" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("button", { "aria-label": "关闭连线编辑", disabled: saving, onClick: onClose, children: "×" })
     ] }),
@@ -69745,6 +69781,7 @@ function ProjectWorkspace({ modePicker }) {
   const nodes = detail?.nodes.filter((n) => n.parentId === parentId && (!types.length || types.includes(nodeType(n))) && (n.title.toLowerCase().includes(search.toLowerCase()) || n.name.toLowerCase().includes(search.toLowerCase()))) ?? [];
   const selected = detail?.nodes.find((n) => n.id === selectedId);
   const parent = detail?.nodes.find((n) => n.id === parentId);
+  const previewNode = modal?.kind === "preview" ? detail?.nodes.find((n) => n.id === modal.node.id) : void 0;
   reactExports.useEffect(() => {
     const reconcile = () => {
       const current = client2.getQueryData(["projects", repoRoot]);
@@ -70208,6 +70245,13 @@ function ProjectWorkspace({ modePicker }) {
             " 进入文件夹"
           ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-project-preview", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: "内容预览" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "wg-button wg-preview-expand", onClick: () => {
+              closeEdge();
+              setModal({ kind: "preview", node: selected });
+            }, children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(ExternalLink, { size: 13 }),
+              " 展开预览"
+            ] }),
             /* @__PURE__ */ jsxRuntimeExports.jsx(FilePreview, { projectId, node: selected, project: detail })
           ] })
         ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-preview-empty", children: [
@@ -70270,23 +70314,23 @@ function ProjectWorkspace({ modePicker }) {
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "“编辑原文件”会打开导入来源，修改后点击刷新。打开软件以及 MCP 写入后也会同步。刷新更新当前卡片，不生成历史；需要保存一轮时，在再次刷新之前点击“记录下一轮”，保留上次受管内容并读取当前来源形成下一轮。文件夹可以整体记录。" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "来源删除会同步移除当前和历史卡片及连线；来源改名按新文件导入。若想长期保留历史，可先导出副本。软件中的“移除”只删除管理卡片，不删除来源。" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: "资料关系" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "左键选中卡片后按住右键拖到另一张卡片即可连接，源卡片不动，松到空白处取消；默认不命名。连线按卡片中心连接并位于卡片下层，箭头指向目标。双击或右键连线均打开“编辑连线”面板，可填写关系标签与备注、反转箭头以及调整箭头形状、大小、线型与粗细。改变参数立即在关系图预览；保存后保留，取消、点击面板外或按 Esc 恢复原样。可按 Esc 或点击“取消连接”退出连线模式。跨文件夹关系在详情里列出，点击路径跳转到目标资料。" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "左键选中卡片后按住右键拖到另一张卡片即可连接，源卡片不动，松到空白处取消；默认不命名。连线按卡片中心连接并位于卡片下层，箭头指向目标。双击或右键连线均打开“编辑连线”面板，可填写关系标签与备注、反转箭头以及调整箭头形状、大小、线型与粗细。面板标题栏可拖动。改变参数立即在关系图预览；保存后保留，取消、点击面板外或按 Esc 恢复原样。可按 Esc 或点击“取消连接”退出连线模式。跨文件夹关系在详情里列出，点击路径跳转到目标资料。" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: "撤回与重做" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "文件菜单保留批量导入文件、导入文件夹、更改保存位置、备份与保存设置，并提供撤回与重做；撤回和重做提示约 2.5 秒后消失。Ctrl+Z 撤回，Ctrl+Shift+Z 或 Ctrl+Y 重做。本次启动保留最近 100 次可恢复操作，包含导入、移除、关系、样式、名称备注、分类与布局。输入框保留文字撤回；外部文件修改不回退。重启或永久删除会清空记录，外部管理数据更新会清除过期记录以保护新内容。" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: "分类看板" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "项目内共用分类名称，看板只展示当前文件夹这一层的资料。添加分类后可拖动卡片归类，或在详情和名称编辑窗口中选择分类。重命名会同步更新图卡标签；删除分类只让资料回到未分类，文件、文件夹与关系都会保留。" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: "查看与 Agent" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "链接入口只保留卡片与目标路径，不展开或复制目标内容；可进入普通子文件夹导出资料。Markdown 与脚本按文本查看，脚本不会执行。HTML 仅显示安全页面效果，不执行脚本或访问外部网络。办公文档复用内置预览，其他格式可导出查看。点击“接入 Agent”获取 Codex、Claude Code、Cursor 和 DSH 的配置。" })
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "链接入口只保留卡片与目标路径，不展开或复制目标内容；可进入普通子文件夹导出资料。Markdown 与脚本按文本查看，脚本不会执行。HTML 仅显示安全页面效果，不执行脚本或访问外部网络。办公文档复用内置预览，侧边栏“展开预览”在大窗口中只读查看当前资料或历史快照；文本可滚动，HTML继续禁止脚本与外部网络。其他格式可导出查看。点击“接入 Agent”获取 Codex、Claude Code、Cursor 和 DSH 的配置。" })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-dialog-actions", children: /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-button primary", onClick: () => setHelpOpen(false), children: "知道了" }) })
     ] }) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(ProjectMcpDialog, { open: mcpOpen, onClose: () => setMcpOpen(false) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(Dialog, { open: !!modal, onOpenChange: (open2) => {
       if (!open2 && !busy) setModal(null);
-    }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(DialogContent, { className: "wg-dialog", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(DialogTitle, { children: modal?.kind === "category" ? modal.action === "create" ? "添加项目分类" : modal.action === "rename" ? "重命名项目分类" : "删除项目分类" : modal?.kind === "import" ? "导入项目资料" : modal?.kind === "relocate" ? "更改文档保存位置" : modal?.kind === "iteration" ? "记录下一轮迭代" : modal?.kind === "delete" ? "从文档库移除资料" : "编辑名称与备注" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(DialogDescription, { children: modal?.kind === "category" ? modal.action === "delete" ? "资料将回到未分类，保留所有文件、文件夹与连线。" : "分类在整个项目内共用，看板只展示当前层资料。" : modal?.kind === "import" ? "选择已有文档库，或把这一组资料创建为新文档库。" : modal?.kind === "relocate" ? "请先保存并关闭 Word / WPS 等正在编辑的文件。所有文档、版本、项目与整理信息会复制到新位置；原位置保留。" : modal?.kind === "iteration" ? "保留当前卡片为历史，读取来源最新内容形成下一轮。刷新不会自动创建迭代。" : modal?.kind === "delete" ? "只移除受管卡片、其子项和相关连线，不删除原文件或文件夹。" : "显示名称与备注不会改写来源文件。" }),
-      modal?.kind === "category" ? modal.action === "delete" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
+    }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(DialogContent, { className: `wg-dialog ${modal?.kind === "preview" ? "wg-wide-dialog" : ""}`, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(DialogTitle, { children: modal?.kind === "preview" ? `预览 · ${previewNode?.title ?? modal.node.title}` : modal?.kind === "category" ? modal.action === "create" ? "添加项目分类" : modal.action === "rename" ? "重命名项目分类" : "删除项目分类" : modal?.kind === "import" ? "导入项目资料" : modal?.kind === "relocate" ? "更改文档保存位置" : modal?.kind === "iteration" ? "记录下一轮迭代" : modal?.kind === "delete" ? "从文档库移除资料" : "编辑名称与备注" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(DialogDescription, { children: modal?.kind === "preview" ? "只读查看已导入的资料；展开预览不会修改原文件。" : modal?.kind === "category" ? modal.action === "delete" ? "资料将回到未分类，保留所有文件、文件夹与连线。" : "分类在整个项目内共用，看板只展示当前层资料。" : modal?.kind === "import" ? "选择已有文档库，或把这一组资料创建为新文档库。" : modal?.kind === "relocate" ? "请先保存并关闭 Word / WPS 等正在编辑的文件。所有文档、版本、项目与整理信息会复制到新位置；原位置保留。" : modal?.kind === "iteration" ? "保留当前卡片为历史，读取来源最新内容形成下一轮。刷新不会自动创建迭代。" : modal?.kind === "delete" ? "只移除受管卡片、其子项和相关连线，不删除原文件或文件夹。" : "显示名称与备注不会改写来源文件。" }),
+      modal?.kind === "preview" ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-full-preview wg-project-full-preview", children: detail && previewNode ? /* @__PURE__ */ jsxRuntimeExports.jsx(FilePreview, { projectId: detail.id, node: previewNode, project: detail }) : /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "这项资料已从文档库移除。" }) }) : modal?.kind === "category" ? modal.action === "delete" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
         "确认删除“",
         modal.category?.name,
         "”分类？所有层级中使用此分类的资料都会回到未分类。"
@@ -70341,7 +70385,7 @@ function ProjectWorkspace({ modePicker }) {
         ] })
       ] }),
       error && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { role: "alert", children: error }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-dialog-actions", children: [
+      modal?.kind === "preview" ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-dialog-actions", children: /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-button", onClick: () => setModal(null), children: "关闭" }) }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-dialog-actions", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-button", disabled: busy, onClick: () => setModal(null), children: "取消" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-button primary", disabled: busy, onClick: () => void submit().catch(() => {
         }), children: busy ? "正在保存…" : modal?.kind === "import" ? "开始导入" : modal?.kind === "delete" ? "确认移除" : "保存" })
