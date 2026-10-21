@@ -2225,15 +2225,17 @@ async function documentDetail(repo, docName2) {
       });
     }
   }
+  const currentBranch = await readCurrentBranch(repo, docIdOf(docName2));
   return {
     docName: docName2,
     title: meta.title ?? docName2,
     deletedAt: meta.deletedAt ?? null,
-    currentBranch: await readCurrentBranch(repo, docIdOf(docName2)),
+    currentBranch,
     branchHeads: heads,
     categories: meta.categories,
     versions: [...versions.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id)),
-    workspace: await workspaceStatus(repo, docName2)
+    workspace: await workspaceStatus(repo, docName2),
+    draft: meta.drafts?.filter((d) => !d.closed && d.branch === currentBranch && (d.versionId ?? d.baseVersionId) === heads[currentBranch]).at(-1)
   };
 }
 async function libraryDocuments(repo) {
@@ -2266,7 +2268,10 @@ async function updateDocument(repo, docName2, patch) {
       if (!patch.title.trim()) throw new Error("文档显示名称不能为空");
       meta.title = patch.title.trim();
     }
-    if (patch.deleted !== void 0) meta.deletedAt = patch.deleted ? (/* @__PURE__ */ new Date()).toISOString() : null;
+    if (patch.deleted !== void 0) {
+      meta.deletedAt = patch.deleted ? (/* @__PURE__ */ new Date()).toISOString() : null;
+      if (patch.deleted) for (const draft of meta.drafts ?? []) draft.closed = true;
+    }
     await writeLibraryMeta(repo, docName2, meta);
   });
 }
@@ -2292,7 +2297,12 @@ async function updateVersion(repo, docName2, id, patch) {
       if (!Number.isFinite(patch.position.x) || !Number.isFinite(patch.position.y)) throw new Error("节点位置无效");
       v.position = patch.position;
     }
-    if (patch.deleted !== void 0) v.deletedAt = patch.deleted ? (/* @__PURE__ */ new Date()).toISOString() : null;
+    if (patch.deleted !== void 0) {
+      v.deletedAt = patch.deleted ? (/* @__PURE__ */ new Date()).toISOString() : null;
+      if (patch.deleted) {
+        for (const draft of meta.drafts ?? []) if ((draft.versionId ?? draft.baseVersionId) === id) draft.closed = true;
+      }
+    }
     await writeLibraryMeta(repo, docName2, meta);
   });
 }
@@ -2436,21 +2446,10 @@ async function exportVersion(repo, docName2, id, destination) {
   if (!files.length) await promises.mkdir(target, { recursive: true });
   for (const file2 of files) await writeFileAtomic(file2.target, file2.bytes);
 }
-async function beginVersionEdit(repo, docName2, id, branch) {
-  return withRepoWrite(repo, async () => {
-    const version2 = await requireVersion(repo, docName2, id);
-    const d = await documentDetail(repo, docName2);
-    const target = branch ?? d.currentBranch;
-    if (!d.branchHeads[target]) await createBranchUnlocked(repo, docName2, target, { commitId: id });
-    else if (d.branchHeads[target] !== id) throw new Error("该版本不是目标分支最新稿，请填写新分支名，或先移动分支起点");
-    const meta = await readLibraryMeta(repo, docName2);
-    if (target === d.currentBranch && d.workspace.exists && meta.workingVersionId === id && meta.workingContentId === version2.contentId) return;
-    await switchBranchUnlocked(repo, docName2, target);
-  });
-}
 async function moveBranchHead(repo, docName2, branch, versionId2) {
   return withRepoWrite(repo, async () => {
     validateBranchName(branch);
+    if (await readCurrentBranch(repo, docIdOf(docName2)) === branch) throw new Error("不能移动当前分支引用，请先切换到其他分支");
     await requireVersion(repo, docName2, versionId2);
     const head = await readHead(repo, docIdOf(docName2), branch);
     if (!head) throw new Error("分支不存在");
@@ -2459,6 +2458,108 @@ async function moveBranchHead(repo, docName2, branch, versionId2) {
     await writeHead(repo, docIdOf(docName2), protectedBranch, head);
     await writeHead(repo, docIdOf(docName2), branch, versionId2);
     return { protectedBranch };
+  });
+}
+const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
+function draftPath(repo, relative2) {
+  if (!relative2.startsWith("drafts/")) throw new Error("编辑副本必须位于稿喵文档库内");
+  return containedPath(repo.root, relative2);
+}
+async function startDraft(repo, docName2, versionId2, branch, mode = "new", title) {
+  return withRepoWrite(repo, async () => {
+    validateBranchName(branch);
+    const detail = await documentDetail(repo, docName2), base = detail.versions.find((v) => v.id === versionId2);
+    if (!base || base.deletedAt || detail.deletedAt) throw new Error("请先还原文档和版本");
+    if (detail.workspace.dirty && detail.currentBranch === branch) throw new Error("当前工作区有未记录修改，请先保存工作区，再创建独立新稿");
+    const newBranch = !detail.branchHeads[branch];
+    if (newBranch) await createBranchUnlocked(repo, docName2, branch, { commitId: versionId2 });
+    else if (detail.branchHeads[branch] !== versionId2) throw new Error("所选版本不是目标分支末端，请从此版本新建分支");
+    if (detail.currentBranch !== branch || detail.workspace.versionId !== versionId2) await switchBranchUnlocked(repo, docName2, branch);
+    const bytes = await versionBytes(repo, docName2, versionId2), meta = await readLibraryMeta(repo, docName2);
+    for (const draft2 of meta.drafts ?? []) if (draft2.branch === branch) draft2.closed = true;
+    const id = randomUUID(), ext = path$1.extname(docName2), stem = path$1.basename(docName2, ext).slice(0, 24);
+    const filename = `${stem}_${branch.replace(/[\\/:*?"<>|]/g, "_").slice(0, 18)}_v${detail.versions.length + (mode === "new" ? 1 : 0)}_${id.slice(0, 6)}${ext}`;
+    const relative2 = `drafts/${digest(Buffer.from(docName2)).slice(0, 12)}/${id}/${filename}`;
+    await writeFileAtomic(draftPath(repo, relative2), bytes);
+    const draft = {
+      id,
+      path: relative2,
+      branch,
+      baseVersionId: versionId2,
+      versionId: mode === "replace" ? versionId2 : void 0,
+      title: title?.trim() || (mode === "replace" ? base.title : `${branch} · 第${detail.versions.filter((v) => v.branches.includes(branch)).length + 1}稿`),
+      mode,
+      sha256: digest(bytes),
+      position: base.position ? { x: base.position.x + (mode === "new" ? 265 : 0), y: base.position.y + (newBranch ? 170 : 0) } : void 0
+    };
+    (meta.drafts ??= []).push(draft);
+    await writeLibraryMeta(repo, docName2, meta);
+    return { workspacePath: draftPath(repo, relative2), branch, draftId: id };
+  });
+}
+async function activeDraftFiles(repo) {
+  const files = [];
+  for (const docName2 of await docIds(repo)) {
+    const meta = await readLibraryMeta(repo, docName2);
+    if (!meta.deletedAt) {
+      for (const draft of meta.drafts ?? []) if (!draft.closed) files.push({ docName: docName2, path: draftPath(repo, draft.path) });
+    }
+  }
+  return files;
+}
+async function recordDraftSave(repo, file2) {
+  const relative2 = path$1.relative(repo.root, path$1.resolve(file2)).split(path$1.sep).join("/");
+  draftPath(repo, relative2);
+  return withRepoWrite(repo, async () => {
+    for (const docName2 of await docIds(repo)) {
+      const meta = await readLibraryMeta(repo, docName2), draft = meta.drafts?.find((d) => d.path === relative2 && !d.closed);
+      if (!draft || meta.deletedAt) continue;
+      if (draft.pendingHead && draft.versionId) {
+        const head = (await documentDetail(repo, docName2)).branchHeads[draft.branch];
+        if (head === draft.baseVersionId) await writeHead(repo, docIdOf(docName2), draft.branch, draft.versionId);
+        else if (head !== draft.versionId) throw new Error("分支在记录期间发生变化，编辑副本仍保留，请核对分支");
+        draft.pendingHead = false;
+        await writeLibraryMeta(repo, docName2, meta);
+      }
+      const detail = await documentDetail(repo, docName2), base = detail.versions.find((v) => v.id === (draft.versionId ?? draft.baseVersionId));
+      if (!base || base.deletedAt) return;
+      if (!detail.branchHeads[draft.branch]) throw new Error("编辑副本对应的分支已删除，文件仍保留，未重新创建分支");
+      const bytes = await promises.readFile(draftPath(repo, relative2)).catch((error2) => {
+        if (error2.code === "ENOENT") return null;
+        throw error2;
+      });
+      if (!bytes) return;
+      const sha = digest(bytes);
+      if (sha === draft.sha256) return;
+      if (detail.branchHeads[draft.branch] !== (draft.versionId ?? draft.baseVersionId)) throw new Error("分支已经向后发展，请从这份副本新建分支；已有历史未改动");
+      const parents = draft.versionId ? base.parents : [draft.baseVersionId];
+      const contentId = await snapshotSource(repo, draftPath(repo, relative2), parents, draft.title);
+      const ctx = StorageContext.forRepo(repo), tree = await readTree(ctx, (await readCommit(ctx, contentId)).tree);
+      if ((await getManifest(ctx, tree.entries[""])).sha256 !== sha) throw new Error("文件仍在写入，等待下一次保存后记录");
+      const created = !draft.versionId;
+      if (created) {
+        draft.versionId = contentId;
+        meta.versions[contentId] = { title: draft.title, categoryId: base.categoryId, position: draft.position };
+        draft.pendingHead = true;
+      } else {
+        const version2 = meta.versions[draft.versionId] ??= {};
+        version2.revisions = [...version2.revisions ?? [], version2.contentId ?? draft.versionId];
+        version2.contentId = contentId;
+      }
+      draft.sha256 = sha;
+      if (!detail.workspace.dirty && detail.currentBranch === draft.branch && [draft.baseVersionId, draft.versionId].includes(meta.workingVersionId)) {
+        await writeFileAtomic(path$1.join(repo.root, "workspace", docName2), bytes);
+        meta.workingVersionId = draft.versionId;
+        meta.workingContentId = contentId;
+      }
+      await writeLibraryMeta(repo, docName2, meta);
+      if (created) {
+        await writeHead(repo, docIdOf(docName2), draft.branch, draft.versionId);
+        draft.pendingHead = false;
+        await writeLibraryMeta(repo, docName2, meta);
+      }
+      return { docName: docName2, branch: draft.branch, workspacePath: draftPath(repo, relative2), versionId: draft.versionId, status: created ? "created" : "updated" };
+    }
   });
 }
 const CH = {
@@ -6270,7 +6371,11 @@ const DialogSavePathReq = objectType({ title: stringType().optional(), defaultNa
 objectType({ path: stringType().nullable() });
 objectType({
   docName: stringType(),
-  workspacePath: stringType()
+  workspacePath: stringType(),
+  versionId: stringType().optional(),
+  status: enumType(["created", "updated", "error"]).optional(),
+  branch: stringType().optional(),
+  message: stringType().optional()
 });
 const CommitDiffTextReq = objectType({
   docName: stringType().min(1),
@@ -6294,7 +6399,7 @@ const LibraryMutationSchema = discriminatedUnionType("type", [
   objectType({ type: literalType("save"), docName, mode: enumType(["new", "replace"]), message: stringType().min(1) }),
   objectType({ type: literalType("undoReplacement"), docName, versionId }),
   objectType({ type: literalType("export"), docName, versionId, destination: stringType().min(1) }),
-  objectType({ type: literalType("edit"), docName, versionId: versionId.optional(), branch: stringType().optional() }),
+  objectType({ type: literalType("edit"), docName, versionId: versionId.optional(), branch: stringType().optional(), mode: enumType(["new", "replace"]).optional(), title: stringType().optional() }),
   objectType({ type: literalType("openCopy"), docName, versionId }),
   objectType({ type: literalType("moveBranch"), docName, versionId, branch: stringType().min(1) }),
   objectType({ type: literalType("createDocument"), name: stringType().min(1), format: enumType(["docx", "xlsx", "txt"]) })
@@ -8107,8 +8212,27 @@ function watchWorkspace(repoRoot) {
   stopWatcher();
   _workspaceRoot = path$1.join(repoRoot, "workspace");
   const root = _workspaceRoot;
-  _watcher = watch(root, { ignoreInitial: true, awaitWriteFinish: { stabilityThreshold: 700, pollInterval: 100 } });
+  _watcher = watch([root, path$1.join(repoRoot, "drafts")], { ignoreInitial: true, awaitWriteFinish: { stabilityThreshold: 700, pollInterval: 100 } });
+  let pending2 = Promise.resolve();
+  const record = (file2) => {
+    pending2 = pending2.then(async () => {
+      if (_workspaceRoot !== root) return;
+      const repo = getRepo();
+      try {
+        const event = await recordDraftSave(repo, file2);
+        if (event && _mainWindow && !_mainWindow.isDestroyed()) _mainWindow.webContents.send(CH.WATCHER_CHANGE, event);
+      } catch (error2) {
+        if (_mainWindow && !_mainWindow.isDestroyed()) _mainWindow.webContents.send(CH.WATCHER_CHANGE, { docName: "", workspacePath: file2, status: "error", message: error2.message });
+      }
+    }).catch((error2) => console.error("[稿喵自动记录]", error2));
+  };
   const changed = (file2) => {
+    if (path$1.basename(file2).startsWith("~$") || file2.includes(".tmp-")) return;
+    const inDrafts = path$1.relative(path$1.join(repoRoot, "drafts"), file2);
+    if (inDrafts && !inDrafts.startsWith("..") && !path$1.isAbsolute(inDrafts)) {
+      record(file2);
+      return;
+    }
     const relative2 = path$1.relative(root, file2);
     const docName2 = relative2.split(path$1.sep)[0];
     if (!docName2 || docName2.startsWith("~$") || relative2.includes(".tmp-")) return;
@@ -8117,6 +8241,11 @@ function watchWorkspace(repoRoot) {
     }
   };
   _watcher.on("add", changed).on("change", changed).on("unlink", changed);
+  _watcher.on("ready", () => {
+    void activeDraftFiles(getRepo()).then((files) => {
+      for (const file2 of files) record(file2.path);
+    }).catch((error2) => console.error("[稿喵恢复编辑副本]", error2));
+  });
 }
 function stopWatcher() {
   _watcher?.close();
@@ -51136,8 +51265,8 @@ function requireZipArchiveOutputStream() {
     var process2 = deflate2 ? new DeflateCRC32Stream(this.options.zlib) : new CRC32Stream();
     var error2 = null;
     function handleStuff() {
-      var digest = process2.digest().readUInt32BE(0);
-      ae.setCrc(digest);
+      var digest2 = process2.digest().readUInt32BE(0);
+      ae.setCrc(digest2);
       ae.setSize(process2.size());
       ae.setCompressedSize(process2.size(true));
       this._afterAppend(ae);
@@ -65689,8 +65818,14 @@ async function libraryMutationHandler(args) {
       break;
     case "importVersion":
       return { versionId: await importVersion(repo, request2.docName, request2.sourcePath, request2) };
-    case "save":
+    case "save": {
+      const detail = await documentDetail(repo, request2.docName);
+      if (detail.draft && !detail.workspace.dirty) {
+        const saved = await recordDraftSave(repo, path$1.join(repo.root, detail.draft.path));
+        return { versionId: saved?.versionId ?? detail.draft.versionId ?? detail.draft.baseVersionId, changed: !!saved };
+      }
       return saveWorkspace(repo, request2.docName, request2.mode, request2.message);
+    }
     case "undoReplacement":
       await undoReplacement(repo, request2.docName, request2.versionId);
       break;
@@ -65698,11 +65833,12 @@ async function libraryMutationHandler(args) {
       await exportVersion(repo, request2.docName, request2.versionId, request2.destination);
       break;
     case "edit": {
-      if (request2.versionId) await beginVersionEdit(repo, request2.docName, request2.versionId, request2.branch);
-      const workspacePath = path$1.join(repo.root, "workspace", validateDocName(request2.docName));
+      const detail = await documentDetail(repo, request2.docName);
+      const branch = request2.branch ?? detail.currentBranch;
+      const versionId2 = request2.versionId ?? detail.branchHeads[branch];
+      const workspacePath = !request2.versionId && detail.draft?.branch === branch ? path$1.join(repo.root, detail.draft.path) : (await startDraft(repo, request2.docName, versionId2, branch, request2.mode, request2.title)).workspacePath;
       await promises.access(workspacePath);
       await openFile(workspacePath);
-      watchDoc(request2.docName, workspacePath);
       return { workspacePath };
     }
     case "openCopy": {

@@ -26120,6 +26120,7 @@ const useUiStore = create()(
   )
 );
 const api = window.wordgit;
+var reactDomExports = requireReactDom();
 const toKebabCase = (string) => string.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
 const mergeClasses = (...classes) => classes.filter((className, index, array) => {
   return Boolean(className) && className.trim() !== "" && array.indexOf(className) === index;
@@ -26732,7 +26733,6 @@ function useControllableStateReducer(reducer, userArgs, initialArg, init) {
   return [state, dispatch];
 }
 __name$9(useControllableStateReducer, "useControllableStateReducer");
-var reactDomExports = requireReactDom();
 var __defProp$8 = Object.defineProperty;
 var __name$8 = (target, value) => __defProp$8(target, "name", { value, configurable: true });
 // @__NO_SIDE_EFFECTS__
@@ -31227,12 +31227,30 @@ const DialogDescription = reactExports.forwardRef(({ className, ...props }, ref)
   }
 ));
 DialogDescription.displayName = DialogDescription$1.displayName;
-function VersionGraph({ detail, versions, selectedId, compareIds, onSelect, onEdit, onPosition, onMoveBranch }) {
+function VersionGraph({ detail, versions, selectedId, compareIds, onSelect, onContext, onPosition, onMoveBranch }) {
   const [zoom, setZoom] = reactExports.useState(0.85);
   const [pan, setPan] = reactExports.useState({ x: 25, y: 35 });
   const [moving, setMoving] = reactExports.useState(null);
   const interaction = reactExports.useRef(null);
-  const lastClick = reactExports.useRef(null);
+  const canvas = reactExports.useRef(null);
+  const viewport = reactExports.useRef({ zoom, pan });
+  viewport.current = { zoom, pan };
+  reactExports.useEffect(() => {
+    const element = canvas.current;
+    if (!element) return;
+    const wheel = (event) => {
+      event.preventDefault();
+      const { zoom: old, pan: origin } = viewport.current, rect = element.getBoundingClientRect();
+      const cursor = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+      const next = Math.max(0.2, Math.min(1.8, old * Math.exp(-event.deltaY * (event.deltaMode === 1 ? 0.024 : 15e-4))));
+      const moved = { x: cursor.x - (cursor.x - origin.x) / old * next, y: cursor.y - (cursor.y - origin.y) / old * next };
+      viewport.current = { zoom: next, pan: moved };
+      setZoom(next);
+      setPan(moved);
+    };
+    element.addEventListener("wheel", wheel, { passive: false });
+    return () => element.removeEventListener("wheel", wheel);
+  }, []);
   const branches = reactExports.useMemo(() => Object.keys(detail.branchHeads).sort((a, b) => a === detail.currentBranch ? -1 : b === detail.currentBranch ? 1 : a.localeCompare(b)), [detail.branchHeads, detail.currentBranch]);
   const points = reactExports.useMemo(() => {
     const depths = /* @__PURE__ */ new Map();
@@ -31258,7 +31276,7 @@ function VersionGraph({ detail, versions, selectedId, compareIds, onSelect, onEd
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-graph", "aria-label": "版本关系图", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-graph-legend", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx(GitBranch, { size: 14 }),
-      " 拖动节点排布 · 拖动分支标签到节点调整起点 · 双击最新稿编辑"
+      " 滚轮缩放 · 拖动平移/节点 · 右键版本进行编辑"
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-graph-controls", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("button", { "aria-label": "缩小关系图", onClick: () => setZoom((z) => Math.max(0.2, z - 0.15)), children: /* @__PURE__ */ jsxRuntimeExports.jsx(Minus, { size: 15 }) }),
@@ -31272,7 +31290,8 @@ function VersionGraph({ detail, versions, selectedId, compareIds, onSelect, onEd
         setPan({ x: 25, y: 35 });
       }, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Maximize2, { size: 14 }) })
     ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-graph-canvas", onPointerDown: (event) => {
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { ref: canvas, className: "wg-graph-canvas", onPointerDown: (event) => {
+      if (event.button !== 0) return;
       if (event.target.closest(".wg-node-body,.wg-branch-tags")) return;
       interaction.current = { clientX: event.clientX, clientY: event.clientY, ...pan, moved: false };
       event.currentTarget.setPointerCapture(event.pointerId);
@@ -31288,12 +31307,6 @@ function VersionGraph({ detail, versions, selectedId, compareIds, onSelect, onEd
       if (drag2?.id && drag2.moved && moving) onPosition(drag2.id, { x: moving.x, y: moving.y });
       else if (drag2?.id) {
         onSelect(drag2.id);
-        const time2 = performance.now();
-        if (lastClick.current?.id === drag2.id && time2 - lastClick.current.time < 400) {
-          const version = versions.find((v) => v.id === drag2.id);
-          if (version) onEdit(version);
-          lastClick.current = null;
-        } else lastClick.current = { id: drag2.id, time: time2 };
       }
       interaction.current = null;
       setMoving(null);
@@ -31316,11 +31329,15 @@ function VersionGraph({ detail, versions, selectedId, compareIds, onSelect, onEd
         versions.map((v) => {
           const p = point(v.id);
           const heads = branches.filter((b) => detail.branchHeads[b] === v.id);
-          return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `wg-graph-node ${selectedId === v.id ? "selected" : ""} ${compareIds.includes(v.id) ? "compared" : ""} ${v.deletedAt ? "deleted" : ""}`, style: { left: p.x, top: p.y }, children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-branch-tags", children: heads.map((branch) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { draggable: true, onPointerDown: (e) => e.stopPropagation(), onDragStart: (e) => {
+          return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `wg-graph-node ${selectedId === v.id ? "selected" : ""} ${compareIds.includes(v.id) ? "compared" : ""} ${v.deletedAt ? "deleted" : ""}`, style: { left: p.x, top: p.y }, onContextMenu: (e) => {
+            e.preventDefault();
+            onSelect(v.id);
+            onContext?.(v, e.clientX, e.clientY);
+          }, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-branch-tags", children: heads.map((branch) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { draggable: branch !== detail.currentBranch, onPointerDown: (e) => e.stopPropagation(), onDragStart: (e) => {
               e.dataTransfer.setData("application/wordgit-branch", branch);
               e.dataTransfer.effectAllowed = "move";
-            }, title: "拖到版本节点，调整这条分支的起点", children: [
+            }, title: branch === detail.currentBranch ? "当前分支末端，保存新版本后自动前进" : "分支末端；拖动移动引用会保留原指针以供恢复", children: [
               branch === detail.currentBranch ? "● " : "",
               branch
             ] }, branch)) }),
@@ -31330,6 +31347,7 @@ function VersionGraph({ detail, versions, selectedId, compareIds, onSelect, onEd
                 onSelect(v.id);
               }
             }, onPointerDown: (event) => {
+              if (event.button !== 0) return;
               event.stopPropagation();
               interaction.current = { id: v.id, clientX: event.clientX, clientY: event.clientY, x: p.x, y: p.y, moved: false };
               event.currentTarget.parentElement.parentElement.parentElement.setPointerCapture(event.pointerId);
@@ -31359,7 +31377,7 @@ function VersionGraph({ detail, versions, selectedId, compareIds, onSelect, onEd
     ] })
   ] });
 }
-function VersionBoard({ detail, versions, selectedId, compareIds, onSelect, onMove, onCategory, onEdit }) {
+function VersionBoard({ detail, versions, selectedId, compareIds, onSelect, onMove, onCategory, onContext }) {
   const [dragging, setDragging] = reactExports.useState(null);
   const [over, setOver] = reactExports.useState(null);
   const categories = [{ id: "", name: "未分类" }, ...detail.categories];
@@ -31402,7 +31420,11 @@ function VersionBoard({ detail, versions, selectedId, compareIds, onSelect, onMo
               /* @__PURE__ */ jsxRuntimeExports.jsx("button", { "aria-label": `删除分类 ${category.name}`, onClick: () => onCategory("delete", category), children: /* @__PURE__ */ jsxRuntimeExports.jsx(Trash2, { size: 13 }) })
             ] })
           ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-cards", children: cards.map((version, index) => /* @__PURE__ */ jsxRuntimeExports.jsxs("article", { tabIndex: 0, draggable: true, className: `wg-version-card ${selectedId === version.id ? "selected" : ""} ${compareIds.includes(version.id) ? "compared" : ""} ${dragging === version.id ? "dragging" : ""}`, onClick: () => onSelect(version.id), onDoubleClick: () => onEdit(version), onKeyDown: (event) => {
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-cards", children: cards.map((version, index) => /* @__PURE__ */ jsxRuntimeExports.jsxs("article", { tabIndex: 0, draggable: true, className: `wg-version-card ${selectedId === version.id ? "selected" : ""} ${compareIds.includes(version.id) ? "compared" : ""} ${dragging === version.id ? "dragging" : ""}`, onClick: () => onSelect(version.id), onContextMenu: (e) => {
+            e.preventDefault();
+            onSelect(version.id);
+            onContext?.(version, e.clientX, e.clientY);
+          }, onKeyDown: (event) => {
             if (event.key === "Enter") onSelect(version.id);
             if (event.altKey && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
               event.preventDefault();
@@ -31433,7 +31455,7 @@ function VersionBoard({ detail, versions, selectedId, compareIds, onSelect, onMo
               /* @__PURE__ */ jsxRuntimeExports.jsx(GripVertical, { size: 13 })
             ] }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: version.title }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: version.note || "点击查看内容和操作；双击从此稿继续编辑。" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: version.note || "点击查看内容和操作；右键选择继续编辑或新建分支。" }),
             /* @__PURE__ */ jsxRuntimeExports.jsxs("footer", { children: [
               /* @__PURE__ */ jsxRuntimeExports.jsxs("small", { children: [
                 new Date(version.createdAt).toLocaleDateString("zh-CN"),
@@ -37760,19 +37782,35 @@ function DocxPreview({ data }) {
   reactExports.useEffect(() => {
     if (!containerRef.current || data.byteLength === 0) return;
     let active = true;
+    let observer2;
     setError(null);
     const content = document.createElement("div");
     renderAsync(data, content, content, {
       className: "docx-preview",
       inWrapper: false,
-      ignoreWidth: true
+      ignoreWidth: false
     }).then(() => {
-      if (active) containerRef.current?.replaceChildren(content);
+      if (!active || !containerRef.current) return;
+      const host = containerRef.current;
+      host.replaceChildren(content);
+      const pageWidth = content.querySelector("section")?.getBoundingClientRect().width || 794;
+      content.style.width = pageWidth + "px";
+      let previousWidth = 0;
+      const fit = () => {
+        const width = Math.max(100, host.clientWidth - 24);
+        if (width === previousWidth) return;
+        previousWidth = width;
+        content.style.zoom = String(Math.min(1.5, width / pageWidth));
+      };
+      fit();
+      observer2 = new ResizeObserver(fit);
+      observer2.observe(host);
     }).catch((e) => {
       if (active) setError(e.message);
     });
     return () => {
       active = false;
+      observer2?.disconnect();
     };
   }, [data]);
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
@@ -37781,7 +37819,7 @@ function DocxPreview({ data }) {
       "div",
       {
         ref: containerRef,
-        className: "prose prose-sm max-w-none p-4 overflow-auto h-full"
+        className: "prose wg-docx-preview"
       }
     )
   ] });
@@ -61428,6 +61466,10 @@ function VersionStatistics({ detail, onSelect, onOpenVersion, onCompare }) {
   const targetKey = "gaomiao-target:" + repoRoot + ":" + detail.docName;
   const [target, setTarget2] = reactExports.useState(() => localStorage.getItem(targetKey) ?? "");
   const chart = reactExports.useRef(null);
+  const content = reactExports.useRef(null);
+  reactExports.useEffect(() => {
+    if (content.current) content.current.scrollTop = 0;
+  }, [metric, branch]);
   reactExports.useEffect(() => {
     if (!detail.branchHeads[branch]) {
       setBranch(detail.currentBranch);
@@ -61466,7 +61508,7 @@ function VersionStatistics({ detail, onSelect, onOpenVersion, onCompare }) {
   const first = data?.baseline?.values[active?.id ?? ""];
   const value = current?.values[active?.id ?? ""];
   const sectionList = Array.from(new Map([...data?.baseline?.sections ?? [], ...current?.sections ?? []].map((s) => [s.id, s])).values());
-  const specials = { activity: "保存活动", distribution: "分类与作者", ranking: "大改版本排行", sections: "章节变化", structure: "结构变化明细", columns: "数值列统计", target: "字数目标" };
+  const specials = { "view:activity": "保存活动", "view:distribution": "分类与作者", "view:ranking": "大改版本排行", "view:sections": "章节变化", "view:structure": "结构变化明细", "view:columns": "数值列统计", "view:target": "字数目标" };
   const activities = /* @__PURE__ */ new Map();
   for (const v of rows) {
     const day = localDate(v.createdAt), key = bucket === "month" ? day.slice(0, 7) : bucket === "week" ? (() => {
@@ -61573,13 +61615,13 @@ function VersionStatistics({ detail, onSelect, onOpenVersion, onCompare }) {
       ] }, group)),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: "综合视图" }),
-        Object.entries(specials).filter(([id2]) => !["sections", "columns", "structure", "target"].includes(id2) || id2 === "sections" && allRows.some((v) => v.sections?.length) || id2 === "columns" && allRows.some((v) => v.columns?.length) || id2 === "structure" && allRows.some((v) => v.changes?.length) || id2 === "target" && definitions.some((m) => m.id === "wordCount")).map(([id2, label]) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { "aria-pressed": metric === id2, className: metric === id2 ? "active" : "", onClick: () => setMetric(id2), children: [
+        Object.entries(specials).filter(([id2]) => !["view:sections", "view:columns", "view:structure", "view:target"].includes(id2) || id2 === "view:sections" && allRows.some((v) => v.sections?.length) || id2 === "view:columns" && allRows.some((v) => v.columns?.length) || id2 === "view:structure" && allRows.some((v) => v.changes?.length) || id2 === "view:target" && definitions.some((m) => m.id === "wordCount")).map(([id2, label]) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { "aria-pressed": metric === id2, className: metric === id2 ? "active" : "", onClick: () => setMetric(id2), children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(CalendarDays, { size: 14 }),
           label
         ] }, id2))
       ] })
     ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "wg-stat-content", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { ref: content, className: "wg-stat-content", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-stat-heading", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "MANUSCRIPT / ANALYTICS" }),
@@ -61684,17 +61726,17 @@ function VersionStatistics({ detail, onSelect, onOpenVersion, onCompare }) {
             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: onlyExclusive ? "本路线独有版本" : "包含共同祖先" })
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: metric === "activity" ? "有记录的周期" : specials[metric] ? "所选视图 / 数量" : "所选版本 / " + unit }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: metric === "activity" ? activities.size : metric === "distribution" ? distribution("category").length : metric === "ranking" ? rows.filter((v) => v.values.changed !== void 0).length : metric === "sections" ? current?.sections?.length ?? 0 : metric === "structure" ? current?.changeCount ?? 0 : metric === "columns" ? current?.columns?.length ?? 0 : metric === "target" ? pretty(current?.values.wordCount) : pretty(value) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: metric === "view:activity" ? "有记录的周期" : specials[metric] ? "所选视图 / 数量" : "所选版本 / " + unit }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: metric === "view:activity" ? activities.size : metric === "view:distribution" ? distribution("category").length : metric === "view:ranking" ? rows.filter((v) => v.values.changed !== void 0).length : metric === "view:sections" ? current?.sections?.length ?? 0 : metric === "view:structure" ? current?.changeCount ?? 0 : metric === "view:columns" ? current?.columns?.length ?? 0 : metric === "view:target" ? pretty(current?.values.wordCount) : pretty(value) }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: current?.title ?? "暂无版本" })
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: metric === "activity" ? "保留覆盖次数" : specials[metric] ? "相同内容的额外版本" : "相对基准版本" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: metric === "activity" ? rows.reduce((n, v) => n + (v.values.revisions ?? 0), 0) : specials[metric] ? rows.length - new Set(rows.map((v) => v.contentId)).size : value !== void 0 && first !== void 0 ? (value - first >= 0 ? "+" : "") + pretty(value - first) : pretty(current?.baselineValues?.[active?.id ?? ""]) }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: metric === "activity" ? "当前保留的修订深度" : specials[metric] ? "二进制内容完全相同" : data?.baseline?.title ?? "相同计数规则" })
+            /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: metric === "view:activity" ? "保留覆盖次数" : specials[metric] ? "相同内容的额外版本" : "相对基准版本" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: metric === "view:activity" ? rows.reduce((n, v) => n + (v.values.revisions ?? 0), 0) : specials[metric] ? rows.length - new Set(rows.map((v) => v.contentId)).size : value !== void 0 && first !== void 0 ? (value - first >= 0 ? "+" : "") + pretty(value - first) : pretty(current?.baselineValues?.[active?.id ?? ""]) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: metric === "view:activity" ? "当前保留的修订深度" : specials[metric] ? "二进制内容完全相同" : data?.baseline?.title ?? "相同计数规则" })
           ] })
         ] }),
-        metric === "activity" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
+        metric === "view:activity" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("h2", { children: [
             "记录活动",
             /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { "aria-label": "活动统计周期", value: bucket, onChange: (e) => setBucket(e.target.value), children: [
@@ -61728,7 +61770,7 @@ function VersionStatistics({ detail, onSelect, onOpenVersion, onCompare }) {
             pretty(data?.summary?.medianHours),
             " 小时。统计新版本创建记录，不代表编辑次数或实际写作时长。"
           ] })
-        ] }) : metric === "distribution" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
+        ] }) : metric === "view:distribution" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "分类与作者分布" }),
           ["category", "author"].map((field) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: field === "category" ? "当前分类" : "作者标签" }),
@@ -61743,7 +61785,7 @@ function VersionStatistics({ detail, onSelect, onOpenVersion, onCompare }) {
             data?.summary?.duplicateVersions ?? 0,
             " 个。"
           ] })
-        ] }) : metric === "ranking" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
+        ] }) : metric === "view:ranking" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "大改版本排行" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-stat-bars", children: rows.filter((v) => v.values.changed !== void 0).sort((a, b) => b.values.changed - a.values.changed).slice(0, 10).map((v) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { onClick: () => choose(v.id), children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: v.title }),
@@ -61755,7 +61797,7 @@ function VersionStatistics({ detail, onSelect, onOpenVersion, onCompare }) {
             ] })
           ] }, v.id)) }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "按相邻版本的新增+删除量排行，净增量不能代替改动量。" })
-        ] }) : metric === "sections" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
+        ] }) : metric === "view:sections" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "章节字数、占比与基准变化" }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
@@ -61799,7 +61841,7 @@ function VersionStatistics({ detail, onSelect, onOpenVersion, onCompare }) {
             ] })
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "基于标题样式分段，按稳定段落标识或同名标题匹配。标题重命名且无稳定标识时显示未匹配，不推测章节含义；空白格不等于零字。" })
-        ] }) : metric === "structure" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
+        ] }) : metric === "view:structure" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("h2", { children: [
             "与上一稿的结构变化 · ",
             current?.changeCount ?? 0,
@@ -61822,7 +61864,7 @@ function VersionStatistics({ detail, onSelect, onOpenVersion, onCompare }) {
             ] }, i)) })
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "最多展开80项、每项前后文字最多180字符；计数仍覆盖完整文件。首稿没有上一稿。" })
-        ] }) : metric === "columns" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
+        ] }) : metric === "view:columns" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "指定数值列" }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
             "工作表 / 列",
@@ -61855,7 +61897,7 @@ function VersionStatistics({ detail, onSelect, onOpenVersion, onCompare }) {
             }) })
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "只统计所选列的数值及公式缓存数值；缺少结果的公式不补算，不混合单位。" })
-        ] }) : metric === "target" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
+        ] }) : metric === "view:target" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "字数目标" }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
             "目标字数",
@@ -61949,7 +61991,7 @@ function VersionStatistics({ detail, onSelect, onOpenVersion, onCompare }) {
               if (e.key === "Enter") choose(v.id);
             }, children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: v.title }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: metric === "activity" ? new Date(v.createdAt).toLocaleDateString("zh-CN") : pretty(v.values[active?.id ?? ""]) + " " + unit }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: metric === "view:activity" ? new Date(v.createdAt).toLocaleDateString("zh-CN") : pretty(v.values[active?.id ?? ""]) + " " + unit }),
               /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { children: [
                 pretty(v.values.size),
                 " 字节"
@@ -61984,33 +62026,33 @@ function HelpDocument({ repoRoot }) {
       /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "首次导入选择“一份新的文档”。同一份文档的旧稿或新稿，选择“已有文档的新稿或旧稿”，指定归属文档；工作台仍只显示一份文档。原始导入文件不会被修改，导入旧稿也不会覆盖当前工作区。" })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "03 · 编辑与保存版本" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "03 · 独立副本与自动保存" }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("ol", { children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("li", { children: "选中文档，打开当前工作区，或选中历史版本后点击“从此稿继续编辑”。软件会让你选择编辑路线。" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("li", { children: "在 Word / WPS / Excel 中完成编辑并保存文件，再回到稿喵。看到工作区有修改后，点击“保存工作区”。" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("li", { children: "小修小改可选“覆盖当前编辑的版本”，不增加版本节点；重要变化可选“另存为新版本”，保留旧稿并延续当前路线。每次都可以自由选择。" })
+        /* @__PURE__ */ jsxRuntimeExports.jsx("li", { children: "右键版本，选择“沿现有分支创建下一稿”或“从此版本新建分支并编辑”。软件从库内快照创建独立命名的新文件，再交给 Word / WPS / Excel。" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("li", { children: "在编辑器首次保存实际修改后，稿喵自动创建下一版本。之后反复保存更新这同一稿，不不断增加节点。未修改不会创建正式版本。" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("li", { children: "要开始又一稿，再右键分支末端创建下一稿。此前编辑副本会保留，但旧会话结束，不再自动写入历史。想覆盖末稿则明确选择“修改选中版本，不增加节点”，仍可撤销覆盖。" })
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "覆盖后可以使用“撤销覆盖”恢复此前记录的内容；它不会自动抹掉工作区尚未记录的修改。软件不会为每次编辑器保存自动创建一个版本。" })
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "软件关闭期间保存在编辑副本中的修改，会在下次打开时读取并记录。回收文档或版本后，旧编辑窗口保存不会把记录恢复出来。导入源文件仅用于读取和复制，编辑、新建和回收只作用于稿喵内的数据。" })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "04 · 查找与整理旧稿" }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "总览工作台：" }),
-        "按文档名称查找、按格式筛选，选中文档后查看所有分支的版本。"
+        "按文档名称查找、按格式筛选，选中文档后默认查看当前分支；可明确切换为全部分支。"
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "版本关系图：" }),
-        "查看版本的前后关系与编辑分支。拖动节点调整布局；拖动空白处平移，使用按钮缩放。拖动分支标签到版本节点可调整继续编辑起点，确认后保留原路线为保护分支。"
+        "查看版本的前后关系与编辑分支。拖动节点调整布局；拖动空白处平移，滚轮以鼠标位置为中心缩放，也可使用按钮。右键节点执行编辑操作；非当前分支的指针移动属于高级操作，确认后保留原指针以便恢复。当前分支不能直接拖回历史节点。"
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "分类看板：" }),
         "按“初稿 / 导师审阅 / 定稿”等自定义分类整理版本。拖动卡片改变分类和顺序；也可以用排序按钮，或聚焦卡片后按 Alt + 左 / 右切换分类。"
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "版本名称、说明和分类可直接修改。分支用于保留不同编辑路线，分类用于整理稿件，两者互不替代。" })
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "版本名称、说明和分类可直接修改。分支指向各路线末端。所选节点是目标分支末端时可继续，即使其他分支已有后继；位于目标分支历史中则需从此节点新建分支。分支用于保留不同编辑路线，分类用于整理稿件，两者互不替代。" })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "05 · 预览、比较与导出" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "历史预览只读，选中旧版本即可查看。“导出副本”将选中的历史稿保存为独立文件；在外部程序修改该副本不会改变已记录的历史。" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "历史预览只读，选中旧版本即可查看。可拖动右侧分隔条调整详情栏宽度，或点击“展开预览”；Word 页面随预览宽度整体缩放。“导出副本”将选中的历史稿保存为独立文件；在外部程序修改该副本不会改变已记录的历史。" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "“选择两版比较”用于查看文本变化。Word 正文、Excel 单元格和幻灯片文本可以比较；复杂排版、图片、宏及修订语义不在比较视图中呈现。旧式 .doc / .xls 等文件可保存版本，完整查看请用系统关联程序。" })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
@@ -62022,10 +62064,10 @@ function HelpDocument({ repoRoot }) {
       /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "07 · 常见问题" }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("details", { children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("summary", { children: "编辑后为什么没有新增版本？" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "请先在编辑器中保存文件，再回到稿喵点击“保存工作区”，选择覆盖或另存。编辑器保存和版本记录是两个步骤。" })
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "独立新稿必须有内容修改并保存，才会生成下一版本；之后保存更新同一节点。若自动记录提示错误，编辑文件仍保留，请查看提示。旧工作区直接编辑的兼容流程仍使用“保存工作区”。" })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("details", { children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("summary", { children: "双击文件没有打开编辑器怎么办？" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("summary", { children: "右键继续编辑后没有打开编辑器怎么办？" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "请安装支持该格式的 Word、WPS、Excel 等软件，并设置系统默认打开方式。稿喵本身不提供 Office 文档编辑器。" })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("details", { children: [
@@ -62068,7 +62110,7 @@ function Workspace() {
   const [selectedVersionId, setSelectedVersionId] = reactExports.useState(null);
   const [search, setSearch] = reactExports.useState("");
   const [fileFilter, setFileFilter] = reactExports.useState("all");
-  const [branchFilter, setBranchFilter] = reactExports.useState("all");
+  const [branchFilter, setBranchFilter] = reactExports.useState("current");
   const [showDeleted, setShowDeleted] = reactExports.useState(false);
   const [historyOpen, setHistoryOpen] = reactExports.useState(true);
   const [versionSearch, setVersionSearch] = reactExports.useState(""), [categoryFilter, setCategoryFilter] = reactExports.useState("all");
@@ -62079,6 +62121,42 @@ function Workspace() {
   const [busy, setBusy] = reactExports.useState(false);
   const [notice, setNotice] = reactExports.useState("");
   const [failure, setFailure] = reactExports.useState("");
+  const [context, setContext] = reactExports.useState(null);
+  const [inspectorWidth, setInspectorWidth] = reactExports.useState(() => Number(localStorage.getItem("gaomiao-inspector-width")) || 320);
+  const resizing = reactExports.useRef(null);
+  const resizeWidth = (width) => {
+    const next = Math.max(280, Math.min(900, window.innerWidth - 480, width));
+    setInspectorWidth(next);
+    localStorage.setItem("gaomiao-inspector-width", String(next));
+  };
+  reactExports.useEffect(() => {
+    const fit = () => resizeWidth(inspectorWidth);
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, [inspectorWidth]);
+  reactExports.useEffect(() => {
+    if (!context) return;
+    document.querySelector(".wg-version-menu button:not(:disabled)")?.focus();
+    const outside = (event) => {
+      if (!event.target.closest(".wg-version-menu")) setContext(null);
+    };
+    const key = (event) => {
+      if (event.key === "Escape" || event.key === "Tab") setContext(null);
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        const items = [...document.querySelectorAll(".wg-version-menu button:not(:disabled)")];
+        const index = items.indexOf(document.activeElement);
+        items[(index + (event.key === "ArrowDown" ? 1 : items.length - 1)) % items.length]?.focus();
+      }
+    };
+    document.addEventListener("pointerdown", outside);
+    document.addEventListener("keydown", key);
+    return () => {
+      document.removeEventListener("pointerdown", outside);
+      document.removeEventListener("keydown", key);
+    };
+  }, [context]);
+  const contextVersion = (version, x, y) => setContext({ version, x: Math.max(8, Math.min(x, window.innerWidth - 292)), y: Math.max(8, Math.min(y, window.innerHeight - 380)) });
   const docsKey = ["library", repoRoot];
   const detailKey = ["documentDetail", repoRoot, selectedDocName];
   const docsQuery = useQuery({ queryKey: docsKey, queryFn: () => api.library.list(), enabled: !!repoRoot, refetchInterval: 4e3 });
@@ -62086,8 +62164,9 @@ function Workspace() {
   const docs = docsQuery.data ?? [];
   const detail = detailQuery.data;
   const visibleDocs = docs.filter((d) => !!d.deletedAt === showDeleted && (!search || (d.title + d.docName).toLowerCase().includes(search.toLowerCase())) && (fileFilter === "all" || fileFilter === extension(d.docName) || fileFilter === "docx" && extension(d.docName) === "doc" || fileFilter === "xlsx" && ["xls", "csv"].includes(extension(d.docName)) || fileFilter === "pptx" && extension(d.docName) === "ppt" || fileFilter === "other" && !["docx", "doc", "xlsx", "xls", "csv", "pptx", "ppt"].includes(extension(d.docName))));
+  const viewedBranch = branchFilter === "current" ? detail?.currentBranch : branchFilter;
   const matchesVersion = (v) => (categoryFilter === "all" || v.categoryId === categoryFilter) && (!versionSearch || (v.title + " " + v.note + " " + v.author + " " + v.id + " " + new Date(v.createdAt).toLocaleDateString("zh-CN")).toLowerCase().includes(versionSearch.toLowerCase()));
-  const versions = reactExports.useMemo(() => (detail?.versions ?? []).filter((v) => !!v.deletedAt === showDeleted && (branchFilter === "all" || v.branches.includes(branchFilter)) && matchesVersion(v)), [detail?.versions, showDeleted, branchFilter, categoryFilter, versionSearch]);
+  const versions = reactExports.useMemo(() => (detail?.versions ?? []).filter((v) => !!v.deletedAt === showDeleted && (branchFilter === "all" || v.branches.includes(viewedBranch ?? "")) && matchesVersion(v)), [detail?.versions, showDeleted, branchFilter, viewedBranch, categoryFilter, versionSearch]);
   const selectedVersion = detail?.versions.find((v) => v.id === selectedVersionId) ?? null;
   const workingVersion = detail?.versions.find((v) => v.id === detail.workspace.versionId);
   reactExports.useEffect(() => {
@@ -62097,18 +62176,29 @@ function Workspace() {
     setSelectedVersionId(null);
     setCompareIds([]);
     setCompareMode(false);
-    setBranchFilter("all");
+    setBranchFilter("current");
     setCategoryFilter("all");
     setVersionSearch("");
   }, [selectedDocName, repoRoot]);
   reactExports.useEffect(() => {
+    if (detail) {
+      setSelectedVersionId(detail.branchHeads[detail.currentBranch] ?? null);
+      setBranchFilter("current");
+    }
+  }, [detail?.docName, detail?.currentBranch]);
+  reactExports.useEffect(() => {
     if (!detail) return;
     if (!selectedVersionId) setSelectedVersionId(detail.versions.find((v) => !v.deletedAt)?.id ?? detail.versions[0]?.id ?? null);
   }, [detail, selectedVersionId]);
-  reactExports.useEffect(() => api.onWatcherChange(() => {
+  reactExports.useEffect(() => api.onWatcherChange((event) => {
+    if (event.status === "error") setNotice("自动记录暂停：" + event.message);
+    else if (event.versionId && event.docName === selectedDocName) {
+      setSelectedVersionId(event.versionId);
+      setNotice(event.status === "created" ? "首次保存已生成下一版本；之后保存更新这一稿" : "这份编辑稿已更新，没有增加版本节点");
+    }
     queryClient2.invalidateQueries({ queryKey: ["library", repoRoot] });
     queryClient2.invalidateQueries({ queryKey: ["documentDetail", repoRoot] });
-  }), [queryClient2, repoRoot]);
+  }), [queryClient2, repoRoot, selectedDocName]);
   reactExports.useEffect(() => {
     if (!notice) return;
     const timer = setTimeout(() => setNotice(""), 5500);
@@ -62166,8 +62256,8 @@ function Workspace() {
       setForm((f) => ({ ...f, name: preference === "replace" ? workingVersion?.title ?? "修订内容" : "保存修改", mode: preference }));
     }
     if (kind === "edit" && detail && version) {
-      const head = Object.keys(detail.branchHeads).find((b) => detail.branchHeads[b] === version.id && !b.startsWith("保护-"));
-      setForm((f) => ({ ...f, branch: head ?? "", name: head ? "" : "改稿-" + (/* @__PURE__ */ new Date()).toISOString().slice(5, 16).replace(/[:T]/g, "-") }));
+      const head = (detail.branchHeads[detail.currentBranch] === version.id ? detail.currentBranch : void 0) ?? Object.keys(detail.branchHeads).find((b) => detail.branchHeads[b] === version.id && !b.startsWith("保护-"));
+      setForm((f) => ({ ...f, operation: head ? "continue" : "fork", branch: head ?? "", name: head ? "" : "改稿-" + (/* @__PURE__ */ new Date()).toISOString().slice(5, 16).replace(/[:T]/g, "-") }));
     }
     if (kind === "deleteBranch" && detail) setForm((f) => ({ ...f, branch: Object.keys(detail.branchHeads).find((b) => b !== detail.currentBranch) ?? "" }));
     setModal({ kind, version, category, action });
@@ -62284,15 +62374,16 @@ function Workspace() {
         await api.branch.delete(selectedDocName, form.branch);
         setNotice("分支已进入设置页的回收区，内容仍可还原");
       } else if (modal.kind === "edit") {
-        const branch = form.name.trim() || form.branch;
+        const branch = form.operation === "fork" ? form.name.trim() : form.branch;
         if (!branch) throw new Error("请选择分支或填写新的改稿路线名称");
-        await api.library.mutate({ type: "edit", docName: selectedDocName, versionId: modal.version.id, branch });
-        setNotice("已打开这一路线的工作稿。完成编辑后，在此选择覆盖或另存新版本");
+        await api.library.mutate({ type: "edit", docName: selectedDocName, versionId: modal.version.id, branch, mode: form.operation === "replace" ? "replace" : "new", title: form.operation === "replace" ? void 0 : form.title || void 0 });
+        setBranchFilter("current");
+        setNotice(form.operation === "replace" ? "已打开独立编辑副本；保存后覆盖选中版本，可撤销" : "已打开独立新稿；首次保存自动创建下一版本，后续保存更新同一稿。导入源文件不受影响");
       }
     });
     if (ok) setModal(null);
   }
-  const modalTitle = !modal ? "" : modal.kind === "confirm" ? modal.title : { import: "把文件放到正确的位置", new: "新建一份受管文档", save: "保存这次修改", version: "整理版本信息", document: "修改文档显示名称", category: modal.action === "rename" ? "重命名分类" : "添加版本分类", edit: "从这份稿件继续编辑", branch: "从此版本创建分支", deleteBranch: "回收一条编辑路线", compare: "两份版本的内容比较", help: "稿喵使用帮助" }[modal.kind];
+  const modalTitle = !modal ? "" : modal.kind === "confirm" ? modal.title : { import: "把文件放到正确的位置", new: "新建一份受管文档", save: "保存这次修改", version: "整理版本信息", document: "修改文档显示名称", category: modal.action === "rename" ? "重命名分类" : "添加版本分类", edit: "从这份稿件继续编辑", branch: "从此版本创建分支", deleteBranch: "删除一条分支引用", compare: "两份版本的内容比较", help: "稿喵使用帮助", preview: "展开历史文档预览" }[modal.kind];
   const modalDescription = modal?.kind === "help" ? "从第一份文档到多次修订：开始、编辑、整理、备份。" : modal?.kind === "confirm" ? modal.description : modal?.kind === "compare" ? "比较只读取历史快照，不改变当前文档。Word 正文、Excel 单元格和幻灯片文本可比较；复杂排版与修订语义不在此视图中呈现。" : modal?.kind === "save" ? `当前编辑来源：${workingVersion?.title ?? "工作区"}。小修小改可覆盖同版本，重要变化可另存为新版本。` : modal?.kind === "import" ? "同一份文档的旧稿和新稿，选择“已有文档的版本”，工作台就只显示一份文档。" : "操作会保存在当前仓库，三个视图共用同一份数据。";
   if (!repoRoot) return null;
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wordgit-workspace", children: [
@@ -62411,6 +62502,10 @@ function Workspace() {
             " 返回总览"
           ] }),
           detail && /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { "aria-label": "查看分支", value: branchFilter, onChange: (e) => setBranchFilter(e.target.value), children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("option", { value: "current", children: [
+              "当前分支 · ",
+              detail?.currentBranch
+            ] }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "all", children: "全部分支的版本" }),
             Object.keys(detail?.branchHeads ?? {}).map((branch) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: branch, children: branch }, branch))
           ] })
@@ -62449,9 +62544,10 @@ function Workspace() {
           " ",
           showDeleted ? "返回正常内容" : "回收内容"
         ] }),
-        detail && /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "wg-button", disabled: busy || !!detail.deletedAt, onClick: () => open("save"), children: [
+        detail && /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "wg-button", disabled: busy || !!detail.deletedAt, onClick: () => detail.draft && !detail.workspace.dirty ? void mutate({ type: "save", docName: detail.docName, mode: "new", message: detail.draft.title }, "独立编辑副本已同步；后续保存更新同一稿") : open("save"), children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(Save, { size: 14 }),
-          " 保存工作区"
+          " ",
+          detail.draft && !detail.workspace.dirty ? "同步编辑副本" : "保存工作区"
         ] })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `wg-main-area ${view === "overview" ? "overview" : view === "stats" ? "statistics" : ""}`, children: [
@@ -62511,13 +62607,13 @@ function Workspace() {
                 }, onKeyDown: (e) => {
                   if (e.key === "Enter") selectDoc(doc.docName);
                 }, children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-file-name", children: [
                     /* @__PURE__ */ jsxRuntimeExports.jsx(FileIcon, { name: doc.docName }),
                     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
                       /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: doc.title }),
                       doc.title !== doc.docName && /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: doc.docName })
                     ] })
-                  ] }),
+                  ] }) }),
                   /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: doc.versionCount }),
                   /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "wg-route-pill", children: doc.currentBranch }) }),
                   /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: doc.lastModified ? new Date(doc.lastModified).toLocaleDateString("zh-CN") : "—" }),
@@ -62540,7 +62636,11 @@ function Workspace() {
                 /* @__PURE__ */ jsxRuntimeExports.jsx("button", { "aria-expanded": historyOpen, onClick: () => setHistoryOpen((v) => !v), children: historyOpen ? "收起 −" : "展开 ＋" })
               ] }),
               historyOpen && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-history-rows", children: [
-                versions.map((version) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: version.id === selectedVersionId ? "selected" : "", onClick: () => selectVersion(version.id), onDoubleClick: () => open("edit", version), children: [
+                versions.map((version) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: version.id === selectedVersionId ? "selected" : "", onClick: () => selectVersion(version.id), onContextMenu: (e) => {
+                  e.preventDefault();
+                  selectVersion(version.id);
+                  contextVersion(version, e.clientX, e.clientY);
+                }, children: [
                   /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "wg-history-number", children: version.id.slice(0, 7) }),
                   /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: version.title }),
                   /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: version.branches.filter((b) => !b.startsWith("保护-")).join(" / ") || "保护记录" }),
@@ -62550,7 +62650,7 @@ function Workspace() {
               ] })
             ] })
           ] })
-        ] }) : detail ? view === "graph" ? /* @__PURE__ */ jsxRuntimeExports.jsx(VersionGraph, { detail, versions: detail.versions.filter((v) => (branchFilter === "all" || v.branches.includes(branchFilter)) && matchesVersion(v)), selectedId: selectedVersionId, compareIds, onSelect: selectVersion, onEdit: (v) => open("edit", v), onPosition: (id2, position) => void mutate({ type: "version", docName: detail.docName, versionId: id2, position }), onMoveBranch: moveBranch }, detail.docName) : /* @__PURE__ */ jsxRuntimeExports.jsx(VersionBoard, { detail, versions, selectedId: selectedVersionId, compareIds, onSelect: selectVersion, onMove: moveVersion, onCategory: categoryAction, onEdit: (v) => open("edit", v) }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-view-entry", "aria-label": `${viewLabels[view]}文档选择`, children: [
+        ] }) : detail ? view === "graph" ? /* @__PURE__ */ jsxRuntimeExports.jsx(VersionGraph, { detail, versions: detail.versions.filter((v) => (branchFilter === "all" || v.branches.includes(viewedBranch ?? "")) && matchesVersion(v)), selectedId: selectedVersionId, compareIds, onSelect: selectVersion, onContext: contextVersion, onPosition: (id2, position) => void mutate({ type: "version", docName: detail.docName, versionId: id2, position }), onMoveBranch: moveBranch }, detail.docName) : /* @__PURE__ */ jsxRuntimeExports.jsx(VersionBoard, { detail, versions, selectedId: selectedVersionId, compareIds, onSelect: selectVersion, onMove: moveVersion, onCategory: categoryAction, onContext: contextVersion }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-view-entry", "aria-label": `${viewLabels[view]}文档选择`, children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "wg-entry-icon", children: view === "graph" ? /* @__PURE__ */ jsxRuntimeExports.jsx(GitBranch, { size: 32 }) : view === "board" ? /* @__PURE__ */ jsxRuntimeExports.jsx(Columns3, { size: 32 }) : /* @__PURE__ */ jsxRuntimeExports.jsx(GitCompare, { size: 32 }) }),
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
@@ -62586,7 +62686,23 @@ function Workspace() {
             ] })
           ] })
         ] }) }, view) }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("aside", { className: "wg-inspector", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-inspector-resizer", role: "separator", "aria-label": "调整详情栏宽度", "aria-orientation": "vertical", "aria-valuemin": 280, "aria-valuemax": Math.min(900, window.innerWidth - 480), "aria-valuenow": Math.round(inspectorWidth), tabIndex: 0, onPointerDown: (e) => {
+          if (e.button !== 0) return;
+          resizing.current = { x: e.clientX, width: inspectorWidth, userSelect: document.body.style.userSelect };
+          document.body.style.userSelect = "none";
+          e.currentTarget.setPointerCapture(e.pointerId);
+        }, onPointerMove: (e) => {
+          if (resizing.current) resizeWidth(resizing.current.width + resizing.current.x - e.clientX);
+        }, onLostPointerCapture: () => {
+          if (resizing.current) document.body.style.userSelect = resizing.current.userSelect;
+          resizing.current = null;
+        }, onPointerUp: (e) => e.currentTarget.releasePointerCapture(e.pointerId), onKeyDown: (e) => {
+          if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+            e.preventDefault();
+            resizeWidth(inspectorWidth + (e.key === "ArrowLeft" ? 20 : -20));
+          }
+        }, children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", {}) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("aside", { className: "wg-inspector", style: { width: inspectorWidth }, children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: detail ? "文稿与版本详情" : "快速查看" }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "只读预览" })
@@ -62599,7 +62715,7 @@ function Workspace() {
               ] }),
               /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
                 detail.docName,
-                " · 当前编辑路线 ",
+                " · 当前分支 ",
                 /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: detail.currentBranch })
               ] }),
               /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-small-actions", children: [
@@ -62624,13 +62740,19 @@ function Workspace() {
                   "来源：",
                   workingVersion?.title ?? "未确定",
                   workingVersion?.deletedAt ? "（已回收）" : ""
+                ] }),
+                detail.draft && /* @__PURE__ */ jsxRuntimeExports.jsxs("small", { title: detail.draft.path, children: [
+                  "独立编辑副本：",
+                  detail.draft.path.split("/").pop(),
+                  " · ",
+                  detail.draft.versionId ? "保存更新同一稿" : "首次修改保存后创建下一版"
                 ] })
               ] }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("button", { "aria-label": "打开当前工作区", title: "直接用系统程序编辑当前文件", disabled: busy || !!detail.deletedAt, onClick: () => void mutate({ type: "edit", docName: detail.docName }, "当前工作稿已交给系统编辑器"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(ExternalLink, { size: 15 }) })
+              /* @__PURE__ */ jsxRuntimeExports.jsx("button", { "aria-label": "打开当前工作区", title: "直接用系统程序编辑当前文件", disabled: busy || !!detail.deletedAt, onClick: () => void mutate({ type: "edit", docName: detail.docName }, "已打开独立编辑副本；保存后自动记录，导入源文件不受影响"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(ExternalLink, { size: 15 }) })
             ] }),
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-branch-control", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
-                "编辑路线",
+                "当前分支",
                 /* @__PURE__ */ jsxRuntimeExports.jsx("select", { "aria-label": "切换编辑分支", value: detail.currentBranch, disabled: busy || !!detail.deletedAt, onChange: (e) => {
                   const branch = e.target.value;
                   confirm("切换编辑路线", "有变化的当前稿会先自动保存一个保护版本，再切到所选路线。", () => api.branch.switch(detail.docName, branch), "已切换路线，未提交内容已保护");
@@ -62656,12 +62778,19 @@ function Workspace() {
                   selectedVersion.deletedAt ? " / 回收版本" : ""
                 ] }),
                 /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: selectedVersion.title }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: selectedVersion.note || "可填写修改说明，方便以后寻找这一稿。" }),
+                selectedVersion.note.length > 180 ? /* @__PURE__ */ jsxRuntimeExports.jsxs("details", { className: "wg-version-note", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("summary", { children: "查看修改说明与导入来源" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: selectedVersion.note })
+                ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: selectedVersion.note || "可填写修改说明，方便以后寻找这一稿。" }),
                 /* @__PURE__ */ jsxRuntimeExports.jsxs("small", { children: [
                   new Date(selectedVersion.createdAt).toLocaleString("zh-CN"),
                   " · ",
                   selectedVersion.author
                 ] })
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "wg-button wg-preview-expand", onClick: () => open("preview", selectedVersion), children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(ExternalLink, { size: 13 }),
+                " 展开预览"
               ] }),
               /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-preview-pane", children: /* @__PURE__ */ jsxRuntimeExports.jsx(VersionPreview, { repoRoot, docName: detail.docName, versionId: selectedVersion.id, contentId: selectedVersion.contentId }, selectedVersion.contentId) }),
               /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-version-actions", children: [
@@ -62716,9 +62845,40 @@ function Workspace() {
       /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: notice }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("button", { "aria-label": "关闭提示", onClick: () => setNotice(""), children: /* @__PURE__ */ jsxRuntimeExports.jsx(X, { size: 14 }) })
     ] }) }),
+    context && reactDomExports.createPortal(/* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-version-menu", role: "menu", "aria-label": "版本操作", style: { left: context.x, top: context.y }, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: context.version.title }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { role: "menuitem", disabled: busy || !!context.version.deletedAt || !Object.values(detail?.branchHeads ?? {}).includes(context.version.id), onClick: () => {
+        open("edit", context.version);
+        setForm((f) => ({ ...f, operation: "continue" }));
+        setContext(null);
+      }, children: "沿现有分支创建下一稿" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { role: "menuitem", disabled: busy || !!context.version.deletedAt, onClick: () => {
+        open("edit", context.version);
+        setForm((f) => ({ ...f, operation: "fork", name: "新分支-" + Date.now().toString().slice(-6) }));
+        setContext(null);
+      }, children: "从此版本新建分支并编辑" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { role: "menuitem", disabled: busy || !!context.version.deletedAt || !Object.values(detail?.branchHeads ?? {}).includes(context.version.id), onClick: () => {
+        open("edit", context.version);
+        setForm((f) => ({ ...f, operation: "replace" }));
+        setContext(null);
+      }, children: "修改选中版本，不增加节点" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("hr", {}),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { role: "menuitem", onClick: () => {
+        open("preview", context.version);
+        setContext(null);
+      }, children: "展开只读预览" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { role: "menuitem", onClick: () => {
+        open("version", context.version);
+        setContext(null);
+      }, children: "名称 / 说明 / 分类" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { role: "menuitem", onClick: () => {
+        void exportSelected();
+        setContext(null);
+      }, children: "导出副本" })
+    ] }), document.body),
     /* @__PURE__ */ jsxRuntimeExports.jsx(Dialog, { open: !!modal, onOpenChange: (isOpen) => {
       if (!isOpen && !busy) setModal(null);
-    }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(DialogContent, { className: `wg-dialog ${["compare", "help"].includes(modal?.kind ?? "") ? "wg-wide-dialog" : ""}`, children: [
+    }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(DialogContent, { className: `wg-dialog ${["compare", "help", "preview"].includes(modal?.kind ?? "") ? "wg-wide-dialog" : ""}`, children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx(DialogTitle, { children: modalTitle }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(DialogDescription, { children: modalDescription }),
       failure && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "wg-dialog-error", role: "alert", children: failure }),
@@ -62729,7 +62889,7 @@ function Workspace() {
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: detail?.versions.find((v) => v.id === compareIds[1])?.title })
         ] }),
         selectedDocName && compareIds.length === 2 && /* @__PURE__ */ jsxRuntimeExports.jsx(DiffView, { docName: selectedDocName, commitIdA: compareIds[0], commitIdB: compareIds[1] })
-      ] }) : modal?.kind === "help" ? /* @__PURE__ */ jsxRuntimeExports.jsx(HelpDocument, { repoRoot }) : modal && /* @__PURE__ */ jsxRuntimeExports.jsxs("form", { onSubmit: (e) => {
+      ] }) : modal?.kind === "preview" && detail && modal.version ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-full-preview", children: /* @__PURE__ */ jsxRuntimeExports.jsx(VersionPreview, { repoRoot, docName: detail.docName, versionId: modal.version.id, contentId: modal.version.contentId }) }) : modal?.kind === "help" ? /* @__PURE__ */ jsxRuntimeExports.jsx(HelpDocument, { repoRoot }) : modal && /* @__PURE__ */ jsxRuntimeExports.jsxs("form", { onSubmit: (e) => {
         e.preventDefault();
         void submit();
       }, children: [
@@ -62815,7 +62975,7 @@ function Workspace() {
             "需要回收的路线",
             /* @__PURE__ */ jsxRuntimeExports.jsx("select", { value: form.branch, onChange: (e) => changeForm("branch", e.target.value), children: Object.keys(detail?.branchHeads ?? {}).filter((b) => b !== detail?.currentBranch).map((branch) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: branch, children: branch }, branch)) })
           ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "wg-field-hint", children: "当前路线不能删除。被回收的路线和文件内容可从备份与保存设置还原。" })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "wg-field-hint", children: "当前分支不能删除。只移除分支引用，不删除共同历史；可从设置还原分支。" })
         ] }),
         modal.kind === "version" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "wg-field", children: [
@@ -62835,31 +62995,51 @@ function Workspace() {
             /* @__PURE__ */ jsxRuntimeExports.jsx(FileText, { size: 20 }),
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: modal.version?.title }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: "保存时可选择覆盖这一稿，或沿路线新建版本。" })
+              /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: "只编辑稿喵内的独立副本，导入源文件不受影响。" })
             ] })
           ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "wg-field", children: [
-            "使用已有路线（该稿须为路线最新版本）",
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { value: form.branch, onChange: (e) => {
-              changeForm("branch", e.target.value);
-              changeForm("name", "");
-            }, children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "创建新的改稿路线" }),
-              Object.entries(detail?.branchHeads ?? {}).filter(([, head]) => head === modal.version?.id).map(([branch]) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: branch, children: branch }, branch))
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-radio-options", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "radio", name: "editOperation", checked: form.operation === "continue", disabled: !Object.values(detail?.branchHeads ?? {}).includes(modal.version.id), onChange: () => changeForm("operation", "continue") }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "沿现有分支创建下一稿" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: "所选版本须为分支末端；首次保存新增版本，之后更新同一稿。" })
+              ] })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "radio", name: "editOperation", checked: form.operation === "fork", onChange: () => changeForm("operation", "fork") }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "从此版本新建分支" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: "适合历史稿或换刊投稿；原分支和后续版本不改变。" })
+              ] })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "radio", name: "editOperation", checked: form.operation === "replace", disabled: !Object.values(detail?.branchHeads ?? {}).includes(modal.version.id), onChange: () => changeForm("operation", "replace") }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "修改选中版本，不增加节点" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: "使用独立副本；保存后覆盖此稿，保留撤销记录。" })
+              ] })
             ] })
           ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "wg-field", children: [
-            "或新路线名称",
-            /* @__PURE__ */ jsxRuntimeExports.jsx("input", { value: form.name, placeholder: "例如：导师第二轮修改", onChange: (e) => changeForm("name", e.target.value), required: !form.branch })
+          form.operation === "fork" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "wg-field", children: [
+            "新分支名称",
+            /* @__PURE__ */ jsxRuntimeExports.jsx("input", { value: form.name, onChange: (e) => changeForm("name", e.target.value), placeholder: "例如：杂志B投稿", required: true })
+          ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "wg-field", children: [
+            "目标分支",
+            /* @__PURE__ */ jsxRuntimeExports.jsx("select", { "aria-label": "目标编辑分支", value: form.branch, onChange: (e) => changeForm("branch", e.target.value), children: Object.entries(detail?.branchHeads ?? {}).filter(([, head]) => head === modal.version?.id).map(([branch]) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: branch, children: branch }, branch)) })
           ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "wg-field-hint", children: "当前工作区有修改时会先自动保护，然后使用 Word / WPS 等打开这份稿件。" })
+          form.operation !== "replace" && /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "wg-field", children: [
+            "新稿名称（可留空自动命名）",
+            /* @__PURE__ */ jsxRuntimeExports.jsx("input", { value: form.title ?? "", onChange: (e) => changeForm("title", e.target.value), placeholder: "例如：杂志B第一轮格式修改" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "wg-field-hint", children: "使用 Word / WPS 编辑，Ctrl+S 后自动记录。未修改不会产生正式版本。已有分支只能从其末端继续；历史稿请新建分支。" })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("footer", { className: "wg-dialog-actions", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", className: "wg-button", disabled: busy, onClick: () => setModal(null), children: "取消" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "submit", className: "wg-button primary", disabled: busy, children: busy ? "正在处理…" : modal.kind === "new" ? "创建并打开" : modal.kind === "edit" ? "打开并继续编辑" : modal.kind === "import" ? "确认导入" : modal.kind === "save" ? form.mode === "replace" ? "覆盖当前版本" : "另存新版本" : "确认" })
         ] })
       ] }),
-      (modal?.kind === "compare" || modal?.kind === "help") && /* @__PURE__ */ jsxRuntimeExports.jsx("footer", { className: "wg-dialog-actions", children: /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-button", onClick: () => setModal(null), children: "关闭" }) })
+      (modal?.kind === "compare" || modal?.kind === "help" || modal?.kind === "preview") && /* @__PURE__ */ jsxRuntimeExports.jsx("footer", { className: "wg-dialog-actions", children: /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-button", onClick: () => setModal(null), children: "关闭" }) })
     ] }) })
   ] });
 }
