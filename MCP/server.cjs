@@ -23060,6 +23060,7 @@ async function importProjectItems(repo, request) {
     }
     const parentId = request.parentId ?? null;
     if (parentId && findNode(project2, parentId).kind !== "folder") throw new Error("\u5BFC\u5165\u76EE\u6807\u5FC5\u987B\u662F\u6587\u4EF6\u5939");
+    if (parentId && findNode(project2, parentId).snapshot) throw new Error("\u5386\u53F2\u6587\u4EF6\u5939\u4E3A\u5FEB\u7167\uFF0C\u8BF7\u8FD4\u56DE\u5F53\u524D\u6587\u4EF6\u5939\u6216\u6587\u6863\u5E93\u6839\u76EE\u5F55\u5BFC\u5165");
     if (request.previousNodeId) findNode(project2, request.previousNodeId);
     const repoRoot = await import_node_fs5.promises.realpath(repo.root);
     const sources = [];
