@@ -1,0 +1,80 @@
+{
+  "recordedOn": "2026-10-21",
+  "installers": [
+    {
+      "file": "DocKitty-Setup-0.4.0-x64.exe",
+      "bytes": 82807779,
+      "sha256": "4f593f8a7b39d9de647bf8c8028043b78f9ff4e1332a3f96352a51d735a17f6f"
+    },
+    {
+      "file": "DocKitty-Setup-0.5.0-x64.exe",
+      "bytes": 83138069,
+      "sha256": "323748d4cd48c8220eb422152313e1a2264a923378326f62f50a59ddfaa5ef5f"
+    },
+    {
+      "file": "DocKitty-Setup-0.5.1-x64.exe",
+      "bytes": 83141678,
+      "sha256": "d3c15a54b1776d8fad39ddeaff31c49d884b0c068dcfc368460453178b66c1f7"
+    },
+    {
+      "file": "DocKitty-Setup-0.5.10-x64.exe",
+      "bytes": 83218457,
+      "sha256": "5e850e8dc6db78524a534dd3eb0bf2f904115c73175e866bf04ff5a7250f2fb5"
+    },
+    {
+      "file": "DocKitty-Setup-0.5.11-x64.exe",
+      "bytes": 83239572,
+      "sha256": "73398e67727113a57a25fd1c755c508246c2a49cc49d5ddc2f4d3d23806f7ac1"
+    },
+    {
+      "file": "DocKitty-Setup-0.5.12-x64.exe",
+      "bytes": 83239636,
+      "sha256": "5bc18f3485ea7b1b572013c7871c59f9dd0f862bfc75dfbbe43d5766759b964f"
+    },
+    {
+      "file": "DocKitty-Setup-0.5.13-x64.exe",
+      "bytes": 83936260,
+      "sha256": "fb809e147f3cd77e81c0763f9ab3995e4c73ad042480fe33cf0c6371ce7e6c3f"
+    },
+    {
+      "file": "DocKitty-Setup-0.5.2-x64.exe",
+      "bytes": 83197634,
+      "sha256": "62ea796afaa0ce3722f34e4a619ba752fdddd36c223610e509c42bd66ec988e4"
+    },
+    {
+      "file": "DocKitty-Setup-0.5.3-x64.exe",
+      "bytes": 83198330,
+      "sha256": "ae4a365c171c968940cef4540753790c93205b089f2c15a470c99fc5c29cc5bd"
+    },
+    {
+      "file": "DocKitty-Setup-0.5.4-x64.exe",
+      "bytes": 83199188,
+      "sha256": "d38b34a1710a082d68acca56bf8edb62c9c8b4ac93de86f05401ae0a96db509e"
+    },
+    {
+      "file": "DocKitty-Setup-0.5.5-x64.exe",
+      "bytes": 83205451,
+      "sha256": "a932ba21af3cbf3689226e08e9983550a75fcf7fa4730489a12b2d2a8f3b38dd"
+    },
+    {
+      "file": "DocKitty-Setup-0.5.6-x64.exe",
+      "bytes": 83205551,
+      "sha256": "4c3a43325cfbb56392378c508239515c7a737b35cbcb5d40814336f9bfe12ed3"
+    },
+    {
+      "file": "DocKitty-Setup-0.5.7-x64.exe",
+      "bytes": 83206841,
+      "sha256": "a1bf9043104266d81c65d61ee2112a8dba8caf7868f66fb3fa0640b7d0a1332f"
+    },
+    {
+      "file": "DocKitty-Setup-0.5.8-x64.exe",
+      "bytes": 83214018,
+      "sha256": "2afd80325455d67d255dc0932e639aa1e1e9309dbe08e85d0ef298ad72eb13bd"
+    },
+    {
+      "file": "DocKitty-Setup-0.5.9-x64.exe",
+      "bytes": 83218066,
+      "sha256": "f890d5b95f8bda4dfd92cb2e8b58efde88a9e25ce439cd17a724456600d1cf2a"
+    }
+  ]
+}
