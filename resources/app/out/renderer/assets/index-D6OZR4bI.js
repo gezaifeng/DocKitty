@@ -61209,7 +61209,7 @@ function SettingsPage() {
   const importMutation = useMutation({
     mutationFn: async () => {
       const srcPath = await api.dialog.pickFile("选择备份文件", [
-        { name: "稿喵备份", extensions: ["wgbak", "zip"] }
+        { name: "word_git 备份", extensions: ["wgbak", "zip"] }
       ]);
       if (!srcPath) return;
       const destDir = await api.dialog.pickFolder("选择空目录作为恢复位置（不会覆盖已有仓库）");
