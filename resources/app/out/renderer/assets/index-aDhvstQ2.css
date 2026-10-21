@@ -29,6 +29,7 @@
 .wg-project-breadcrumb { font-size: 12px; color: var(--wg-muted); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wg-project-toolbar .wg-search { width: min(260px, 25vw); }
 .wg-project-toolbar .wg-search input { width: 100%; }
+.wg-project-workspace .wg-project-actions .wg-button:disabled { color: var(--wg-muted); background: var(--wg-soft); border-color: var(--wg-line); box-shadow: none; }
 .wg-project-inspector { flex-shrink: 0; overflow: auto; min-width: 260px; max-width: calc(100vw - 450px); }
 .wg-project-inspector h2 { font-size: 22px; line-height: 1.5; margin: 22px 0 10px; overflow-wrap: anywhere; }
 .wg-project-inspector section { margin: 20px 0; padding-top: 15px; border-top: 1px solid var(--wg-line); }
