@@ -62236,8 +62236,8 @@ function StartupScreen({ ready, revealRef, onFinish }) {
       expansion,
       page.animate([{ clipPath: inset }, { clipPath: "inset(0px 0px 0px 0px round 0px)" }], options2),
       backdrop.current.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, fill: "forwards" }),
-      sheet.firstElementChild.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 70, fill: "forwards" }),
-      sheet.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, delay: 120, fill: "forwards" })
+      sheet.firstElementChild.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 140, fill: "forwards" }),
+      sheet.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, delay: 160, fill: "forwards" })
     ];
     let active = true;
     expansion.finished.then(() => {
