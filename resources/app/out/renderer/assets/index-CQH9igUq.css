@@ -52,6 +52,20 @@
 .wg-project-edges g { pointer-events: auto; cursor: pointer; }
 .wg-project-edges { z-index: 0; }
 .wg-project-graph .wg-graph-node { z-index: 1; }
+.wg-graph-node.wg-connect-target { outline: 2px dashed var(--wg-accent); outline-offset: 6px; }
+.wg-edges .wg-edge-action { pointer-events: auto; cursor: pointer; }
+.wg-edges path.wg-edge-hit { pointer-events: stroke; stroke: transparent; stroke-width: 18; opacity: 1; }
+.wg-edges text.wg-edge-label { fill: var(--wg-text); stroke: var(--wg-bg); stroke-width: 6px; paint-order: stroke; font-size: 11px; font-weight: 600; }
+.wg-edges path.wg-connection-preview { stroke-dasharray: 6 4; opacity: .9; pointer-events: none; }
+.wg-graph-connect-status { position: absolute; z-index: 6; left: 22px; top: 55px; display: flex; align-items: center; gap: 14px; padding: 10px 14px; background: var(--wg-surface); color: var(--wg-text); border: var(--wg-stroke) solid var(--wg-line); border-radius: var(--wg-radius); box-shadow: var(--wg-shadow); font-size: 11px; }
+.wg-menu > div > button { display: flex; justify-content: space-between; align-items: center; gap: 18px; }
+.wg-menu > div { width: 330px; max-width: calc(100vw - 40px); }
+.wg-menu > div > button > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wg-menu kbd { font: 10px/1.6 Consolas, monospace; color: var(--wg-muted); white-space: nowrap; }
+.wg-menu > div > button:disabled { cursor: default; opacity: .5; }
+.wg-connection-direction { display: flex; align-items: center; gap: 12px; padding: 14px; border: var(--wg-stroke) solid var(--wg-line); background: var(--wg-soft); color: var(--wg-text); border-radius: var(--wg-radius); margin: 18px 0; }
+.wg-connection-direction span { min-width: 0; overflow-wrap: anywhere; }
+.wg-connection-direction b { flex-shrink: 0; }
 .wg-edges path.wg-edge-arrow { fill: var(--wg-accent); stroke: none; opacity: 1; }
 .wg-edges path.wg-edge-line { opacity: .85; }
 .wg-project-board .wg-version-card .wg-card-eyebrow > span { display: flex; align-items: center; gap: 6px; }
@@ -60,6 +74,20 @@
 .wg-project-category-field select { width: 100%; padding: 10px; border: var(--wg-stroke) solid var(--wg-line); border-radius: var(--wg-radius); background: var(--wg-surface); color: var(--wg-text); }
 .wg-project-edges path.wg-edge-hit { pointer-events: stroke; stroke: transparent; stroke-width: 18; opacity: 1; }
 .wg-project-edges text { fill: var(--wg-text); stroke: var(--wg-bg); stroke-width: 6px; paint-order: stroke; font-size: 11px; font-weight: 600; }
+.wg-edges path.wg-edge-gap { stroke: var(--wg-bg); opacity: 1; pointer-events: none; }
+.wg-edges path.wg-edge-marker { stroke: transparent; opacity: 1; pointer-events: none; }
+.wg-edges path.wg-edge-open-arrow { fill: none; stroke: var(--wg-accent); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.wg-edge-style-menu { width: 280px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; padding: 12px; }
+.wg-edge-style-menu header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.wg-edge-style-menu header button { color: var(--wg-text); background: transparent; border: 0; cursor: pointer; font-size: 20px; padding: 0 6px; }
+.wg-edge-style-preview { display: block; position: static; width: 100%; height: 40px; background: var(--wg-bg); border-radius: var(--wg-radius); margin: 0 0 12px; }
+.wg-edge-style-menu label { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 10px 0; }
+.wg-edge-style-menu select, .wg-edge-style-menu input { background: var(--wg-surface); color: var(--wg-text); border: var(--wg-stroke) solid var(--wg-line); border-radius: var(--wg-radius); font: inherit; padding: 7px; }
+.wg-edge-style-menu select { width: 130px; }
+.wg-edge-style-menu input { width: 95px; }
+.wg-edge-style-menu input:focus, .wg-edge-style-menu select:focus { outline: 2px solid var(--wg-focus); outline-offset: 1px; }
+.wg-edge-style-menu footer { display: flex; justify-content: flex-end; gap: 10px; padding-top: 12px; border-top: 1px solid var(--wg-line); }
+.wg-edge-style-menu > button.wg-edge-edit { padding: 9px 0; margin-bottom: 8px; font-size: 11px; }
 .wg-project-graph .wg-node-code { display: flex; align-items: center; gap: 6px; }
 .wg-project-graph .wg-node-body small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wg-project-connect { background: var(--wg-selected); }
@@ -85,6 +113,8 @@
 .wg-project-help p { font-size: 13px; line-height: 1.9; color: var(--wg-muted); }
 .wg-project-help h3 { font-size: 16px; margin-top: 18px; }
 .wg-project-mcp-code { max-height: 42vh; overflow: auto; padding: 16px; background: var(--wg-soft); border: 1px solid var(--wg-line); font: 12px/1.9 Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--wg-text); border-radius: 6px; }
+
+.wg-edge-style-range { margin: 4px 0; color: var(--wg-muted); font-size: 10px; }
 .wg-startup{position:fixed;inset:0;z-index:100;pointer-events:none;color:var(--wg-text);font-family:'Segoe UI','Microsoft YaHei',sans-serif}.wg-startup-backdrop{position:absolute;inset:0;display:grid;place-items:center;background:var(--wg-bg)}.wg-startup-content{display:flex;flex-direction:column;align-items:center;transform:translateY(-12px)}.wg-startup-content h1{font-size:30px;letter-spacing:7px;font-weight:600;margin:8px 0 10px;padding-left:7px}.wg-startup-content p{font-size:12px;letter-spacing:2px;color:var(--wg-muted)}.wg-startup-content small{font-size:11px;color:var(--wg-muted);margin-top:28px}.wg-app-reveal{position:relative;height:100vh;width:100vw;background:var(--wg-surface);visibility:hidden;transform-origin:0 0;overflow:hidden}.wg-app-reveal[data-entered=false]{z-index:101}.wg-app-reveal[data-entered=true]{visibility:visible}.wg-page-content{height:100%;opacity:0}.wg-page-origin{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;object-fit:fill;transform-origin:0 0}.wg-brand img{display:block;width:29px;height:29px;object-fit:contain}
 .wg-mascot{width:300px;height:260px;opacity:0;transform-origin:50% 85%;will-change:transform,opacity}.wg-mascot-art{position:relative;width:250px;height:250px;margin:0 auto}.wg-mascot-art img{display:block;width:100%;height:100%;object-fit:contain}.wg-badge-anchor{position:absolute;left:40.546875%;top:58.359375%;width:7.734375%;height:9.609375%;pointer-events:none}
 .wg-app-reveal[data-entered=true] .wg-page-content{opacity:1}.wg-app-reveal[data-entered=true] .wg-page-origin{opacity:0}

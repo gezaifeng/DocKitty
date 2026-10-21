@@ -2,6 +2,7 @@ import { ipcMain, app, shell, dialog, nativeTheme, BrowserWindow, Menu } from "e
 import path$1, { resolve, join as join$1, relative, sep } from "node:path";
 import { promises } from "node:fs";
 import { createHash, randomUUID, randomBytes } from "node:crypto";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { createRequire } from "module";
 import require$$0$5, { unwatchFile, watchFile, watch as watch$1, stat as stat$2 } from "fs";
 import { realpath as realpath$1, stat as stat$1, lstat as lstat$1, open, readdir as readdir$1 } from "fs/promises";
@@ -1477,8 +1478,10 @@ function containedPath(root, relative2) {
   return result;
 }
 const pending = /* @__PURE__ */ new Map();
+const held = new AsyncLocalStorage();
 async function withRepoWrite(repo, action) {
   const root = path$1.resolve(repo.root);
+  if (held.getStore()?.has(root)) return action();
   const previous = pending.get(root) ?? Promise.resolve();
   const task = previous.catch(() => {
   }).then(async () => {
@@ -1504,7 +1507,7 @@ async function withRepoWrite(repo, action) {
     try {
       await lock.writeFile(String(process.pid));
       await lock.sync();
-      return await action();
+      return await held.run(/* @__PURE__ */ new Set([...held.getStore() ?? [], root]), action);
     } finally {
       await lock.close();
       await promises.rm(lockPath, { force: true });
@@ -2238,6 +2241,8 @@ async function documentDetail(repo, docName2) {
           id: id2,
           contentId,
           parents: v.parents ?? original.parents,
+          parentLabels: v.parentLabels,
+          parentStyles: v.parentStyles,
           title: v.title ?? original.message,
           note: v.note ?? "",
           author: content.author,
@@ -2265,6 +2270,8 @@ async function documentDetail(repo, docName2) {
         id: id2,
         contentId: v.contentId ?? id2,
         parents: v.parents ?? original.parents,
+        parentLabels: v.parentLabels,
+        parentStyles: v.parentStyles,
         title: v.title ?? original.message,
         note: v.note ?? "",
         author: original.author,
@@ -2526,6 +2533,136 @@ async function moveBranchHead(repo, docName2, branch, versionId2) {
     return { protectedBranch };
   });
 }
+const histories = /* @__PURE__ */ new Map();
+const history = (repo) => {
+  const root = path$1.resolve(repo.root);
+  if (!histories.has(root)) histories.set(root, { undo: [], redo: [] });
+  return histories.get(root);
+};
+function clearEditHistory(repo) {
+  histories.delete(path$1.resolve(repo.root));
+}
+function editHistoryStatus(repo) {
+  const state2 = history(repo);
+  return { canUndo: !!state2.undo.length, canRedo: !!state2.redo.length, undoLabel: state2.undo.at(-1)?.label ?? null, redoLabel: state2.redo.at(-1)?.label ?? null };
+}
+async function capture(repo, workspaceName) {
+  const files = /* @__PURE__ */ new Map(), directories = [];
+  async function read(relative2) {
+    const target = path$1.join(repo.root, relative2);
+    let stat2;
+    try {
+      stat2 = await promises.lstat(target);
+    } catch (error2) {
+      if (error2.code === "ENOENT") return;
+      throw error2;
+    }
+    if (stat2.isSymbolicLink()) throw new Error("管理索引不能使用目录链接");
+    if (stat2.isDirectory()) {
+      directories.push(relative2);
+      for (const name of (await promises.readdir(target)).sort()) await read(path$1.join(relative2, name));
+    } else if (stat2.isFile()) {
+      let bytes = await promises.readFile(target);
+      if (relative2 === path$1.join("projects", "catalog.json")) {
+        const catalog = JSON.parse(bytes.toString("utf8"));
+        for (const project of catalog.projects ?? []) delete project.refreshedAt;
+        bytes = Buffer.from(JSON.stringify(catalog, null, 2));
+      }
+      files.set(relative2, bytes);
+    }
+  }
+  for (const name of ["refs", "library", "quarantine", path$1.join("projects", "catalog.json")]) await read(name);
+  const hash = createHash("sha256");
+  for (const dir2 of directories) hash.update("dir:" + dir2 + "\0");
+  for (const [name, bytes] of files) hash.update(name + "\0").update(bytes);
+  if (workspaceName) {
+    validateDocName(workspaceName);
+    await read(path$1.join("workspace", workspaceName));
+  }
+  return { files, directories, hash: hash.digest("hex") };
+}
+async function withUndoableAction(repo, label2, action, workspaceName) {
+  return withRepoWrite(repo, async () => {
+    const before = await capture(repo, workspaceName);
+    let result, failure, failed = false;
+    try {
+      result = await action();
+    } catch (error2) {
+      failure = error2;
+      failed = true;
+    }
+    const after = await capture(repo, workspaceName);
+    const state2 = history(repo);
+    const expected = state2.undo.at(-1)?.afterHash ?? state2.redo.at(-1)?.beforeHash;
+    if (expected && expected !== before.hash) {
+      state2.undo = [];
+      state2.redo = [];
+    }
+    const changes = [];
+    for (const file2 of /* @__PURE__ */ new Set([...before.files.keys(), ...after.files.keys()])) {
+      const a = before.files.get(file2), b = after.files.get(file2);
+      if (!a || !b || !a.equals(b)) changes.push({ file: file2, before: a, after: b });
+    }
+    if (!changes.length && before.hash === after.hash) {
+      if (failed) throw failure;
+      return result;
+    }
+    state2.undo.push({ label: label2, changes, addedDirectories: after.directories.filter((d) => !before.directories.includes(d)), removedDirectories: before.directories.filter((d) => !after.directories.includes(d)), beforeHash: before.hash, afterHash: after.hash });
+    if (state2.undo.length > 100) state2.undo.shift();
+    state2.redo = [];
+    if (failed) throw failure;
+    return result;
+  });
+}
+async function replay(repo, direction) {
+  return withRepoWrite(repo, async () => {
+    const state2 = history(repo), entry = state2[direction].at(-1);
+    if (!entry) return editHistoryStatus(repo);
+    const expected = direction === "undo" ? entry.afterHash : entry.beforeHash;
+    if ((await capture(repo)).hash !== expected) {
+      clearEditHistory(repo);
+      throw new Error("资料已被其他操作更新，旧撤回记录已清除，以免覆盖新内容");
+    }
+    const applied = [], target = direction === "undo" ? "before" : "after", original = direction === "undo" ? "after" : "before";
+    let workspaceEditsPreserved = false;
+    async function write(change, side) {
+      const file2 = path$1.join(repo.root, change.file), bytes = change[side];
+      if (bytes) await writeFileAtomic(file2, bytes);
+      else await promises.rm(file2, { force: true });
+    }
+    try {
+      for (const change of entry.changes) {
+        if (change.file.startsWith("workspace" + path$1.sep)) {
+          const current = await promises.readFile(path$1.join(repo.root, change.file)).catch((error2) => {
+            if (error2.code !== "ENOENT") throw error2;
+            return void 0;
+          });
+          const expectedBytes = change[original];
+          if (current ? !expectedBytes?.equals(current) : !!expectedBytes) {
+            workspaceEditsPreserved = true;
+            continue;
+          }
+        }
+        await write(change, target);
+        applied.push(change);
+      }
+      const remove = direction === "undo" ? entry.addedDirectories : entry.removedDirectories;
+      for (const dir2 of [...remove].sort((a, b) => b.length - a.length)) await promises.rmdir(path$1.join(repo.root, dir2)).catch((error2) => {
+        if (!["ENOENT", "ENOTEMPTY"].includes(error2.code)) throw error2;
+      });
+      const create = direction === "undo" ? entry.removedDirectories : entry.addedDirectories;
+      for (const dir2 of create) await promises.mkdir(path$1.join(repo.root, dir2), { recursive: true });
+    } catch (error2) {
+      for (const change of applied.reverse()) await write(change, original);
+      throw error2;
+    }
+    state2[direction].pop();
+    state2[direction === "undo" ? "redo" : "undo"].push(entry);
+    return { ...editHistoryStatus(repo), workspaceEditsPreserved };
+  });
+}
+const undoEdit = (repo) => replay(repo, "undo");
+const redoEdit = (repo) => replay(repo, "redo");
 const digest$1 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 function draftPath(repo, relative2) {
   if (!relative2.startsWith("drafts/")) throw new Error("编辑副本必须位于稿喵文档库内");
@@ -2628,642 +2765,6 @@ async function recordDraftSave(repo, file2) {
     }
   });
 }
-async function editVersionRelations(repo, docName2, id2, request2) {
-  return withRepoWrite(repo, async () => {
-    const detail = await documentDetail(repo, docName2), meta = await readLibraryMeta(repo, docName2);
-    const version2 = detail.versions.find((v) => v.id === id2 && !v.deletedAt);
-    if (!version2 || detail.deletedAt) throw new Error("请先还原要整理的版本和文档");
-    const byId = new Map(detail.versions.map((v) => [v.id, v]));
-    const parents = new Map(detail.versions.map((v) => [v.id, [...v.parents]]));
-    const affected = /* @__PURE__ */ new Set();
-    const replace = (versionId2, previous) => {
-      parents.set(versionId2, previous);
-      affected.add(versionId2);
-    };
-    if (request2.action === "disconnectPrevious") replace(id2, []);
-    if (request2.action === "disconnectNext" || request2.action === "moveBranch") {
-      for (const child2 of detail.versions) if (child2.parents.includes(id2)) replace(child2.id, child2.parents.filter((p) => p !== id2));
-    }
-    if (request2.action === "connectPrevious" || request2.action === "connectNext") {
-      const target = byId.get(request2.targetVersionId ?? "");
-      if (!target || target.deletedAt) throw new Error("请选择同一文档中仍存在的版本");
-      const child2 = request2.action === "connectPrevious" ? id2 : target.id;
-      const parent2 = request2.action === "connectPrevious" ? target.id : id2;
-      replace(child2, [.../* @__PURE__ */ new Set([...parents.get(child2) ?? [], parent2])]);
-    }
-    if (request2.action === "moveBranch") {
-      const branch = validateBranchName(request2.branch ?? "");
-      if (!(branch in detail.branchHeads)) throw new Error("目标分支不存在，请先建立分支");
-      const target = request2.targetVersionId ? byId.get(request2.targetVersionId) : void 0;
-      if (request2.targetVersionId && (!target || target.deletedAt || !target.branches.includes(branch))) throw new Error("连接起点必须属于目标分支");
-      replace(id2, target ? [target.id] : []);
-    }
-    const done = /* @__PURE__ */ new Set(), visiting = /* @__PURE__ */ new Set();
-    const visit = (node2) => {
-      if (visiting.has(node2)) throw new Error("不能连接到自己或形成循环；请先断开冲突的连接");
-      if (done.has(node2)) return;
-      visiting.add(node2);
-      for (const parent2 of parents.get(node2) ?? []) visit(parent2);
-      visiting.delete(node2);
-      done.add(node2);
-    };
-    for (const node2 of parents.keys()) visit(node2);
-    for (const v of detail.versions) {
-      const record = meta.versions[v.id] ??= {};
-      record.branchMembership ??= v.branches;
-      record.position ??= v.position;
-    }
-    for (const node2 of affected) {
-      const v = meta.versions[node2] ??= {};
-      v.parents = parents.get(node2);
-      v.branchMembership ??= byId.get(node2).branches;
-    }
-    if (request2.action === "moveBranch") {
-      const branch = request2.branch;
-      meta.versions[id2].branchMembership = [branch];
-      for (const draft of meta.drafts ?? []) if ((draft.versionId ?? draft.baseVersionId) === id2) draft.closed = true;
-      await writeLibraryMeta(repo, docName2, meta);
-      for (const [old2, head] of Object.entries(detail.branchHeads)) {
-        if (old2 === branch || head !== id2) continue;
-        const fallback2 = detail.versions.find((v) => v.id !== id2 && !v.deletedAt && v.branches.includes(old2));
-        if (fallback2) await writeHead(repo, docIdOf(docName2), old2, fallback2.id);
-        else await promises.rm(containedPath(repo.root, `refs/heads/${docIdOf(docName2)}/${old2}`), { force: true });
-      }
-      if (!request2.targetVersionId || detail.branchHeads[branch] === request2.targetVersionId) await writeHead(repo, docIdOf(docName2), branch, id2);
-      if (!detail.branchHeads[detail.currentBranch] || detail.branchHeads[detail.currentBranch] === id2) await writeCurrentBranch(repo, docIdOf(docName2), branch);
-    } else await writeLibraryMeta(repo, docName2, meta);
-  });
-}
-async function tidyVersionLayout(repo, docName2) {
-  return withRepoWrite(repo, async () => {
-    const detail = await documentDetail(repo, docName2), meta = await readLibraryMeta(repo, docName2);
-    const positions = defaultVersionPositions(detail.versions);
-    for (const version2 of detail.versions) (meta.versions[version2.id] ??= {}).position = positions.get(version2.id);
-    await writeLibraryMeta(repo, docName2, meta);
-  });
-}
-async function purgeVersion(repo, docName2, id2, opts) {
-  return withRepoWrite(repo, async () => {
-    const detail = await documentDetail(repo, docName2), meta = await readLibraryMeta(repo, docName2);
-    const version2 = detail.versions.find((v) => v.id === id2);
-    if (!version2) throw new Error("该版本不存在或已彻底删除");
-    const source = version2.sourcePath;
-    if (opts.deleteSource && (!source || opts.confirmedSourcePath !== source)) throw new Error("请确认软件记录的导入文件完整路径");
-    if (opts.deleteSource && source) {
-      const relative2 = path$1.relative(repo.root, source);
-      if (!relative2 || !relative2.startsWith("..") && !path$1.isAbsolute(relative2) && !["drafts", "workspace", "imports"].includes(relative2.split(path$1.sep)[0])) throw new Error("不能删除文档库结构文件");
-      const stat2 = await promises.lstat(source).catch((error2) => {
-        if (error2.code === "ENOENT") return null;
-        throw error2;
-      });
-      if (stat2 && (!stat2.isFile() || stat2.isSymbolicLink())) throw new Error("仅支持删除实际文件，目录和符号链接不能在这里删除");
-      for (const name of await docIds(repo)) {
-        const other = await documentDetail(repo, name);
-        if (other.versions.some((v) => !(name === docName2 && v.id === id2) && v.sourcePath && path$1.resolve(v.sourcePath).toLowerCase() === path$1.resolve(source).toLowerCase())) throw new Error("其他版本也关联这份导入文件；请先使用仅从版本管理删除");
-      }
-    }
-    for (const v of detail.versions) {
-      const record2 = meta.versions[v.id] ??= {};
-      record2.branchMembership ??= v.branches;
-      if (v.parents.includes(id2)) record2.parents = v.parents.filter((p) => p !== id2);
-    }
-    const record = meta.versions[id2];
-    const removedContents = [.../* @__PURE__ */ new Set([id2, version2.contentId, ...record.revisions ?? []])];
-    const ctx = StorageContext.forRepo(repo), candidates = /* @__PURE__ */ new Set(), candidateChunks = /* @__PURE__ */ new Set(), manifests = /* @__PURE__ */ new Map();
-    const collect = async (commitId, blobs, chunks) => {
-      const treeId = (await readCommit(ctx, commitId)).tree;
-      blobs.add(treeId);
-      for (const manifestId of Object.values((await readTree(ctx, treeId)).entries)) {
-        blobs.add(manifestId);
-        const m = await getManifest(ctx, manifestId);
-        if (blobs === candidates) manifests.set(manifestId, m.sha256);
-        if (m.encoding === "generic") for (const c of m.ref.chunks) chunks.add(c);
-        else {
-          for (const entry of Object.values(m.entries)) {
-            if ("blob" in entry.ref) blobs.add(entry.ref.blob);
-            else for (const c of entry.ref.chunks) chunks.add(c);
-          }
-          for (const c of m.original?.ref.chunks ?? []) chunks.add(c);
-        }
-      }
-    };
-    for (const contentId of removedContents) await collect(contentId, candidates, candidateChunks);
-    const purged = new Set(removedContents);
-    for (const name of await docIds(repo)) for (const contentId of (await readLibraryMeta(repo, name)).purgedContentIds ?? []) purged.add(contentId);
-    const keep = /* @__PURE__ */ new Set(), keepChunks = /* @__PURE__ */ new Set();
-    for (const a of await promises.readdir(ctx.blobs.dir, { withFileTypes: true })) {
-      if (!a.isDirectory() || !/^[a-f0-9]{2}$/.test(a.name)) continue;
-      for (const b of await promises.readdir(path$1.join(ctx.blobs.dir, a.name), { withFileTypes: true })) {
-        if (!b.isDirectory() || !/^[a-f0-9]{2}$/.test(b.name)) continue;
-        for (const c of await promises.readdir(path$1.join(ctx.blobs.dir, a.name, b.name))) {
-          const objectId = a.name + b.name + c;
-          if (!/^[a-f0-9]{64}$/.test(objectId) || purged.has(objectId)) continue;
-          const value = await ctx.blobs.get(objectId).then((bytes) => {
-            try {
-              return JSON.parse(new TextDecoder().decode(bytes));
-            } catch {
-              return null;
-            }
-          });
-          if (value && Array.isArray(value.parents) && typeof value.tree === "string" && typeof value.message === "string") await collect(objectId, keep, keepChunks);
-        }
-      }
-    }
-    for (const draft of meta.drafts ?? []) {
-      if ((draft.versionId ?? draft.baseVersionId) !== id2) continue;
-      draft.closed = true;
-      const file2 = containedPath(repo.root, draft.path);
-      await promises.rm(file2, { force: true });
-    }
-    if (meta.workingVersionId === id2) {
-      const file2 = containedPath(repo.root, `workspace/${docName2}`);
-      const stat2 = await promises.lstat(file2).catch((error2) => {
-        if (error2.code === "ENOENT") return null;
-        throw error2;
-      });
-      if (stat2?.isDirectory()) throw new Error("目录型文档请先导出保留内容，不支持在此彻底删除");
-      await promises.rm(file2, { force: true });
-      delete meta.workingVersionId;
-      delete meta.workingContentId;
-    }
-    if (opts.deleteSource && source) await promises.rm(source, { force: true });
-    record.purgedAt = (/* @__PURE__ */ new Date()).toISOString();
-    record.parents = [];
-    record.branchMembership = [];
-    meta.purgedContentIds = [.../* @__PURE__ */ new Set([...meta.purgedContentIds ?? [], ...removedContents])];
-    await writeLibraryMeta(repo, docName2, meta);
-    for (const [branch, head] of Object.entries(detail.branchHeads)) if (head === id2) {
-      const fallback2 = detail.versions.find((v) => v.id !== id2 && !v.deletedAt && v.branches.includes(branch));
-      if (fallback2) await writeHead(repo, docIdOf(docName2), branch, fallback2.id);
-      else await promises.rm(containedPath(repo.root, `refs/heads/${docIdOf(docName2)}/${branch}`), { force: true });
-    }
-    for (const blob of candidates) if (!keep.has(blob)) {
-      await ctx.blobs.remove(blob);
-      const sha = manifests.get(blob);
-      if (sha) await promises.rm(containedPath(repo.root, `objects/blobs/index/${sha}`), { force: true });
-    }
-    for (const chunk of candidateChunks) if (!keepChunks.has(chunk)) await ctx.chunks.remove(chunk);
-    return { changed: true };
-  });
-}
-const kinds = ["iteration", "reference", "example", "dependency", "custom"];
-const indexPath = (repo) => path$1.join(repo.root, "projects", "catalog.json");
-const objectPath = (repo, hash) => {
-  if (!/^[a-f0-9]{64}$/.test(hash)) throw new Error("无效文件快照标识");
-  return path$1.join(repo.root, "objects", "project-files", hash);
-};
-function text(value, label2, empty = false) {
-  if (typeof value !== "string" || !empty && !value.trim() || value.length > 1e4) throw new Error(`${label2}无效`);
-  return value.trim();
-}
-async function readIndex(repo) {
-  try {
-    const data = JSON.parse(await promises.readFile(indexPath(repo), "utf8"));
-    if (data.format !== 1 || !Array.isArray(data.projects) || !data.requests) throw new Error("项目索引格式不支持");
-    return data;
-  } catch (e) {
-    if (e.code === "ENOENT") return { format: 1, projects: [], requests: {} };
-    throw e;
-  }
-}
-async function saveIndex(repo, data) {
-  await writeFileAtomic(indexPath(repo), Buffer.from(JSON.stringify(data, null, 2)));
-}
-function findProject(data, id2) {
-  const project = data.projects.find((p) => p.id === id2);
-  if (!project) throw new Error("文档库不存在");
-  return project;
-}
-function findNode(project, id2) {
-  const node2 = project.nodes.find((n) => n.id === id2);
-  if (!node2) throw new Error("文件或文件夹不存在");
-  return node2;
-}
-function updateFolderSizes(project) {
-  const children = /* @__PURE__ */ new Map();
-  for (const node2 of project.nodes) {
-    const list = children.get(node2.parentId);
-    if (list) list.push(node2);
-    else children.set(node2.parentId, [node2]);
-  }
-  const size = (node2) => {
-    if (node2.kind === "folder") node2.size = (children.get(node2.id) ?? []).reduce((sum, child2) => sum + size(child2), 0);
-    return node2.size;
-  };
-  project.nodes.filter((n) => !n.parentId).forEach(size);
-}
-async function listProjects(repo) {
-  return (await readIndex(repo)).projects;
-}
-async function getProject(repo, id2) {
-  return findProject(await readIndex(repo), id2);
-}
-async function createProject(repo, name) {
-  name = text(name, "文档库名称");
-  return withRepoWrite(repo, async () => {
-    const data = await readIndex(repo);
-    const project = { id: randomUUID(), name, createdAt: (/* @__PURE__ */ new Date()).toISOString(), nodes: [], relations: [], categories: [] };
-    data.projects.push(project);
-    await saveIndex(repo, data);
-    return project;
-  });
-}
-async function digest(file2) {
-  const hash = createHash("sha256");
-  for await (const chunk of readFileBlocks(file2)) hash.update(chunk);
-  return hash.digest("hex");
-}
-function inside(root, target) {
-  const relative2 = path$1.relative(root, target);
-  return relative2 === "" || !path$1.isAbsolute(relative2) && relative2 !== ".." && !relative2.startsWith(".." + path$1.sep);
-}
-async function collectSource(repo, source, stage, previous, start2 = 0) {
-  const nodes = [], repoRoot = await promises.realpath(repo.root);
-  const key = (file2, kind) => (process.platform === "win32" ? file2.toLowerCase() : file2) + ":" + kind;
-  const existingByPath = new Map(previous.filter((n) => n.sourceId === source.id && n.sourcePath).map((n) => [key(n.sourcePath, n.kind), n]));
-  async function copy(file2, parentId, ordinal) {
-    if (source.excludedPaths.some((excluded) => inside(excluded, file2))) return;
-    const stat22 = await promises.lstat(file2);
-    const link = stat22.isSymbolicLink();
-    if (!link && !stat22.isFile() && !stat22.isDirectory()) throw new Error("不支持特殊设备文件");
-    if (!link) {
-      const real = await promises.realpath(file2);
-      if (inside(repoRoot, real) || inside(real, repoRoot)) throw new Error("不能导入稿喵文档库或包含它的目录");
-    }
-    const kind = stat22.isDirectory() ? "folder" : "file";
-    const existing = existingByPath.get(key(file2, kind));
-    const node2 = existing ? { ...existing, parentId } : { id: randomUUID(), parentId, name: path$1.basename(file2), title: path$1.basename(file2), kind, size: 0, note: "", createdAt: (/* @__PURE__ */ new Date()).toISOString(), position: { x: 40 + ordinal % 3 * 290, y: 40 + Math.floor(ordinal / 3) * 190 } };
-    node2.sourceId = source.id;
-    node2.sourcePath = file2;
-    node2.size = 0;
-    nodes.push(node2);
-    if (link) {
-      node2.linkTarget = path$1.resolve(path$1.dirname(file2), await promises.readlink(file2));
-      delete node2.contentHash;
-    } else if (kind === "file") {
-      delete node2.linkTarget;
-      const temp = path$1.join(stage, node2.id);
-      await promises.copyFile(file2, temp);
-      node2.contentHash = await digest(temp);
-      node2.size = (await promises.stat(temp)).size;
-      const target = objectPath(repo, node2.contentHash);
-      await promises.mkdir(path$1.dirname(target), { recursive: true });
-      if (await promises.access(target).then(() => true, (error2) => {
-        if (error2.code !== "ENOENT") throw error2;
-        return false;
-      })) {
-        if (await digest(target) !== node2.contentHash) throw new Error("已有文件快照损坏，请恢复备份后再导入");
-      } else {
-        const handle = await promises.open(temp, "r+");
-        try {
-          await handle.sync();
-        } finally {
-          await handle.close();
-        }
-        await promises.rename(temp, target);
-      }
-    } else {
-      delete node2.linkTarget;
-      delete node2.contentHash;
-      const entries = (await promises.readdir(file2)).sort();
-      for (let i2 = 0; i2 < entries.length; i2++) await copy(path$1.join(file2, entries[i2]), node2.id, i2);
-    }
-  }
-  let stat2;
-  try {
-    stat2 = await promises.lstat(source.path);
-  } catch (error2) {
-    if (["ENOENT", "ENOTDIR"].includes(error2.code ?? "")) return [];
-    throw error2;
-  }
-  if (source.unpackFolder) {
-    if (stat2.isSymbolicLink()) throw new Error("链接入口只保留卡片，不展开目标目录");
-    if (!stat2.isDirectory()) throw new Error("来源父文件夹已变成文件，请重新导入");
-    const children = (await promises.readdir(source.path)).sort();
-    for (let i2 = 0; i2 < children.length; i2++) await copy(path$1.join(source.path, children[i2]), source.parentId, start2 + i2);
-  } else await copy(source.path, source.parentId, start2);
-  return nodes;
-}
-function subtree(project, nodeId) {
-  const ids = /* @__PURE__ */ new Set([nodeId]);
-  for (let size = 0; size !== ids.size; ) {
-    size = ids.size;
-    project.nodes.filter((n) => n.parentId && ids.has(n.parentId)).forEach((n) => ids.add(n.id));
-  }
-  return ids;
-}
-function freezeNode(project, nodeId) {
-  const root = findNode(project, nodeId), ids = subtree(project, nodeId);
-  if (root.sourcePath && root.sourceId) project.sources?.find((s) => s.id === root.sourceId)?.excludedPaths.push(root.sourcePath);
-  for (const node2 of project.nodes) if (ids.has(node2.id) && !node2.snapshot) {
-    delete node2.sourceId;
-    node2.snapshot = true;
-    node2.snapshotRootId = nodeId;
-  }
-}
-function checkRelation(project, relation, excludeId) {
-  findNode(project, relation.from);
-  findNode(project, relation.to);
-  if (relation.from === relation.to) throw new Error("不能连接到自身");
-  if (!kinds.includes(relation.kind)) throw new Error("关系类型无效");
-  text(relation.label, "关系标签", true);
-  text(relation.note, "关系备注", true);
-  if (relation.kind !== "iteration") return;
-  const seen = /* @__PURE__ */ new Set(), visit = [relation.to];
-  while (visit.length) {
-    const id2 = visit.pop();
-    if (id2 === relation.from) throw new Error("迭代关系不能形成循环");
-    if (seen.has(id2)) continue;
-    seen.add(id2);
-    visit.push(...project.relations.filter((e) => e.id !== excludeId && e.kind === "iteration" && e.from === id2).map((e) => e.to));
-  }
-}
-async function importProjectItems(repo, request2) {
-  if (!Array.isArray(request2.paths) || !request2.paths.length || request2.paths.some((p) => typeof p !== "string" || !path$1.isAbsolute(p))) throw new Error("请选择文件或文件夹的绝对路径");
-  if (request2.unpackFolder && request2.paths.length !== 1) throw new Error("展开导入只支持一个父文件夹");
-  if (request2.title !== void 0) text(request2.title, "迭代名称");
-  const signature2 = createHash("sha256").update(JSON.stringify({ projectId: request2.projectId, paths: request2.paths.map((p) => path$1.resolve(p)), parentId: request2.parentId ?? null, unpackFolder: request2.unpackFolder ?? false, previousNodeId: request2.previousNodeId, snapshot: request2.snapshot ?? false, title: request2.title })).digest("hex");
-  if (request2.requestId !== void 0) text(request2.requestId, "请求标识");
-  return withRepoWrite(repo, async () => {
-    const data = await readIndex(repo), project = findProject(data, request2.projectId);
-    const requestKey = request2.requestId ? `${project.id}:${request2.requestId}` : null;
-    if (requestKey && Object.hasOwn(data.requests, requestKey)) {
-      const previous = data.requests[requestKey];
-      if (previous.signature !== signature2) throw new Error("请求标识已用于不同的导入参数");
-      return previous.result;
-    }
-    const parentId = request2.parentId ?? null;
-    if (parentId && findNode(project, parentId).kind !== "folder") throw new Error("导入目标必须是文件夹");
-    if (parentId && findNode(project, parentId).snapshot) throw new Error("历史文件夹为快照，请返回当前文件夹或文档库根目录导入");
-    if (request2.previousNodeId) findNode(project, request2.previousNodeId);
-    const repoRoot = await promises.realpath(repo.root);
-    const sources = [];
-    for (const input of request2.paths) {
-      if ((await promises.lstat(input)).isSymbolicLink()) {
-        sources.push(path$1.resolve(input));
-        continue;
-      }
-      const source = await promises.realpath(input);
-      if (inside(repoRoot, source) || inside(source, repoRoot)) throw new Error("不能导入稿喵文档库或包含它的目录");
-      sources.push(source);
-    }
-    if (request2.unpackFolder && !(await promises.lstat(sources[0])).isDirectory()) throw new Error("展开导入需要普通文件夹；链接入口只保留卡片");
-    const stage = await promises.mkdtemp(path$1.join(repo.root, ".project-import-"));
-    const nodes = [], nodeIds = [];
-    try {
-      const existing = project.nodes.filter((n) => n.parentId === parentId).length;
-      project.sources ??= [];
-      for (let i2 = 0; i2 < sources.length; i2++) {
-        const source = { id: randomUUID(), path: sources[i2], parentId, unpackFolder: request2.unpackFolder ?? false, excludedPaths: [] };
-        const copied = await collectSource(repo, source, stage, [], existing + i2);
-        nodeIds.push(...copied.filter((n) => n.parentId === parentId).map((n) => n.id));
-        if (request2.snapshot) {
-          const groups = /* @__PURE__ */ new Map();
-          for (const n of copied) {
-            n.snapshotRootId = n.parentId === parentId ? n.id : groups.get(n.parentId);
-            groups.set(n.id, n.snapshotRootId ?? n.id);
-            delete n.sourceId;
-            n.snapshot = true;
-          }
-        } else project.sources.push(source);
-        nodes.push(...copied);
-      }
-      if (request2.previousNodeId) {
-        freezeNode(project, request2.previousNodeId);
-        for (const source of project.sources) {
-          if (nodes.some((n) => n.sourceId === source.id)) continue;
-          for (const imported of sources) if (inside(source.path, imported) && source.unpackFolder) source.excludedPaths.push(imported);
-        }
-      }
-      project.nodes.push(...nodes);
-      if (request2.previousNodeId) {
-        const previous = findNode(project, request2.previousNodeId);
-        for (const node2 of nodes.filter((n) => nodeIds.includes(n.id))) {
-          const position2 = { x: previous.position.x + 290, y: previous.position.y };
-          while (project.nodes.some((n) => n.id !== node2.id && n.parentId === parentId && Math.abs(n.position.x - position2.x) < 250 && Math.abs(n.position.y - position2.y) < 150)) position2.y += 190;
-          node2.position = position2;
-        }
-      }
-      if (request2.title) project.nodes.filter((n) => nodeIds.includes(n.id)).forEach((n) => {
-        n.title = request2.title;
-      });
-      updateFolderSizes(project);
-      const relationIds = [];
-      if (request2.previousNodeId) for (const id2 of nodeIds) {
-        const edge = { id: randomUUID(), from: request2.previousNodeId, to: id2, kind: "iteration", label: "下一轮迭代", note: "" };
-        checkRelation(project, edge);
-        project.relations.push(edge);
-        relationIds.push(edge.id);
-      }
-      const result = { nodeIds, relationIds };
-      if (requestKey) data.requests[requestKey] = { signature: signature2, result };
-      await saveIndex(repo, data);
-      return result;
-    } finally {
-      if (path$1.dirname(stage) !== repo.root || !path$1.basename(stage).startsWith(".project-import-")) throw new Error("导入暂存位置无效");
-      await promises.rm(stage, { recursive: true, force: true });
-    }
-  });
-}
-async function recordProjectIteration(repo, projectId, nodeId, title, requestId) {
-  const project = await getProject(repo, projectId), node2 = findNode(project, nodeId);
-  if (node2.linkTarget) throw new Error("链接入口只记录目标路径，不记录目标内容迭代");
-  if (!node2.sourcePath) throw new Error("此节点没有来源路径，请导入新文件或文件夹创建下一轮");
-  if (node2.snapshot && (!requestId || !Object.hasOwn((await readIndex(repo)).requests, `${projectId}:${requestId}`))) throw new Error("历史快照不能同步原路径；请通过导入新文件或文件夹创建下一轮");
-  return importProjectItems(repo, { projectId, paths: [node2.sourcePath], parentId: node2.parentId, previousNodeId: nodeId, requestId, title: text(title, "迭代名称") });
-}
-async function updateProjectNode(repo, projectId, nodeId, patch) {
-  return withRepoWrite(repo, async () => {
-    const data = await readIndex(repo), project = findProject(data, projectId), node2 = findNode(project, nodeId);
-    if (patch.title !== void 0) node2.title = text(patch.title, "名称");
-    if (patch.note !== void 0) node2.note = text(patch.note, "备注", true);
-    if (patch.categoryId !== void 0) {
-      if (patch.categoryId && !project.categories?.some((c) => c.id === patch.categoryId)) throw new Error("分类不存在");
-      node2.categoryId = patch.categoryId ?? "";
-    }
-    if (patch.position !== void 0) {
-      if (!Number.isFinite(patch.position.x) || !Number.isFinite(patch.position.y)) throw new Error("位置无效");
-      node2.position = patch.position;
-    }
-    await saveIndex(repo, data);
-    return node2;
-  });
-}
-async function setProjectCategory(repo, projectId, category) {
-  return withRepoWrite(repo, async () => {
-    const data = await readIndex(repo), project = findProject(data, projectId), name = text(category.name, "分类名称");
-    project.categories ??= [];
-    if (category.id && !project.categories.some((c) => c.id === category.id)) throw new Error("分类不存在");
-    if (project.categories.some((c) => c.id !== category.id && c.name.toLowerCase() === name.toLowerCase())) throw new Error("分类名称已存在");
-    const saved = { id: category.id ?? randomUUID(), name };
-    if (category.id) project.categories = project.categories.map((c) => c.id === category.id ? saved : c);
-    else project.categories.push(saved);
-    await saveIndex(repo, data);
-    return saved;
-  });
-}
-async function deleteProjectCategory(repo, projectId, categoryId) {
-  return withRepoWrite(repo, async () => {
-    const data = await readIndex(repo), project = findProject(data, projectId);
-    if (!project.categories?.some((c) => c.id === categoryId)) throw new Error("分类不存在");
-    project.categories = project.categories.filter((c) => c.id !== categoryId);
-    for (const node2 of project.nodes) if (node2.categoryId === categoryId) node2.categoryId = "";
-    await saveIndex(repo, data);
-  });
-}
-async function setProjectRelation(repo, projectId, input) {
-  return withRepoWrite(repo, async () => {
-    const data = await readIndex(repo), project = findProject(data, projectId);
-    const relation = { ...input, kind: input.kind ?? project.relations.find((e) => e.id === input.id)?.kind ?? "custom" };
-    if (relation.id && !project.relations.some((e) => e.id === relation.id)) throw new Error("关系不存在");
-    checkRelation(project, relation, relation.id);
-    const edge = { ...relation, id: relation.id ?? randomUUID(), label: text(relation.label, "标签", true), note: text(relation.note, "备注", true) };
-    project.relations = project.relations.filter((e) => e.id !== edge.id);
-    project.relations.push(edge);
-    await saveIndex(repo, data);
-    return edge;
-  });
-}
-async function deleteProjectRelation(repo, projectId, relationId) {
-  await withRepoWrite(repo, async () => {
-    const data = await readIndex(repo), project = findProject(data, projectId);
-    if (!project.relations.some((e) => e.id === relationId)) throw new Error("关系不存在");
-    project.relations = project.relations.filter((e) => e.id !== relationId);
-    await saveIndex(repo, data);
-  });
-}
-async function deleteProjectNode(repo, projectId, nodeId) {
-  await withRepoWrite(repo, async () => {
-    const data = await readIndex(repo), project = findProject(data, projectId);
-    findNode(project, nodeId);
-    const removed = subtree(project, nodeId), root = findNode(project, nodeId);
-    if (root.sourceId && root.sourcePath) project.sources?.find((s) => s.id === root.sourceId)?.excludedPaths.push(root.sourcePath);
-    project.sources = project.sources?.filter((s) => !s.parentId || !removed.has(s.parentId));
-    project.nodes = project.nodes.filter((n) => !removed.has(n.id));
-    project.relations = project.relations.filter((e) => !removed.has(e.from) && !removed.has(e.to));
-    updateFolderSizes(project);
-    await saveIndex(repo, data);
-  });
-}
-async function refreshProject(repo, projectId) {
-  return withRepoWrite(repo, async () => {
-    const data = await readIndex(repo), project = findProject(data, projectId), previous = project.nodes;
-    const stage = await promises.mkdtemp(path$1.join(repo.root, ".project-import-"));
-    try {
-      const bindings = project.sources ?? [], current = [];
-      for (const node2 of previous.filter((n) => !n.sourceId)) {
-        if (node2.sourcePath) {
-          try {
-            await promises.lstat(node2.sourcePath);
-          } catch (error2) {
-            if (["ENOENT", "ENOTDIR"].includes(error2.code ?? "")) continue;
-            throw error2;
-          }
-        }
-        current.push({ ...node2 });
-      }
-      for (const source of bindings) {
-        if (source.parentId && !previous.some((n) => n.id === source.parentId)) continue;
-        const start2 = previous.filter((n) => n.parentId === source.parentId).length;
-        current.push(...await collectSource(repo, source, stage, previous, start2));
-      }
-      const ids = new Set(current.map((n) => n.id));
-      for (let count = -1; count !== ids.size; ) {
-        count = ids.size;
-        for (const n of current) if (n.parentId && !ids.has(n.parentId)) ids.delete(n.id);
-      }
-      project.nodes = current.filter((n) => ids.has(n.id));
-      project.sources = bindings.filter((s) => !s.parentId || ids.has(s.parentId));
-      project.relations = project.relations.filter((e) => ids.has(e.from) && ids.has(e.to));
-      updateFolderSizes(project);
-      project.refreshedAt = (/* @__PURE__ */ new Date()).toISOString();
-      const old2 = new Map(previous.map((n) => [n.id, n]));
-      const result = {
-        added: project.nodes.filter((n) => !old2.has(n.id)).length,
-        updated: project.nodes.filter((n) => {
-          const p = old2.get(n.id);
-          return p && (p.contentHash !== n.contentHash || p.size !== n.size || p.linkTarget !== n.linkTarget);
-        }).length,
-        removed: previous.filter((n) => !ids.has(n.id)).length
-      };
-      await saveIndex(repo, data);
-      return result;
-    } finally {
-      if (path$1.dirname(stage) === repo.root && path$1.basename(stage).startsWith(".project-import-")) await promises.rm(stage, { recursive: true, force: true });
-    }
-  });
-}
-async function readProjectFile(repo, projectId, nodeId) {
-  const node2 = findNode(await getProject(repo, projectId), nodeId);
-  if (node2.linkTarget) throw new Error("链接入口只记录目标路径，不复制目标内容");
-  if (node2.kind !== "file" || !node2.contentHash) throw new Error("请选择文件");
-  const file2 = objectPath(repo, node2.contentHash);
-  if (await digest(file2) !== node2.contentHash) throw new Error("文件快照校验失败");
-  return promises.readFile(file2);
-}
-async function exportProjectNode(repo, projectId, nodeId, destination) {
-  const project = await getProject(repo, projectId), node2 = findNode(project, nodeId);
-  if (!path$1.isAbsolute(destination)) throw new Error("导出需要绝对路径");
-  const resolved = path$1.resolve(destination), ancestor = await promises.realpath(path$1.dirname(resolved));
-  if (inside(await promises.realpath(repo.root), ancestor)) throw new Error("请导出到文档库之外");
-  if (await promises.lstat(resolved).then(() => true, (e) => {
-    if (e.code !== "ENOENT") throw e;
-    return false;
-  })) throw new Error("导出目标已存在，请使用新位置");
-  const stage = await promises.mkdtemp(path$1.join(ancestor, ".稿喵导出-"));
-  async function write(item, target) {
-    if (item.linkTarget) throw new Error("链接入口只记录目标路径，不能导出目标内容；请选择不包含链接的资料导出");
-    if (item.kind === "file") await promises.writeFile(target, await readProjectFile(repo, projectId, item.id), { flag: "wx" });
-    else {
-      await promises.mkdir(target);
-      const names = /* @__PURE__ */ new Set();
-      for (const child2 of project.nodes.filter((n) => n.parentId === item.id && (item.snapshot ? !n.snapshotRootId || n.snapshotRootId === item.snapshotRootId : !n.snapshot))) {
-        if (child2.name === "." || child2.name === ".." || path$1.basename(child2.name) !== child2.name || names.has(child2.name.toLowerCase())) throw new Error("文件夹存在不安全或重复文件名，请整理后导出");
-        names.add(child2.name.toLowerCase());
-        await write(child2, path$1.join(target, child2.name));
-      }
-    }
-  }
-  try {
-    const target = path$1.join(stage, "item");
-    await write(node2, target);
-    await promises.rename(target, resolved);
-  } finally {
-    if (path$1.dirname(stage) === ancestor && path$1.basename(stage).startsWith(".稿喵导出-")) await promises.rm(stage, { recursive: true, force: true });
-  }
-}
-const CH = {
-  LIBRARY_LIST: "library.list",
-  LIBRARY_DETAIL: "library.detail",
-  LIBRARY_MUTATE: "library.mutate",
-  REPO_CREATE: "repo.create",
-  REPO_CLOSE: "repo.close",
-  REPO_OPEN: "repo.open",
-  REPO_BOOTSTRAP: "repo.bootstrap",
-  REPO_RELOCATE: "repo.relocate",
-  DOC_IMPORT: "doc.import",
-  DOC_LIST: "doc.list",
-  DOC_EDIT: "doc.edit",
-  COMMIT_CREATE: "commit.create",
-  COMMIT_LIST: "commit.list",
-  COMMIT_CHECKOUT: "commit.checkout",
-  BRANCH_CREATE: "branch.create",
-  BRANCH_SWITCH: "branch.switch",
-  BRANCH_DELETE: "branch.delete",
-  STATS_STORAGE: "stats.storage",
-  BACKUP_EXPORT: "backup.export",
-  BACKUP_IMPORT: "backup.import",
-  MAINTENANCE_SCRUB: "maintenance.scrub",
-  QUARANTINE_LIST: "quarantine.list",
-  QUARANTINE_RESTORE: "quarantine.restore",
-  QUARANTINE_PURGE: "quarantine.purge",
-  PREVIEW_GET_BYTES: "preview.getBytes",
-  DIALOG_PICK_FOLDER: "dialog.pickFolder",
-  DIALOG_PICK_FILE: "dialog.pickFile",
-  DIALOG_SAVE_PATH: "dialog.savePath",
-  WATCHER_CHANGE: "watcher.change",
-  COMMIT_DIFF_TEXT: "commit:diffText"
-};
 var util$4;
 (function(util2) {
   util2.assertEqual = (_2) => {
@@ -6945,6 +6446,676 @@ const enumType = ZodEnum.create;
 ZodPromise.create;
 ZodOptional.create;
 ZodNullable.create;
+const EdgeStyleSchema = objectType({
+  arrow: enumType(["triangle", "chevron", "diamond", "none"]).optional(),
+  arrowSize: numberType().finite().min(6).max(24).optional(),
+  line: enumType(["solid", "dashed", "double"]).optional(),
+  width: numberType().finite().min(1).max(6).optional()
+});
+async function editVersionRelations(repo, docName2, id2, request2) {
+  return withRepoWrite(repo, async () => {
+    const detail = await documentDetail(repo, docName2), meta = await readLibraryMeta(repo, docName2);
+    const version2 = detail.versions.find((v) => v.id === id2 && !v.deletedAt);
+    if (!version2 || detail.deletedAt) throw new Error("请先还原要整理的版本和文档");
+    const byId = new Map(detail.versions.map((v) => [v.id, v]));
+    const parents = new Map(detail.versions.map((v) => [v.id, [...v.parents]]));
+    const affected = /* @__PURE__ */ new Set();
+    const labels = new Map(detail.versions.map((v) => [v.id, { ...v.parentLabels }]));
+    const styles = new Map(detail.versions.map((v) => [v.id, { ...v.parentStyles }]));
+    const replace = (versionId2, previous) => {
+      parents.set(versionId2, previous);
+      affected.add(versionId2);
+    };
+    if (request2.action === "disconnectPrevious") replace(id2, []);
+    if (request2.action === "disconnectNext" || request2.action === "moveBranch") {
+      for (const child2 of detail.versions) if (child2.parents.includes(id2)) replace(child2.id, child2.parents.filter((p) => p !== id2));
+    }
+    if (request2.action === "connectPrevious" || request2.action === "connectNext") {
+      const target = byId.get(request2.targetVersionId ?? "");
+      if (!target || target.deletedAt) throw new Error("请选择同一文档中仍存在的版本");
+      const child2 = request2.action === "connectPrevious" ? id2 : target.id;
+      const parent2 = request2.action === "connectPrevious" ? target.id : id2;
+      replace(child2, [.../* @__PURE__ */ new Set([...parents.get(child2) ?? [], parent2])]);
+    }
+    if (request2.action === "renameConnection" || request2.action === "reverseConnection" || request2.action === "styleConnection") {
+      const target = byId.get(request2.targetVersionId ?? "");
+      if (!target || target.deletedAt || !target.parents.includes(id2)) throw new Error("连接不存在，请重新选择连线");
+      if (request2.label !== void 0 && (typeof request2.label !== "string" || request2.label.length > 1e4)) throw new Error("连线名称无效");
+      const label2 = request2.label?.trim() ?? labels.get(target.id)[id2] ?? "";
+      const style = request2.style ? { ...styles.get(target.id)[id2], ...EdgeStyleSchema.parse(request2.style) } : styles.get(target.id)[id2];
+      if (request2.action === "reverseConnection") {
+        replace(target.id, target.parents.filter((parent2) => parent2 !== id2));
+        replace(id2, [.../* @__PURE__ */ new Set([...parents.get(id2) ?? [], target.id])]);
+        labels.get(id2)[target.id] = label2;
+        if (style) styles.get(id2)[target.id] = style;
+      } else {
+        labels.get(target.id)[id2] = label2;
+        if (style) styles.get(target.id)[id2] = style;
+        affected.add(target.id);
+      }
+    }
+    if (request2.action === "moveBranch") {
+      const branch = validateBranchName(request2.branch ?? "");
+      if (!(branch in detail.branchHeads)) throw new Error("目标分支不存在，请先建立分支");
+      const target = request2.targetVersionId ? byId.get(request2.targetVersionId) : void 0;
+      if (request2.targetVersionId && (!target || target.deletedAt || !target.branches.includes(branch))) throw new Error("连接起点必须属于目标分支");
+      replace(id2, target ? [target.id] : []);
+    }
+    const done = /* @__PURE__ */ new Set(), visiting = /* @__PURE__ */ new Set();
+    const visit = (node2) => {
+      if (visiting.has(node2)) throw new Error("不能连接到自己或形成循环；请先断开冲突的连接");
+      if (done.has(node2)) return;
+      visiting.add(node2);
+      for (const parent2 of parents.get(node2) ?? []) visit(parent2);
+      visiting.delete(node2);
+      done.add(node2);
+    };
+    for (const node2 of parents.keys()) visit(node2);
+    for (const v of detail.versions) {
+      const record = meta.versions[v.id] ??= {};
+      record.branchMembership ??= v.branches;
+      record.position ??= v.position;
+    }
+    for (const node2 of affected) {
+      const v = meta.versions[node2] ??= {};
+      v.parents = parents.get(node2);
+      v.parentLabels = Object.fromEntries(Object.entries(labels.get(node2)).filter(([parent2]) => v.parents.includes(parent2)));
+      v.parentStyles = Object.fromEntries(Object.entries(styles.get(node2)).filter(([parent2]) => v.parents.includes(parent2)));
+      v.branchMembership ??= byId.get(node2).branches;
+    }
+    if (request2.action === "moveBranch") {
+      const branch = request2.branch;
+      meta.versions[id2].branchMembership = [branch];
+      for (const draft of meta.drafts ?? []) if ((draft.versionId ?? draft.baseVersionId) === id2) draft.closed = true;
+      await writeLibraryMeta(repo, docName2, meta);
+      for (const [old2, head] of Object.entries(detail.branchHeads)) {
+        if (old2 === branch || head !== id2) continue;
+        const fallback2 = detail.versions.find((v) => v.id !== id2 && !v.deletedAt && v.branches.includes(old2));
+        if (fallback2) await writeHead(repo, docIdOf(docName2), old2, fallback2.id);
+        else await promises.rm(containedPath(repo.root, `refs/heads/${docIdOf(docName2)}/${old2}`), { force: true });
+      }
+      if (!request2.targetVersionId || detail.branchHeads[branch] === request2.targetVersionId) await writeHead(repo, docIdOf(docName2), branch, id2);
+      if (!detail.branchHeads[detail.currentBranch] || detail.branchHeads[detail.currentBranch] === id2) await writeCurrentBranch(repo, docIdOf(docName2), branch);
+    } else await writeLibraryMeta(repo, docName2, meta);
+  });
+}
+async function tidyVersionLayout(repo, docName2) {
+  return withRepoWrite(repo, async () => {
+    const detail = await documentDetail(repo, docName2), meta = await readLibraryMeta(repo, docName2);
+    const positions = defaultVersionPositions(detail.versions);
+    for (const version2 of detail.versions) (meta.versions[version2.id] ??= {}).position = positions.get(version2.id);
+    await writeLibraryMeta(repo, docName2, meta);
+  });
+}
+async function purgeVersion(repo, docName2, id2, opts) {
+  return withRepoWrite(repo, async () => {
+    const detail = await documentDetail(repo, docName2), meta = await readLibraryMeta(repo, docName2);
+    const version2 = detail.versions.find((v) => v.id === id2);
+    if (!version2) throw new Error("该版本不存在或已彻底删除");
+    const source = version2.sourcePath;
+    if (opts.deleteSource && (!source || opts.confirmedSourcePath !== source)) throw new Error("请确认软件记录的导入文件完整路径");
+    if (opts.deleteSource && source) {
+      const relative2 = path$1.relative(repo.root, source);
+      if (!relative2 || !relative2.startsWith("..") && !path$1.isAbsolute(relative2) && !["drafts", "workspace", "imports"].includes(relative2.split(path$1.sep)[0])) throw new Error("不能删除文档库结构文件");
+      const stat2 = await promises.lstat(source).catch((error2) => {
+        if (error2.code === "ENOENT") return null;
+        throw error2;
+      });
+      if (stat2 && (!stat2.isFile() || stat2.isSymbolicLink())) throw new Error("仅支持删除实际文件，目录和符号链接不能在这里删除");
+      for (const name of await docIds(repo)) {
+        const other = await documentDetail(repo, name);
+        if (other.versions.some((v) => !(name === docName2 && v.id === id2) && v.sourcePath && path$1.resolve(v.sourcePath).toLowerCase() === path$1.resolve(source).toLowerCase())) throw new Error("其他版本也关联这份导入文件；请先使用仅从版本管理删除");
+      }
+    }
+    for (const v of detail.versions) {
+      const record2 = meta.versions[v.id] ??= {};
+      record2.branchMembership ??= v.branches;
+      if (v.parents.includes(id2)) {
+        record2.parents = v.parents.filter((p) => p !== id2);
+        if (record2.parentLabels) delete record2.parentLabels[id2];
+        if (record2.parentStyles) delete record2.parentStyles[id2];
+      }
+    }
+    const record = meta.versions[id2];
+    const removedContents = [.../* @__PURE__ */ new Set([id2, version2.contentId, ...record.revisions ?? []])];
+    const ctx = StorageContext.forRepo(repo), candidates = /* @__PURE__ */ new Set(), candidateChunks = /* @__PURE__ */ new Set(), manifests = /* @__PURE__ */ new Map();
+    const collect = async (commitId, blobs, chunks) => {
+      const treeId = (await readCommit(ctx, commitId)).tree;
+      blobs.add(treeId);
+      for (const manifestId of Object.values((await readTree(ctx, treeId)).entries)) {
+        blobs.add(manifestId);
+        const m = await getManifest(ctx, manifestId);
+        if (blobs === candidates) manifests.set(manifestId, m.sha256);
+        if (m.encoding === "generic") for (const c of m.ref.chunks) chunks.add(c);
+        else {
+          for (const entry of Object.values(m.entries)) {
+            if ("blob" in entry.ref) blobs.add(entry.ref.blob);
+            else for (const c of entry.ref.chunks) chunks.add(c);
+          }
+          for (const c of m.original?.ref.chunks ?? []) chunks.add(c);
+        }
+      }
+    };
+    for (const contentId of removedContents) await collect(contentId, candidates, candidateChunks);
+    const purged = new Set(removedContents);
+    for (const name of await docIds(repo)) for (const contentId of (await readLibraryMeta(repo, name)).purgedContentIds ?? []) purged.add(contentId);
+    const keep = /* @__PURE__ */ new Set(), keepChunks = /* @__PURE__ */ new Set();
+    for (const a of await promises.readdir(ctx.blobs.dir, { withFileTypes: true })) {
+      if (!a.isDirectory() || !/^[a-f0-9]{2}$/.test(a.name)) continue;
+      for (const b of await promises.readdir(path$1.join(ctx.blobs.dir, a.name), { withFileTypes: true })) {
+        if (!b.isDirectory() || !/^[a-f0-9]{2}$/.test(b.name)) continue;
+        for (const c of await promises.readdir(path$1.join(ctx.blobs.dir, a.name, b.name))) {
+          const objectId = a.name + b.name + c;
+          if (!/^[a-f0-9]{64}$/.test(objectId) || purged.has(objectId)) continue;
+          const value = await ctx.blobs.get(objectId).then((bytes) => {
+            try {
+              return JSON.parse(new TextDecoder().decode(bytes));
+            } catch {
+              return null;
+            }
+          });
+          if (value && Array.isArray(value.parents) && typeof value.tree === "string" && typeof value.message === "string") await collect(objectId, keep, keepChunks);
+        }
+      }
+    }
+    for (const draft of meta.drafts ?? []) {
+      if ((draft.versionId ?? draft.baseVersionId) !== id2) continue;
+      draft.closed = true;
+      const file2 = containedPath(repo.root, draft.path);
+      await promises.rm(file2, { force: true });
+    }
+    if (meta.workingVersionId === id2) {
+      const file2 = containedPath(repo.root, `workspace/${docName2}`);
+      const stat2 = await promises.lstat(file2).catch((error2) => {
+        if (error2.code === "ENOENT") return null;
+        throw error2;
+      });
+      if (stat2?.isDirectory()) throw new Error("目录型文档请先导出保留内容，不支持在此彻底删除");
+      await promises.rm(file2, { force: true });
+      delete meta.workingVersionId;
+      delete meta.workingContentId;
+    }
+    if (opts.deleteSource && source) await promises.rm(source, { force: true });
+    record.purgedAt = (/* @__PURE__ */ new Date()).toISOString();
+    record.parents = [];
+    record.parentLabels = {};
+    record.parentStyles = {};
+    record.branchMembership = [];
+    meta.purgedContentIds = [.../* @__PURE__ */ new Set([...meta.purgedContentIds ?? [], ...removedContents])];
+    await writeLibraryMeta(repo, docName2, meta);
+    for (const [branch, head] of Object.entries(detail.branchHeads)) if (head === id2) {
+      const fallback2 = detail.versions.find((v) => v.id !== id2 && !v.deletedAt && v.branches.includes(branch));
+      if (fallback2) await writeHead(repo, docIdOf(docName2), branch, fallback2.id);
+      else await promises.rm(containedPath(repo.root, `refs/heads/${docIdOf(docName2)}/${branch}`), { force: true });
+    }
+    for (const blob of candidates) if (!keep.has(blob)) {
+      await ctx.blobs.remove(blob);
+      const sha = manifests.get(blob);
+      if (sha) await promises.rm(containedPath(repo.root, `objects/blobs/index/${sha}`), { force: true });
+    }
+    for (const chunk of candidateChunks) if (!keepChunks.has(chunk)) await ctx.chunks.remove(chunk);
+    return { changed: true };
+  });
+}
+const kinds = ["iteration", "reference", "example", "dependency", "custom"];
+const indexPath = (repo) => path$1.join(repo.root, "projects", "catalog.json");
+const objectPath = (repo, hash) => {
+  if (!/^[a-f0-9]{64}$/.test(hash)) throw new Error("无效文件快照标识");
+  return path$1.join(repo.root, "objects", "project-files", hash);
+};
+function text(value, label2, empty = false) {
+  if (typeof value !== "string" || !empty && !value.trim() || value.length > 1e4) throw new Error(`${label2}无效`);
+  return value.trim();
+}
+async function readIndex(repo) {
+  try {
+    const data = JSON.parse(await promises.readFile(indexPath(repo), "utf8"));
+    if (data.format !== 1 || !Array.isArray(data.projects) || !data.requests) throw new Error("项目索引格式不支持");
+    return data;
+  } catch (e) {
+    if (e.code === "ENOENT") return { format: 1, projects: [], requests: {} };
+    throw e;
+  }
+}
+async function saveIndex(repo, data) {
+  await writeFileAtomic(indexPath(repo), Buffer.from(JSON.stringify(data, null, 2)));
+}
+function findProject(data, id2) {
+  const project = data.projects.find((p) => p.id === id2);
+  if (!project) throw new Error("文档库不存在");
+  return project;
+}
+function findNode(project, id2) {
+  const node2 = project.nodes.find((n) => n.id === id2);
+  if (!node2) throw new Error("文件或文件夹不存在");
+  return node2;
+}
+function updateFolderSizes(project) {
+  const children = /* @__PURE__ */ new Map();
+  for (const node2 of project.nodes) {
+    const list = children.get(node2.parentId);
+    if (list) list.push(node2);
+    else children.set(node2.parentId, [node2]);
+  }
+  const size = (node2) => {
+    if (node2.kind === "folder") node2.size = (children.get(node2.id) ?? []).reduce((sum, child2) => sum + size(child2), 0);
+    return node2.size;
+  };
+  project.nodes.filter((n) => !n.parentId).forEach(size);
+}
+async function listProjects(repo) {
+  return (await readIndex(repo)).projects;
+}
+async function getProject(repo, id2) {
+  return findProject(await readIndex(repo), id2);
+}
+async function createProject(repo, name) {
+  name = text(name, "文档库名称");
+  return withRepoWrite(repo, async () => {
+    const data = await readIndex(repo);
+    const project = { id: randomUUID(), name, createdAt: (/* @__PURE__ */ new Date()).toISOString(), nodes: [], relations: [], categories: [] };
+    data.projects.push(project);
+    await saveIndex(repo, data);
+    return project;
+  });
+}
+async function digest(file2) {
+  const hash = createHash("sha256");
+  for await (const chunk of readFileBlocks(file2)) hash.update(chunk);
+  return hash.digest("hex");
+}
+function inside(root, target) {
+  const relative2 = path$1.relative(root, target);
+  return relative2 === "" || !path$1.isAbsolute(relative2) && relative2 !== ".." && !relative2.startsWith(".." + path$1.sep);
+}
+async function collectSource(repo, source, stage, previous, start2 = 0) {
+  const nodes = [], repoRoot = await promises.realpath(repo.root);
+  const key = (file2, kind) => (process.platform === "win32" ? file2.toLowerCase() : file2) + ":" + kind;
+  const existingByPath = new Map(previous.filter((n) => n.sourceId === source.id && n.sourcePath).map((n) => [key(n.sourcePath, n.kind), n]));
+  async function copy(file2, parentId, ordinal) {
+    if (source.excludedPaths.some((excluded) => inside(excluded, file2))) return;
+    const stat22 = await promises.lstat(file2);
+    const link = stat22.isSymbolicLink();
+    if (!link && !stat22.isFile() && !stat22.isDirectory()) throw new Error("不支持特殊设备文件");
+    if (!link) {
+      const real = await promises.realpath(file2);
+      if (inside(repoRoot, real) || inside(real, repoRoot)) throw new Error("不能导入稿喵文档库或包含它的目录");
+    }
+    const kind = stat22.isDirectory() ? "folder" : "file";
+    const existing = existingByPath.get(key(file2, kind));
+    const node2 = existing ? { ...existing, parentId } : { id: randomUUID(), parentId, name: path$1.basename(file2), title: path$1.basename(file2), kind, size: 0, note: "", createdAt: (/* @__PURE__ */ new Date()).toISOString(), position: { x: 40 + ordinal % 3 * 290, y: 40 + Math.floor(ordinal / 3) * 190 } };
+    node2.sourceId = source.id;
+    node2.sourcePath = file2;
+    node2.size = 0;
+    nodes.push(node2);
+    if (link) {
+      node2.linkTarget = path$1.resolve(path$1.dirname(file2), await promises.readlink(file2));
+      delete node2.contentHash;
+    } else if (kind === "file") {
+      delete node2.linkTarget;
+      const temp = path$1.join(stage, node2.id);
+      await promises.copyFile(file2, temp);
+      node2.contentHash = await digest(temp);
+      node2.size = (await promises.stat(temp)).size;
+      const target = objectPath(repo, node2.contentHash);
+      await promises.mkdir(path$1.dirname(target), { recursive: true });
+      if (await promises.access(target).then(() => true, (error2) => {
+        if (error2.code !== "ENOENT") throw error2;
+        return false;
+      })) {
+        if (await digest(target) !== node2.contentHash) throw new Error("已有文件快照损坏，请恢复备份后再导入");
+      } else {
+        const handle = await promises.open(temp, "r+");
+        try {
+          await handle.sync();
+        } finally {
+          await handle.close();
+        }
+        await promises.rename(temp, target);
+      }
+    } else {
+      delete node2.linkTarget;
+      delete node2.contentHash;
+      const entries = (await promises.readdir(file2)).sort();
+      for (let i2 = 0; i2 < entries.length; i2++) await copy(path$1.join(file2, entries[i2]), node2.id, i2);
+    }
+  }
+  let stat2;
+  try {
+    stat2 = await promises.lstat(source.path);
+  } catch (error2) {
+    if (["ENOENT", "ENOTDIR"].includes(error2.code ?? "")) return [];
+    throw error2;
+  }
+  if (source.unpackFolder) {
+    if (stat2.isSymbolicLink()) throw new Error("链接入口只保留卡片，不展开目标目录");
+    if (!stat2.isDirectory()) throw new Error("来源父文件夹已变成文件，请重新导入");
+    const children = (await promises.readdir(source.path)).sort();
+    for (let i2 = 0; i2 < children.length; i2++) await copy(path$1.join(source.path, children[i2]), source.parentId, start2 + i2);
+  } else await copy(source.path, source.parentId, start2);
+  return nodes;
+}
+function subtree(project, nodeId) {
+  const ids = /* @__PURE__ */ new Set([nodeId]);
+  for (let size = 0; size !== ids.size; ) {
+    size = ids.size;
+    project.nodes.filter((n) => n.parentId && ids.has(n.parentId)).forEach((n) => ids.add(n.id));
+  }
+  return ids;
+}
+function freezeNode(project, nodeId) {
+  const root = findNode(project, nodeId), ids = subtree(project, nodeId);
+  if (root.sourcePath && root.sourceId) project.sources?.find((s) => s.id === root.sourceId)?.excludedPaths.push(root.sourcePath);
+  for (const node2 of project.nodes) if (ids.has(node2.id) && !node2.snapshot) {
+    delete node2.sourceId;
+    node2.snapshot = true;
+    node2.snapshotRootId = nodeId;
+  }
+}
+function checkRelation(project, relation, excludeId) {
+  findNode(project, relation.from);
+  findNode(project, relation.to);
+  if (relation.from === relation.to) throw new Error("不能连接到自身");
+  if (!kinds.includes(relation.kind)) throw new Error("关系类型无效");
+  text(relation.label, "关系标签", true);
+  text(relation.note, "关系备注", true);
+  if (relation.kind !== "iteration") return;
+  const seen = /* @__PURE__ */ new Set(), visit = [relation.to];
+  while (visit.length) {
+    const id2 = visit.pop();
+    if (id2 === relation.from) throw new Error("迭代关系不能形成循环");
+    if (seen.has(id2)) continue;
+    seen.add(id2);
+    visit.push(...project.relations.filter((e) => e.id !== excludeId && e.kind === "iteration" && e.from === id2).map((e) => e.to));
+  }
+}
+async function importProjectItems(repo, request2) {
+  if (!Array.isArray(request2.paths) || !request2.paths.length || request2.paths.some((p) => typeof p !== "string" || !path$1.isAbsolute(p))) throw new Error("请选择文件或文件夹的绝对路径");
+  if (request2.unpackFolder && request2.paths.length !== 1) throw new Error("展开导入只支持一个父文件夹");
+  if (request2.title !== void 0) text(request2.title, "迭代名称");
+  const signature2 = createHash("sha256").update(JSON.stringify({ projectId: request2.projectId, paths: request2.paths.map((p) => path$1.resolve(p)), parentId: request2.parentId ?? null, unpackFolder: request2.unpackFolder ?? false, previousNodeId: request2.previousNodeId, snapshot: request2.snapshot ?? false, title: request2.title })).digest("hex");
+  if (request2.requestId !== void 0) text(request2.requestId, "请求标识");
+  return withRepoWrite(repo, async () => {
+    const data = await readIndex(repo), project = findProject(data, request2.projectId);
+    const requestKey = request2.requestId ? `${project.id}:${request2.requestId}` : null;
+    if (requestKey && Object.hasOwn(data.requests, requestKey)) {
+      const previous = data.requests[requestKey];
+      if (previous.signature !== signature2) throw new Error("请求标识已用于不同的导入参数");
+      return previous.result;
+    }
+    const parentId = request2.parentId ?? null;
+    if (parentId && findNode(project, parentId).kind !== "folder") throw new Error("导入目标必须是文件夹");
+    if (parentId && findNode(project, parentId).snapshot) throw new Error("历史文件夹为快照，请返回当前文件夹或文档库根目录导入");
+    if (request2.previousNodeId) findNode(project, request2.previousNodeId);
+    const repoRoot = await promises.realpath(repo.root);
+    const sources = [];
+    for (const input of request2.paths) {
+      if ((await promises.lstat(input)).isSymbolicLink()) {
+        sources.push(path$1.resolve(input));
+        continue;
+      }
+      const source = await promises.realpath(input);
+      if (inside(repoRoot, source) || inside(source, repoRoot)) throw new Error("不能导入稿喵文档库或包含它的目录");
+      sources.push(source);
+    }
+    if (request2.unpackFolder && !(await promises.lstat(sources[0])).isDirectory()) throw new Error("展开导入需要普通文件夹；链接入口只保留卡片");
+    const stage = await promises.mkdtemp(path$1.join(repo.root, ".project-import-"));
+    const nodes = [], nodeIds = [];
+    try {
+      const existing = project.nodes.filter((n) => n.parentId === parentId).length;
+      project.sources ??= [];
+      for (let i2 = 0; i2 < sources.length; i2++) {
+        const source = { id: randomUUID(), path: sources[i2], parentId, unpackFolder: request2.unpackFolder ?? false, excludedPaths: [] };
+        const copied = await collectSource(repo, source, stage, [], existing + i2);
+        nodeIds.push(...copied.filter((n) => n.parentId === parentId).map((n) => n.id));
+        if (request2.snapshot) {
+          const groups = /* @__PURE__ */ new Map();
+          for (const n of copied) {
+            n.snapshotRootId = n.parentId === parentId ? n.id : groups.get(n.parentId);
+            groups.set(n.id, n.snapshotRootId ?? n.id);
+            delete n.sourceId;
+            n.snapshot = true;
+          }
+        } else project.sources.push(source);
+        nodes.push(...copied);
+      }
+      if (request2.previousNodeId) {
+        freezeNode(project, request2.previousNodeId);
+        for (const source of project.sources) {
+          if (nodes.some((n) => n.sourceId === source.id)) continue;
+          for (const imported of sources) if (inside(source.path, imported) && source.unpackFolder) source.excludedPaths.push(imported);
+        }
+      }
+      project.nodes.push(...nodes);
+      if (request2.previousNodeId) {
+        const previous = findNode(project, request2.previousNodeId);
+        for (const node2 of nodes.filter((n) => nodeIds.includes(n.id))) {
+          const position2 = { x: previous.position.x + 290, y: previous.position.y };
+          while (project.nodes.some((n) => n.id !== node2.id && n.parentId === parentId && Math.abs(n.position.x - position2.x) < 250 && Math.abs(n.position.y - position2.y) < 150)) position2.y += 190;
+          node2.position = position2;
+        }
+      }
+      if (request2.title) project.nodes.filter((n) => nodeIds.includes(n.id)).forEach((n) => {
+        n.title = request2.title;
+      });
+      updateFolderSizes(project);
+      const relationIds = [];
+      if (request2.previousNodeId) for (const id2 of nodeIds) {
+        const edge = { id: randomUUID(), from: request2.previousNodeId, to: id2, kind: "iteration", label: "下一轮迭代", note: "" };
+        checkRelation(project, edge);
+        project.relations.push(edge);
+        relationIds.push(edge.id);
+      }
+      const result = { nodeIds, relationIds };
+      if (requestKey) data.requests[requestKey] = { signature: signature2, result };
+      await saveIndex(repo, data);
+      return result;
+    } finally {
+      if (path$1.dirname(stage) !== repo.root || !path$1.basename(stage).startsWith(".project-import-")) throw new Error("导入暂存位置无效");
+      await promises.rm(stage, { recursive: true, force: true });
+    }
+  });
+}
+async function recordProjectIteration(repo, projectId, nodeId, title, requestId) {
+  const project = await getProject(repo, projectId), node2 = findNode(project, nodeId);
+  if (node2.linkTarget) throw new Error("链接入口只记录目标路径，不记录目标内容迭代");
+  if (!node2.sourcePath) throw new Error("此节点没有来源路径，请导入新文件或文件夹创建下一轮");
+  if (node2.snapshot && (!requestId || !Object.hasOwn((await readIndex(repo)).requests, `${projectId}:${requestId}`))) throw new Error("历史快照不能同步原路径；请通过导入新文件或文件夹创建下一轮");
+  return importProjectItems(repo, { projectId, paths: [node2.sourcePath], parentId: node2.parentId, previousNodeId: nodeId, requestId, title: text(title, "迭代名称") });
+}
+async function updateProjectNode(repo, projectId, nodeId, patch) {
+  return withRepoWrite(repo, async () => {
+    const data = await readIndex(repo), project = findProject(data, projectId), node2 = findNode(project, nodeId);
+    if (patch.title !== void 0) node2.title = text(patch.title, "名称");
+    if (patch.note !== void 0) node2.note = text(patch.note, "备注", true);
+    if (patch.categoryId !== void 0) {
+      if (patch.categoryId && !project.categories?.some((c) => c.id === patch.categoryId)) throw new Error("分类不存在");
+      node2.categoryId = patch.categoryId ?? "";
+    }
+    if (patch.position !== void 0) {
+      if (!Number.isFinite(patch.position.x) || !Number.isFinite(patch.position.y)) throw new Error("位置无效");
+      node2.position = patch.position;
+    }
+    await saveIndex(repo, data);
+    return node2;
+  });
+}
+async function setProjectCategory(repo, projectId, category) {
+  return withRepoWrite(repo, async () => {
+    const data = await readIndex(repo), project = findProject(data, projectId), name = text(category.name, "分类名称");
+    project.categories ??= [];
+    if (category.id && !project.categories.some((c) => c.id === category.id)) throw new Error("分类不存在");
+    if (project.categories.some((c) => c.id !== category.id && c.name.toLowerCase() === name.toLowerCase())) throw new Error("分类名称已存在");
+    const saved = { id: category.id ?? randomUUID(), name };
+    if (category.id) project.categories = project.categories.map((c) => c.id === category.id ? saved : c);
+    else project.categories.push(saved);
+    await saveIndex(repo, data);
+    return saved;
+  });
+}
+async function deleteProjectCategory(repo, projectId, categoryId) {
+  return withRepoWrite(repo, async () => {
+    const data = await readIndex(repo), project = findProject(data, projectId);
+    if (!project.categories?.some((c) => c.id === categoryId)) throw new Error("分类不存在");
+    project.categories = project.categories.filter((c) => c.id !== categoryId);
+    for (const node2 of project.nodes) if (node2.categoryId === categoryId) node2.categoryId = "";
+    await saveIndex(repo, data);
+  });
+}
+async function setProjectRelation(repo, projectId, input) {
+  return withRepoWrite(repo, async () => {
+    const data = await readIndex(repo), project = findProject(data, projectId);
+    const previous = project.relations.find((e) => e.id === input.id);
+    const relation = { ...input, kind: input.kind ?? previous?.kind ?? "custom", style: input.style ? { ...previous?.style, ...EdgeStyleSchema.parse(input.style) } : previous?.style };
+    if (relation.id && !project.relations.some((e) => e.id === relation.id)) throw new Error("关系不存在");
+    checkRelation(project, relation, relation.id);
+    const edge = { ...relation, id: relation.id ?? randomUUID(), label: text(relation.label, "标签", true), note: text(relation.note, "备注", true) };
+    project.relations = project.relations.filter((e) => e.id !== edge.id);
+    project.relations.push(edge);
+    await saveIndex(repo, data);
+    return edge;
+  });
+}
+async function deleteProjectRelation(repo, projectId, relationId) {
+  await withRepoWrite(repo, async () => {
+    const data = await readIndex(repo), project = findProject(data, projectId);
+    if (!project.relations.some((e) => e.id === relationId)) throw new Error("关系不存在");
+    project.relations = project.relations.filter((e) => e.id !== relationId);
+    await saveIndex(repo, data);
+  });
+}
+async function deleteProjectNode(repo, projectId, nodeId) {
+  await withRepoWrite(repo, async () => {
+    const data = await readIndex(repo), project = findProject(data, projectId);
+    findNode(project, nodeId);
+    const removed = subtree(project, nodeId), root = findNode(project, nodeId);
+    if (root.sourceId && root.sourcePath) project.sources?.find((s) => s.id === root.sourceId)?.excludedPaths.push(root.sourcePath);
+    project.sources = project.sources?.filter((s) => !s.parentId || !removed.has(s.parentId));
+    project.nodes = project.nodes.filter((n) => !removed.has(n.id));
+    project.relations = project.relations.filter((e) => !removed.has(e.from) && !removed.has(e.to));
+    updateFolderSizes(project);
+    await saveIndex(repo, data);
+  });
+}
+async function refreshProject(repo, projectId) {
+  return withRepoWrite(repo, async () => {
+    const data = await readIndex(repo), project = findProject(data, projectId), previous = project.nodes;
+    const stage = await promises.mkdtemp(path$1.join(repo.root, ".project-import-"));
+    try {
+      const bindings = project.sources ?? [], current = [];
+      for (const node2 of previous.filter((n) => !n.sourceId)) {
+        if (node2.sourcePath) {
+          try {
+            await promises.lstat(node2.sourcePath);
+          } catch (error2) {
+            if (["ENOENT", "ENOTDIR"].includes(error2.code ?? "")) continue;
+            throw error2;
+          }
+        }
+        current.push({ ...node2 });
+      }
+      for (const source of bindings) {
+        if (source.parentId && !previous.some((n) => n.id === source.parentId)) continue;
+        const start2 = previous.filter((n) => n.parentId === source.parentId).length;
+        current.push(...await collectSource(repo, source, stage, previous, start2));
+      }
+      const ids = new Set(current.map((n) => n.id));
+      for (let count = -1; count !== ids.size; ) {
+        count = ids.size;
+        for (const n of current) if (n.parentId && !ids.has(n.parentId)) ids.delete(n.id);
+      }
+      project.nodes = current.filter((n) => ids.has(n.id));
+      project.sources = bindings.filter((s) => !s.parentId || ids.has(s.parentId));
+      project.relations = project.relations.filter((e) => ids.has(e.from) && ids.has(e.to));
+      updateFolderSizes(project);
+      project.refreshedAt = (/* @__PURE__ */ new Date()).toISOString();
+      const old2 = new Map(previous.map((n) => [n.id, n]));
+      const result = {
+        added: project.nodes.filter((n) => !old2.has(n.id)).length,
+        updated: project.nodes.filter((n) => {
+          const p = old2.get(n.id);
+          return p && (p.contentHash !== n.contentHash || p.size !== n.size || p.linkTarget !== n.linkTarget);
+        }).length,
+        removed: previous.filter((n) => !ids.has(n.id)).length
+      };
+      await saveIndex(repo, data);
+      return result;
+    } finally {
+      if (path$1.dirname(stage) === repo.root && path$1.basename(stage).startsWith(".project-import-")) await promises.rm(stage, { recursive: true, force: true });
+    }
+  });
+}
+async function readProjectFile(repo, projectId, nodeId) {
+  const node2 = findNode(await getProject(repo, projectId), nodeId);
+  if (node2.linkTarget) throw new Error("链接入口只记录目标路径，不复制目标内容");
+  if (node2.kind !== "file" || !node2.contentHash) throw new Error("请选择文件");
+  const file2 = objectPath(repo, node2.contentHash);
+  if (await digest(file2) !== node2.contentHash) throw new Error("文件快照校验失败");
+  return promises.readFile(file2);
+}
+async function exportProjectNode(repo, projectId, nodeId, destination) {
+  const project = await getProject(repo, projectId), node2 = findNode(project, nodeId);
+  if (!path$1.isAbsolute(destination)) throw new Error("导出需要绝对路径");
+  const resolved = path$1.resolve(destination), ancestor = await promises.realpath(path$1.dirname(resolved));
+  if (inside(await promises.realpath(repo.root), ancestor)) throw new Error("请导出到文档库之外");
+  if (await promises.lstat(resolved).then(() => true, (e) => {
+    if (e.code !== "ENOENT") throw e;
+    return false;
+  })) throw new Error("导出目标已存在，请使用新位置");
+  const stage = await promises.mkdtemp(path$1.join(ancestor, ".稿喵导出-"));
+  async function write(item, target) {
+    if (item.linkTarget) throw new Error("链接入口只记录目标路径，不能导出目标内容；请选择不包含链接的资料导出");
+    if (item.kind === "file") await promises.writeFile(target, await readProjectFile(repo, projectId, item.id), { flag: "wx" });
+    else {
+      await promises.mkdir(target);
+      const names = /* @__PURE__ */ new Set();
+      for (const child2 of project.nodes.filter((n) => n.parentId === item.id && (item.snapshot ? !n.snapshotRootId || n.snapshotRootId === item.snapshotRootId : !n.snapshot))) {
+        if (child2.name === "." || child2.name === ".." || path$1.basename(child2.name) !== child2.name || names.has(child2.name.toLowerCase())) throw new Error("文件夹存在不安全或重复文件名，请整理后导出");
+        names.add(child2.name.toLowerCase());
+        await write(child2, path$1.join(target, child2.name));
+      }
+    }
+  }
+  try {
+    const target = path$1.join(stage, "item");
+    await write(node2, target);
+    await promises.rename(target, resolved);
+  } finally {
+    if (path$1.dirname(stage) === ancestor && path$1.basename(stage).startsWith(".稿喵导出-")) await promises.rm(stage, { recursive: true, force: true });
+  }
+}
+const CH = {
+  LIBRARY_LIST: "library.list",
+  LIBRARY_DETAIL: "library.detail",
+  LIBRARY_MUTATE: "library.mutate",
+  REPO_CREATE: "repo.create",
+  REPO_CLOSE: "repo.close",
+  REPO_OPEN: "repo.open",
+  REPO_BOOTSTRAP: "repo.bootstrap",
+  REPO_RELOCATE: "repo.relocate",
+  DOC_IMPORT: "doc.import",
+  DOC_LIST: "doc.list",
+  DOC_EDIT: "doc.edit",
+  COMMIT_CREATE: "commit.create",
+  COMMIT_LIST: "commit.list",
+  COMMIT_CHECKOUT: "commit.checkout",
+  BRANCH_CREATE: "branch.create",
+  BRANCH_SWITCH: "branch.switch",
+  BRANCH_DELETE: "branch.delete",
+  STATS_STORAGE: "stats.storage",
+  BACKUP_EXPORT: "backup.export",
+  BACKUP_IMPORT: "backup.import",
+  MAINTENANCE_SCRUB: "maintenance.scrub",
+  QUARANTINE_LIST: "quarantine.list",
+  QUARANTINE_RESTORE: "quarantine.restore",
+  QUARANTINE_PURGE: "quarantine.purge",
+  PREVIEW_GET_BYTES: "preview.getBytes",
+  DIALOG_PICK_FOLDER: "dialog.pickFolder",
+  DIALOG_PICK_FILE: "dialog.pickFile",
+  DIALOG_SAVE_PATH: "dialog.savePath",
+  WATCHER_CHANGE: "watcher.change",
+  COMMIT_DIFF_TEXT: "commit:diffText"
+};
 const RepoCreateReq = objectType({ root: stringType().min(1), name: stringType().min(1) });
 objectType({ repoRoot: stringType() });
 const RepoOpenReq = objectType({ root: stringType().min(1) });
@@ -7064,7 +7235,7 @@ const LibraryMutationSchema = discriminatedUnionType("type", [
   objectType({ type: literalType("document"), docName, title: stringType().min(1).optional(), deleted: booleanType().optional() }),
   objectType({ type: literalType("version"), docName, versionId, title: stringType().min(1).optional(), note: stringType().optional(), categoryId: stringType().optional(), order: numberType().finite().optional(), position: position.optional(), deleted: booleanType().optional() }),
   objectType({ type: literalType("layout"), docName }),
-  objectType({ type: literalType("relations"), docName, versionId, action: enumType(["disconnectPrevious", "disconnectNext", "connectPrevious", "connectNext", "moveBranch"]), targetVersionId: versionId.optional(), branch: stringType().optional() }),
+  objectType({ type: literalType("relations"), docName, versionId, action: enumType(["disconnectPrevious", "disconnectNext", "connectPrevious", "connectNext", "moveBranch", "renameConnection", "reverseConnection", "styleConnection"]), targetVersionId: versionId.optional(), branch: stringType().optional(), label: stringType().max(1e4).optional(), style: EdgeStyleSchema.optional() }),
   objectType({ type: literalType("purgeVersion"), docName, versionId, deleteSource: booleanType(), confirmedSourcePath: stringType().optional() }),
   objectType({ type: literalType("category"), docName, action: enumType(["create", "rename", "delete"]), name: stringType().optional(), categoryId: stringType().optional() }),
   objectType({ type: literalType("arrange"), docName, categoryId: stringType(), versionIds: arrayType(versionId) }),
@@ -7093,7 +7264,7 @@ const ProjectRequest = discriminatedUnionType("action", [
   objectType({ action: literalType("setCategory"), projectId: id, category: objectType({ id: id.optional(), name: label }) }),
   objectType({ action: literalType("deleteCategory"), projectId: id, categoryId: id }),
   objectType({ action: literalType("deleteNode"), projectId: id, nodeId: id }),
-  objectType({ action: literalType("setRelation"), projectId: id, relation: objectType({ id: id.optional(), from: id, to: id, kind: enumType(["iteration", "reference", "example", "dependency", "custom"]).optional(), label: note$1, note: note$1.default("") }) }),
+  objectType({ action: literalType("setRelation"), projectId: id, relation: objectType({ id: id.optional(), from: id, to: id, kind: enumType(["iteration", "reference", "example", "dependency", "custom"]).optional(), label: note$1, note: note$1.default(""), style: EdgeStyleSchema.optional() }) }),
   objectType({ action: literalType("deleteRelation"), projectId: id, relationId: id }),
   objectType({ action: literalType("readFile"), projectId: id, nodeId: id }),
   objectType({ action: literalType("editFile"), projectId: id, nodeId: id }),
@@ -8997,7 +9168,10 @@ async function editDoc(args) {
 }
 function registerDocHandlers() {
   ipcMain.handle(CH.DOC_LIST, (_e, arg) => listDocs());
-  ipcMain.handle(CH.DOC_IMPORT, (_e, arg) => importDocHandler(arg));
+  ipcMain.handle(CH.DOC_IMPORT, (_e, arg) => {
+    const req = DocImportReq.parse(arg);
+    return withUndoableAction(getRepo(), "导入文档", () => importDocHandler(req), req.name ?? path$1.basename(req.sourcePath));
+  });
   ipcMain.handle(CH.DOC_EDIT, (_e, arg) => editDoc(arg));
 }
 var commonjsGlobal = typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : {};
@@ -66335,9 +66509,15 @@ async function diffTextHandler(args) {
   return diffText(textA, textB);
 }
 function registerCommitHandlers() {
-  ipcMain.handle(CH.COMMIT_CREATE, (_e, arg) => createCommitHandler(arg));
+  ipcMain.handle(CH.COMMIT_CREATE, (_e, arg) => {
+    const req = CommitCreateReq.parse(arg);
+    return withUndoableAction(getRepo(), "记录版本", () => createCommitHandler(req), req.docName);
+  });
   ipcMain.handle(CH.COMMIT_LIST, (_e, arg) => listCommitsHandler(arg));
-  ipcMain.handle(CH.COMMIT_CHECKOUT, (_e, arg) => checkoutCommitHandler(arg));
+  ipcMain.handle(CH.COMMIT_CHECKOUT, (_e, arg) => {
+    const req = CommitCheckoutReq.parse(arg);
+    return withUndoableAction(getRepo(), "恢复工作区", () => checkoutCommitHandler(req), req.docName);
+  });
   ipcMain.handle(CH.COMMIT_DIFF_TEXT, (_e, arg) => diffTextHandler(arg));
 }
 async function createBranchHandler(args) {
@@ -66357,9 +66537,12 @@ async function deleteBranchHandler(args) {
   return deleteBranchSafe(repo, docName2, branch);
 }
 function registerBranchHandlers() {
-  ipcMain.handle(CH.BRANCH_CREATE, (_e, arg) => createBranchHandler(arg));
-  ipcMain.handle(CH.BRANCH_SWITCH, (_e, arg) => switchBranchHandler(arg));
-  ipcMain.handle(CH.BRANCH_DELETE, (_e, arg) => deleteBranchHandler(arg));
+  ipcMain.handle(CH.BRANCH_CREATE, (_e, arg) => withUndoableAction(getRepo(), "新建分支", () => createBranchHandler(arg)));
+  ipcMain.handle(CH.BRANCH_SWITCH, (_e, arg) => {
+    const req = BranchSwitchReq.parse(arg);
+    return withUndoableAction(getRepo(), "切换分支", () => switchBranchHandler(req), req.docName);
+  });
+  ipcMain.handle(CH.BRANCH_DELETE, (_e, arg) => withUndoableAction(getRepo(), "回收分支", () => deleteBranchHandler(arg)));
 }
 async function sumDirBytes(dir2) {
   let bytes = 0;
@@ -66428,8 +66611,8 @@ function registerMaintenanceHandlers() {
   ipcMain.handle(CH.STATS_STORAGE, (_e, arg) => getStorageStats());
   ipcMain.handle(CH.MAINTENANCE_SCRUB, (_e, arg) => runScrub());
   ipcMain.handle(CH.QUARANTINE_LIST, (_e, arg) => quarantineList());
-  ipcMain.handle(CH.QUARANTINE_RESTORE, (_e, arg) => quarantineRestore(arg));
-  ipcMain.handle(CH.QUARANTINE_PURGE, (_e, arg) => quarantinePurge(arg));
+  ipcMain.handle(CH.QUARANTINE_RESTORE, (_e, arg) => withUndoableAction(getRepo(), "还原分支", () => quarantineRestore(arg)));
+  ipcMain.handle(CH.QUARANTINE_PURGE, (_e, arg) => withUndoableAction(getRepo(), "清理分支回收记录", () => quarantinePurge(arg)));
   ipcMain.handle(CH.BACKUP_EXPORT, (_e, arg) => backupExport(arg));
   ipcMain.handle(CH.BACKUP_IMPORT, (_e, arg) => backupImport(arg));
 }
@@ -66590,7 +66773,19 @@ async function libraryMutationHandler(args) {
 function registerLibraryHandlers() {
   ipcMain.handle(CH.LIBRARY_LIST, () => libraryListHandler());
   ipcMain.handle(CH.LIBRARY_DETAIL, (_event, args) => libraryDetailHandler(args));
-  ipcMain.handle(CH.LIBRARY_MUTATE, (_event, args) => libraryMutationHandler(args));
+  const labels = { document: "编辑文档信息", version: "编辑版本信息或位置", layout: "整理布局", relations: "编辑版本连线", category: "编辑版本分类", arrange: "移动分类卡片", importVersion: "导入版本", save: "保存版本", undoReplacement: "还原版本内容", moveBranch: "移动分支起点", createDocument: "新建文档", edit: "准备独立编辑稿" };
+  ipcMain.handle(CH.LIBRARY_MUTATE, (_event, args) => {
+    const request2 = LibraryMutationSchema.parse(args), repo = getRepo();
+    if (request2.type === "purgeVersion") {
+      clearEditHistory(repo);
+      return libraryMutationHandler(request2);
+    }
+    let workspaceName;
+    if (request2.type === "createDocument") workspaceName = request2.name.trim().toLowerCase().endsWith("." + request2.format) ? request2.name.trim() : request2.name.trim() + "." + request2.format;
+    else if (["importVersion", "save", "undoReplacement", "moveBranch"].includes(request2.type)) workspaceName = request2.docName;
+    const label2 = labels[request2.type];
+    return label2 ? withUndoableAction(repo, label2, () => libraryMutationHandler(request2), workspaceName) : libraryMutationHandler(request2);
+  });
 }
 var saxes = {};
 var hasRequiredSaxes;
@@ -68400,11 +68595,11 @@ function wordStructure(xml, styles) {
     parser22.write(styles).close();
   }
   const paragraphs = [];
-  let current, capture = false;
+  let current, capture2 = false;
   const parser2 = new saxesExports.SaxesParser({ xmlns: true });
   parser2.on("opentag", (tag) => {
     if (tag.name === "w:p") current = { id: String(tag.attributes["w14:paraId"]?.value ?? ""), text: "", heading: false };
-    if (tag.name === "w:t") capture = true;
+    if (tag.name === "w:t") capture2 = true;
     if (current && tag.name === "w:pStyle") {
       const id2 = String(tag.attributes["w:val"]?.value ?? "");
       current.heading = headings.has(id2) || /^Heading\d$/i.test(id2);
@@ -68413,10 +68608,10 @@ function wordStructure(xml, styles) {
     if (current && ["w:tab", "w:br"].includes(tag.name)) current.text += " ";
   });
   parser2.on("text", (value) => {
-    if (current && capture) current.text += value;
+    if (current && capture2) current.text += value;
   });
   parser2.on("closetag", (tag) => {
-    if (tag.name === "w:t") capture = false;
+    if (tag.name === "w:t") capture2 = false;
     if (tag.name === "w:p" && current) {
       paragraphs.push(current);
       current = void 0;
@@ -68438,16 +68633,16 @@ function wordStructure(xml, styles) {
 function xmlStats(xml, textTag) {
   const counts = {}, texts = [];
   const parser2 = new saxesExports.SaxesParser({ xmlns: true });
-  let capture = false;
+  let capture2 = false;
   parser2.on("opentag", (tag) => {
     counts[tag.name] = (counts[tag.name] ?? 0) + 1;
-    if (tag.name === textTag) capture = true;
+    if (tag.name === textTag) capture2 = true;
   });
   parser2.on("text", (value) => {
-    if (capture) texts.push(value);
+    if (capture2) texts.push(value);
   });
   parser2.on("closetag", (tag) => {
-    if (tag.name === textTag) capture = false;
+    if (tag.name === textTag) capture2 = false;
     if (["w:p", "a:p"].includes(tag.name)) texts.push("\n");
   });
   parser2.write(xml).close();
@@ -69107,7 +69302,16 @@ async function projectRequest(args) {
   }
 }
 function registerProjectHandlers() {
-  ipcMain.handle("projects.request", (_e, args) => projectRequest(args));
+  const labels = { create: "新建项目", import: "导入项目资料", refresh: "刷新项目资料", recordIteration: "记录迭代", updateNode: "编辑资料信息或位置", setCategory: "编辑项目分类", deleteCategory: "删除项目分类", deleteNode: "移除资料", setRelation: "编辑资料连线", deleteRelation: "删除资料连线" };
+  ipcMain.handle("projects.request", (_e, args) => {
+    const req = ProjectRequest.parse(args), label2 = labels[req.action];
+    return label2 ? withUndoableAction(getRepo(), label2, () => projectRequest(req)) : projectRequest(req);
+  });
+}
+function registerEditHistoryHandlers() {
+  ipcMain.handle("history.status", () => editHistoryStatus(getRepo()));
+  ipcMain.handle("history.undo", () => undoEdit(getRepo()));
+  ipcMain.handle("history.redo", () => redoEdit(getRepo()));
 }
 function registerAllHandlers() {
   registerRepoHandlers();
@@ -69120,6 +69324,7 @@ function registerAllHandlers() {
   registerLibraryHandlers();
   registerVersionStatsHandlers();
   registerProjectHandlers();
+  registerEditHistoryHandlers();
 }
 let win = null;
 function createWindow() {

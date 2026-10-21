@@ -1,6 +1,7 @@
 "use strict";
 const electron = require("electron");
 const api = {
+  history: { status: () => electron.ipcRenderer.invoke("history.status"), undo: () => electron.ipcRenderer.invoke("history.undo"), redo: () => electron.ipcRenderer.invoke("history.redo") },
   projects: { request: (request) => electron.ipcRenderer.invoke("projects.request", request) },
   appearance: { setTheme: (theme) => electron.ipcRenderer.invoke("appearance.theme", { theme }) },
   library: {

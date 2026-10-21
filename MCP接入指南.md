@@ -1,6 +1,6 @@
 # 稿喵 MCP 接入指南
 
-适用稿喵 0.5.1，普通用户无需额外安装 Node.js。先打开稿喵，左上角选择“项目管理”，再点击“接入 Agent”。弹窗生成当前软件路径与文档库路径的完整配置。
+适用稿喵 0.5.2，普通用户无需额外安装 Node.js。先打开稿喵，左上角选择“项目管理”，再点击“接入 Agent”。弹窗生成当前软件路径与文档库路径的完整配置。
 
 ## Codex、Claude Code 与 Cursor
 
@@ -64,3 +64,13 @@ MCP 修改完成后会同步来源，桌面会显示相同资料。刷新本身�
 已用真实标准客户端验证 stdio、带密钥 HTTP、工具发现/调用和桌面联动，并用本机 DSH registry 验证连接。配置依据各客户端官方规范；这不代表调用了付费模型。Cursor 未在本机安装时不声称通过 Cursor 窗口验收。
 
 官方配置说明：[Codex MCP](https://learn.chatgpt.com/docs/extend/mcp?surface=cli)、[Claude Code MCP](https://code.claude.com/docs/en/mcp)、[Cursor MCP](https://prod.cursor.com/docs/mcp)。协议实现使用[官方 TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk)。
+
+## 连线格式（0.5.2）
+
+`dockitty_set_relation` 的 `relation.style` 可选字段：`arrow` 为 `triangle` / `chevron` / `diamond` / `none`，`arrowSize` 为 6–24 px，`line` 为 `solid` / `dashed` / `double`，`width` 为 1–6 px。编辑时传已有 `relation.id`；省略格式或格式中的某一字段会保留原值。默认实心三角、8 px、实线、1.5 px。
+
+```json
+{"projectId":"<文档库编号>","relation":{"id":"<关系编号>","from":"<起点编号>","to":"<目标编号>","label":"演示材料","style":{"arrow":"chevron","arrowSize":16,"line":"double","width":2}}}
+```
+
+MCP 更新管理数据后，桌面此前的撤回记录可能过期；软件会清除这些记录，以免撤回覆盖 Agent 的新整理结果。撤回不会回退 Agent 在外部文件中的正文修改。

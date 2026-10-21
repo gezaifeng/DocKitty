@@ -7,3 +7,4 @@
 - @modelcontextprotocol/node@2.1.1 — Apache-2.0 — git+https://github.com/modelcontextprotocol/typescript-sdk.git
 - fflate@0.8.3 — MIT — https://101arrowz.github.io/fflate
 - diff@9.0.0 — BSD-3-Clause — https://github.com/kpdecker/jsdiff.git
+- zod@3.25.76 — MIT — git+https://github.com/colinhacks/zod.git
