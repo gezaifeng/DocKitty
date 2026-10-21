@@ -65063,12 +65063,18 @@ function ManagementPicker({ mode, onChange }) {
     ] }, value)) })
   ] });
 }
-function ProjectGraph({ nodes, relations, selectedId, onSelect, onOpen, onContext, onMove, onRelation }) {
+function ProjectGraph({ nodes, relations, selectedId, focusRequest, onSelect, onOpen, onContext, onMove, onRelation }) {
   const [zoom, setZoom] = reactExports.useState(1), [pan, setPan] = reactExports.useState({ x: 20, y: 100 });
   const [positions, setPositions] = reactExports.useState({});
   const drag2 = reactExports.useRef(null);
   const viewport = reactExports.useRef(null), moved = reactExports.useRef(false);
   const nodePosition = (n) => positions[n.id] ?? n.position;
+  reactExports.useLayoutEffect(() => {
+    const target = nodes.find((n) => n.id === focusRequest?.id), bounds = viewport.current?.getBoundingClientRect();
+    if (!target || !bounds) return;
+    const position = nodePosition(target);
+    setPan({ x: bounds.width / 2 - (position.x + 112.5) * zoom, y: bounds.height / 2 - (position.y + 56) * zoom });
+  }, [focusRequest]);
   reactExports.useEffect(() => {
     if (drag2.current) return;
     setPositions((previous) => {
@@ -65297,6 +65303,7 @@ function filePath(project, node) {
 }
 function FilePreview({ projectId, node, project }) {
   const [html, setHtml] = reactExports.useState(""), resources = reactExports.useRef([]);
+  const assetsVersion = project.nodes.filter((n) => n.kind === "file").map((n) => `${n.id}:${n.contentHash ?? ""}`).join("|");
   const query = useQuery({ queryKey: ["project-preview", projectId, node.id, node.contentHash], queryFn: () => request({ action: "readFile", projectId, nodeId: node.id }), enabled: !node.linkTarget });
   reactExports.useEffect(() => {
     let active = true;
@@ -65322,7 +65329,8 @@ function FilePreview({ projectId, node, project }) {
           return null;
         }
         if (target.origin !== "https://dockitty.invalid") return null;
-        const asset = project.nodes.find((n) => n.kind === "file" && originalPath(n) === target.href);
+        const candidates = project.nodes.filter((n) => n.kind === "file" && originalPath(n) === target.href);
+        const asset = (node.snapshotRootId ? candidates.find((n) => n.snapshotRootId === node.snapshotRootId) : void 0) ?? candidates.find((n) => !n.snapshot);
         if (!asset || kind === "css" && !asset.name.toLowerCase().endsWith(".css")) return null;
         const bytes = await request({ action: "readFile", projectId, nodeId: asset.id });
         if (kind === "css") return new TextDecoder().decode(bytes.data);
@@ -65343,7 +65351,7 @@ function FilePreview({ projectId, node, project }) {
       resources.current.forEach((url) => URL.revokeObjectURL(url));
       resources.current = [];
     };
-  }, [query.data, node.id, projectId]);
+  }, [query.data, node.id, projectId, assetsVersion]);
   if (node.linkTarget) return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-preview-empty", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx(Link2, { size: 28 }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "链接入口 · 只记录目标路径，不展开目标内容" }),
@@ -65371,6 +65379,7 @@ function ProjectWorkspace({ modePicker }) {
   const typesPicker = reactExports.useRef(null);
   const [modal, setModal] = reactExports.useState(null), [form, setForm] = reactExports.useState({}), [busy, setBusy] = reactExports.useState(false), [error, setError] = reactExports.useState(""), [notice, setNotice] = reactExports.useState("");
   const [connection, setConnection] = reactExports.useState(null), [menu, setMenu] = reactExports.useState(null);
+  const [focusRequest, setFocusRequest] = reactExports.useState(null);
   const [width, setWidth] = reactExports.useState(() => Number(localStorage.getItem("dockitty-project-inspector-width")) || 320), resize2 = reactExports.useRef(null);
   const libraries = useQuery({ queryKey: ["projects", repoRoot], queryFn: () => request({ action: "list" }), refetchInterval: 2e3 });
   const detail = useQuery({ queryKey: ["project", repoRoot, projectId], queryFn: () => request({ action: "get", projectId }), enabled: !!projectId, refetchInterval: 2e3 }).data;
@@ -65517,11 +65526,11 @@ function ProjectWorkspace({ modePicker }) {
         /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: detail ? `${detail.nodes.filter((n) => !n.parentId).length} 项资料 · ${detail.relations.length} 条关系` : "文件、文件夹与每一轮迭代" })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-project-actions", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "wg-button", disabled: busy, onClick: () => void importFiles(false), children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "wg-button", disabled: busy || !!parent?.snapshot, title: parent?.snapshot ? "历史文件夹快照，请返回当前层导入" : void 0, onClick: () => void importFiles(false), children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(Import, { size: 15 }),
           " 批量导入文件"
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "wg-button primary", disabled: busy, onClick: () => void importFiles(true), children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "wg-button primary", disabled: busy || !!parent?.snapshot, title: parent?.snapshot ? "历史文件夹快照，请返回当前层导入" : void 0, onClick: () => void importFiles(true), children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(Folder, { size: 15 }),
           " 导入文件夹"
         ] })
@@ -65631,16 +65640,16 @@ function ProjectWorkspace({ modePicker }) {
         ] })
       ] })
     ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("section", { className: "wg-project-content", children: view === "graph" ? /* @__PURE__ */ jsxRuntimeExports.jsx(ProjectGraph, { nodes, relations: detail.relations, selectedId, onSelect: select, onOpen: openNode, onContext: (node, x, y) => {
+      /* @__PURE__ */ jsxRuntimeExports.jsx("section", { className: "wg-project-content", children: view === "graph" ? /* @__PURE__ */ jsxRuntimeExports.jsx(ProjectGraph, { focusRequest, nodes, relations: detail.relations, selectedId, onSelect: select, onOpen: openNode, onContext: (node, x, y) => {
         setSelectedId(node.id);
-        setMenu({ node, x: Math.min(x, window.innerWidth - 245), y: Math.min(y, window.innerHeight - 260) });
+        setMenu({ node, x: Math.min(x, window.innerWidth - 245), y: Math.min(y, window.innerHeight - 340) });
       }, onMove: async (nodeId, position) => {
         await run2(() => request({ action: "updateNode", projectId, nodeId, position }));
-      }, onRelation: editRelation }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-document-grid-scroll", children: [
+      }, onRelation: editRelation }, projectId + ":" + (parentId ?? "root")) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-document-grid-scroll", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-document-grid", role: "list", "aria-label": "当前层项目资料", children: nodes.map((node) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { role: "listitem", className: `wg-document-card ${selectedId === node.id ? "selected" : ""}`, "aria-label": `资料 ${node.title}`, onClick: () => select(node.id), onDoubleClick: () => openNode(node.id), onContextMenu: (e) => {
           e.preventDefault();
           setSelectedId(node.id);
-          setMenu({ node, x: Math.min(e.clientX, window.innerWidth - 245), y: Math.min(e.clientY, window.innerHeight - 260) });
+          setMenu({ node, x: Math.min(e.clientX, window.innerWidth - 245), y: Math.min(e.clientY, window.innerHeight - 340) });
         }, children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-document-card-heading", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "wg-document-type", children: [
@@ -65728,8 +65737,11 @@ function ProjectWorkspace({ modePicker }) {
               if (!other) return null;
               return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-project-relation", children: [
                 /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { onClick: () => {
+                  setTypes([]);
+                  setSearch("");
                   setParentId(other.parentId);
                   setSelectedId(other.id);
+                  setFocusRequest({ id: other.id });
                 }, children: [
                   /* @__PURE__ */ jsxRuntimeExports.jsx(ExternalLink, { size: 14 }),
                   /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [

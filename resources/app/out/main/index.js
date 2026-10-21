@@ -2994,6 +2994,7 @@ async function importProjectItems(repo, request2) {
     }
     const parentId = request2.parentId ?? null;
     if (parentId && findNode(project, parentId).kind !== "folder") throw new Error("导入目标必须是文件夹");
+    if (parentId && findNode(project, parentId).snapshot) throw new Error("历史文件夹为快照，请返回当前文件夹或文档库根目录导入");
     if (request2.previousNodeId) findNode(project, request2.previousNodeId);
     const repoRoot = await promises.realpath(repo.root);
     const sources = [];
