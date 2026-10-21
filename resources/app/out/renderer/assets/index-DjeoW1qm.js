@@ -67171,18 +67171,18 @@ function SettingsPage() {
   ] });
 }
 const themeOptions = [
-  { id: "arknights", label: "明日方舟 / AK-UI", detail: "白色指令卡 · 浅灰图形与层叠入场" },
-  { id: "redline", label: "赤幕 / REDLINE", detail: "红黑白 · 斜切拼贴与短促入场" },
-  { id: "liquid", label: "液态玻璃", detail: "流动曲面 · 通透磨砂与边缘高光" },
-  { id: "liquid-dark", label: "液态玻璃 · 深色", detail: "深色玻璃 · 柔和亮字与流动光影" },
-  { id: "blockframe", label: "BlockFrame 黑框积木", detail: "暖纸底色 · 黑框与硬投影" },
-  { id: "raw", label: "粉绿方块", detail: "粉绿色块 · 直角黑框与硬投影" },
-  { id: "retro", label: "经典视窗", detail: "桌面窗口 · 凸凹边框与标题栏" },
-  { id: "capsule", label: "胶囊文具", detail: "圆角容器 · 胶囊按钮与文具标签" },
-  { id: "light", label: "浅色办公", detail: "白色纸面 · 克制细边框" },
-  { id: "paper", label: "纸张书房", detail: "暖纸与墨绿 · 宋体标题" },
-  { id: "dark", label: "石墨暗色", detail: "中性炭灰 · 柔和亮字" },
-  { id: "system", label: "跟随系统", detail: "随系统切换浅色与石墨" }
+  { id: "arknights", label: "方舟", detail: "白色指令卡 · 浅灰图形与层叠入场" },
+  { id: "redline", label: "赤幕", detail: "红黑白 · 斜切拼贴与短促入场" },
+  { id: "liquid", label: "琉璃", detail: "浅色玻璃 · 通透磨砂与边缘高光" },
+  { id: "liquid-dark", label: "夜璃", detail: "深色玻璃 · 柔和亮字与流动光影" },
+  { id: "blockframe", label: "积木", detail: "暖纸底色 · 黑框与硬投影" },
+  { id: "raw", label: "粉绿", detail: "粉绿色块 · 直角黑框与硬投影" },
+  { id: "retro", label: "视窗", detail: "桌面窗口 · 凸凹边框与标题栏" },
+  { id: "capsule", label: "胶囊", detail: "圆角容器 · 胶囊按钮与文具标签" },
+  { id: "light", label: "素白", detail: "白色纸面 · 克制细边框" },
+  { id: "paper", label: "暖纸", detail: "暖纸与墨绿 · 宋体标题" },
+  { id: "dark", label: "石墨", detail: "中性炭灰 · 柔和亮字" },
+  { id: "system", label: "系统", detail: "随系统自动切换素白与石墨" }
 ];
 function ThemePicker() {
   const { theme, setTheme } = useUiStore(), [open2, setOpen] = reactExports.useState(false), [focus2, setFocus] = reactExports.useState(0), root = reactExports.useRef(null), trigger = reactExports.useRef(null);
@@ -67880,11 +67880,17 @@ function HelpDocument({ repoRoot }) {
       /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "文本提供中英混合字数、字符、汉字、英文词、数字，以及新增、删除、改动量、强度、占比和保留率。Word提供章节热区、段落变动、脚注/尾注和可识别的批注状态；Excel提供有效行列、单元格及公式变化、指定数值列汇总；PPT统计幻灯片文本变化与换序。综合视图提供分类/作者分布、大改排行、按日/周/月保存活动和可自行设置的字数目标。" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "中英混合字数=汉字+英文词，不等同Word/WPS字数；正文不包含页眉、页脚、脚注文字。首稿没有上一稿，增删为“—”。章节改名且没有稳定标识时不自动猜测对应关系；Excel插列或复杂重排可能无法可靠对齐，统计说明会标出口径。文件损坏、旧格式或超出差异计算限制时，缺失值不会画成零。覆盖同版本更新当前节点，不新增节点。保存活动不代表实际编辑时长。" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "“查找版本”可按名称、说明、作者、日期及分类筛选。Excel历史预览可以切换工作表，并保留稀疏单元格的真实坐标；回收分支遇到同名时可填写新的恢复名称。" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "BlockFrame为新默认主题，可在顶栏切换其他主题。系统开启“减少动态效果”时，启动与统计入场运动会跳过。" })
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "积木为默认主题，可在顶栏切换其他主题。系统开启“减少动态效果”时，启动与统计入场运动会跳过。" })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "09 · 主题与全局功能" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "顶部“主题”可选择“赤幕 / REDLINE”，以红黑白、斜切纸片、拼贴标题与短促入场呈现导航、文档、分类和统计；正文与输入内容保持清晰。主题选择会保存，下次启动仍使用你的选择。也可选择“液态玻璃”及其深色外观，使用通透磨砂控件、边缘高光与流动背景。“功能”菜单位于“文件”右侧，可开关关系图左下角的小组件、减少动态效果或减少透明度；玻璃主题下还可分别关闭背景流动与指针光效。指针光源立即跟随鼠标，短暂残影留在原位置后淡出。" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "顶部“主题”的名称统一为两个字，选择会保存，下次启动继续沿用。“琉璃”为浅色玻璃，“夜璃”为深色玻璃；“系统”随系统自动切换“素白”和“石墨”。名称更新不改变已有配色、动效或保存偏好。" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("ul", { "aria-label": "主题列表", children: themeOptions.map((option) => /* @__PURE__ */ jsxRuntimeExports.jsxs("li", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: option.label }),
+        " · ",
+        option.detail
+      ] }, option.id)) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "“功能”菜单位于“文件”右侧，可开关关系图左下角的小组件、减少动态效果或减少透明度；玻璃主题下还可分别关闭背景流动与指针光效。指针光源立即跟随鼠标，短暂残影留在原位置后淡出。" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "右键关系图的小组件可切换 Riffle、Drawer、Terminal、Cabinet、Turntable，或选择“关闭小组件”。关闭后可从“功能 → 关系图小组件”重新打开，保留所选视效。这些选择会在下次启动时保留。使用帮助位于顶栏最右侧。" })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [

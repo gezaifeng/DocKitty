@@ -1,8 +1,8 @@
 {
   "archiveKind": "compiled-application-snapshot",
   "originalTypeScriptAvailable": false,
-  "version": "0.5.11",
-  "originalDirectory": "gaomiao-0.5.11-windows-x64",
+  "version": "0.5.12",
+  "originalDirectory": "gaomiao-0.5.12-windows-x64",
   "electronVersion": "32.3.3",
   "files": {
     "Hairline-LICENSE.txt": "948d56f0bc8c383c04c453136dcfb78407f97de65ff8bb4fabff2b79ddd17f59",
@@ -24,13 +24,13 @@
     "resources/app/out/renderer/assets/cat-D_fsyJ-0.png": "ca72804eb1178fcc1fe98b23c99bc386e909f5aca12c8aca14df37e4ccfe6b3a",
     "resources/app/out/renderer/assets/gaomiao-D-Hjr120.png": "3d5821b769db49e20ae2301205ddeeeadc227123b9c981c9bcb4ff40118c38ce",
     "resources/app/out/renderer/assets/index-C3YXBlsz.css": "eaf3aad82f30fac26c797ee293ceda37c5ca054c574fa792752d78eddb877777",
-    "resources/app/out/renderer/assets/index-CJjruHHl.js": "434717ccb42e60c69b326e540812a4069be2eb95a0ad3787117d622194c0d245",
+    "resources/app/out/renderer/assets/index-DjeoW1qm.js": "35679de80390b735d1a4063c54417f2a868a0b95ca8684b19159a32e84d85720",
     "resources/app/out/renderer/assets/paper-CsFc-hZ7.png": "f45dff6f97cebeba52dfb8b9ff5c94debd9bc0942814aee6a34856bbc6dc54de",
-    "resources/app/out/renderer/index.html": "aa690789e4b34563c3da59c86ca498c875a9695a4f5542c67d4df46d47560cb0",
-    "resources/app/package.json": "9794949af58578656a884e329395cc044c08f4c7e466512ff4dd831e429f276b",
+    "resources/app/out/renderer/index.html": "a073d9e75b09d377d2ea2f0b0d2147a75fe7fcd1014934e8894866c426cca980",
+    "resources/app/package.json": "cfb4c53c7aa8ea2d673d2666f0e8e61db6242250f81340c41664f1a6d922d38c",
     "resources/app/resources/icon.ico": "9fc2dd00a90413ce71fe6c31e63d41591a287f0c72647562b3dbfb10b5162bc2",
     "resources/app/resources/icon.png": "3d5821b769db49e20ae2301205ddeeeadc227123b9c981c9bcb4ff40118c38ce",
     "resources/app/resources/installer-mode.json": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-    "使用教程.md": "9d8486563a7b03b9cffabf4da12cd8b622e5b8a8b42d6c64402f2509d0c8e086"
+    "使用教程.md": "736edb93e988cc7fbf0596999b971ff7faba5eabb7ba089be8436d8d16edee76"
   }
 }
