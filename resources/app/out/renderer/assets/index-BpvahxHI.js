@@ -31272,7 +31272,7 @@ function VersionGraph({ detail, versions, selectedId, compareIds, onSelect, onEd
         setPan({ x: 25, y: 35 });
       }, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Maximize2, { size: 14 }) })
     ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-graph-canvas", onPointerDown: (event) => {
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-graph-canvas", onPointerDown: (event) => {
       if (event.target.closest(".wg-node-body,.wg-branch-tags")) return;
       interaction.current = { clientX: event.clientX, clientY: event.clientY, ...pan, moved: false };
       event.currentTarget.setPointerCapture(event.pointerId);
@@ -31300,56 +31300,63 @@ function VersionGraph({ detail, versions, selectedId, compareIds, onSelect, onEd
     }, onPointerCancel: () => {
       interaction.current = null;
       setMoving(null);
-    }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-graph-world", style: { width, height, transform: `translate(${pan.x}px,${pan.y}px) scale(${zoom})` }, children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("svg", { className: "wg-edges", width, height, "aria-hidden": "true", children: versions.flatMap((v) => v.parents.map((parent) => {
-        if (!points.has(parent)) return null;
-        const a = point(parent), b = point(v.id);
-        const startX = a.x + 225, endX = b.x;
-        return /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: `M${startX},${a.y + 63} C${(startX + endX) / 2},${a.y + 63} ${(startX + endX) / 2},${b.y + 63} ${endX},${b.y + 63}` }, parent + v.id);
-      })) }),
-      versions.map((v) => {
-        const p = point(v.id);
-        const heads = branches.filter((b) => detail.branchHeads[b] === v.id);
-        return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `wg-graph-node ${selectedId === v.id ? "selected" : ""} ${compareIds.includes(v.id) ? "compared" : ""} ${v.deletedAt ? "deleted" : ""}`, style: { left: p.x, top: p.y }, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-branch-tags", children: heads.map((branch) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { draggable: true, onPointerDown: (e) => e.stopPropagation(), onDragStart: (e) => {
-            e.dataTransfer.setData("application/wordgit-branch", branch);
-            e.dataTransfer.effectAllowed = "move";
-          }, title: "拖到版本节点，调整这条分支的起点", children: [
-            branch === detail.currentBranch ? "● " : "",
-            branch
-          ] }, branch)) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "wg-node-body", "aria-label": `版本节点 ${v.title}`, onKeyDown: (e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              onSelect(v.id);
-            }
-          }, onPointerDown: (event) => {
-            event.stopPropagation();
-            interaction.current = { id: v.id, clientX: event.clientX, clientY: event.clientY, x: p.x, y: p.y, moved: false };
-            event.currentTarget.parentElement.parentElement.parentElement.setPointerCapture(event.pointerId);
-          }, onDragOver: (event) => {
-            if (event.dataTransfer.types.includes("application/wordgit-branch")) event.preventDefault();
-          }, onDrop: (event) => {
-            const branch = event.dataTransfer.getData("application/wordgit-branch");
-            if (branch) {
-              event.preventDefault();
-              onMoveBranch(branch, v.id);
-            }
-          }, children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "wg-node-code", children: [
-              v.id.slice(0, 7),
-              v.deletedAt ? " · 已回收" : ""
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: v.title }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("small", { children: [
-              new Date(v.createdAt).toLocaleDateString("zh-CN"),
-              " · ",
-              v.revisionCount ? `覆盖 ${v.revisionCount} 次` : "原始快照"
+    }, children: [
+      !versions.length && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-graph-no-results", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(GitBranch, { size: 32 }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "没有匹配的版本" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "请调整分支或版本筛选；历史文件仍保留在文档库中。" })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-graph-world", style: { width, height, transform: `translate(${pan.x}px,${pan.y}px) scale(${zoom})` }, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("svg", { className: "wg-edges", width, height, "aria-hidden": "true", children: versions.flatMap((v) => v.parents.map((parent) => {
+          if (!points.has(parent)) return null;
+          const a = point(parent), b = point(v.id);
+          const startX = a.x + 225, endX = b.x;
+          return /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: `M${startX},${a.y + 63} C${(startX + endX) / 2},${a.y + 63} ${(startX + endX) / 2},${b.y + 63} ${endX},${b.y + 63}` }, parent + v.id);
+        })) }),
+        versions.map((v) => {
+          const p = point(v.id);
+          const heads = branches.filter((b) => detail.branchHeads[b] === v.id);
+          return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `wg-graph-node ${selectedId === v.id ? "selected" : ""} ${compareIds.includes(v.id) ? "compared" : ""} ${v.deletedAt ? "deleted" : ""}`, style: { left: p.x, top: p.y }, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-branch-tags", children: heads.map((branch) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { draggable: true, onPointerDown: (e) => e.stopPropagation(), onDragStart: (e) => {
+              e.dataTransfer.setData("application/wordgit-branch", branch);
+              e.dataTransfer.effectAllowed = "move";
+            }, title: "拖到版本节点，调整这条分支的起点", children: [
+              branch === detail.currentBranch ? "● " : "",
+              branch
+            ] }, branch)) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "wg-node-body", "aria-label": `版本节点 ${v.title}`, onKeyDown: (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onSelect(v.id);
+              }
+            }, onPointerDown: (event) => {
+              event.stopPropagation();
+              interaction.current = { id: v.id, clientX: event.clientX, clientY: event.clientY, x: p.x, y: p.y, moved: false };
+              event.currentTarget.parentElement.parentElement.parentElement.setPointerCapture(event.pointerId);
+            }, onDragOver: (event) => {
+              if (event.dataTransfer.types.includes("application/wordgit-branch")) event.preventDefault();
+            }, onDrop: (event) => {
+              const branch = event.dataTransfer.getData("application/wordgit-branch");
+              if (branch) {
+                event.preventDefault();
+                onMoveBranch(branch, v.id);
+              }
+            }, children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "wg-node-code", children: [
+                v.id.slice(0, 7),
+                v.deletedAt ? " · 已回收" : ""
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: v.title }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("small", { children: [
+                new Date(v.createdAt).toLocaleDateString("zh-CN"),
+                " · ",
+                v.revisionCount ? `覆盖 ${v.revisionCount} 次` : "原始快照"
+              ] })
             ] })
-          ] })
-        ] }, v.id);
-      })
-    ] }) })
+          ] }, v.id);
+        })
+      ] })
+    ] })
   ] });
 }
 function VersionBoard({ detail, versions, selectedId, compareIds, onSelect, onMove, onCategory, onEdit }) {
@@ -61421,6 +61428,10 @@ function VersionStatistics({ detail, onSelect, onOpenVersion, onCompare }) {
   const targetKey = "gaomiao-target:" + repoRoot + ":" + detail.docName;
   const [target, setTarget2] = reactExports.useState(() => localStorage.getItem(targetKey) ?? "");
   const chart = reactExports.useRef(null);
+  const content = reactExports.useRef(null);
+  reactExports.useEffect(() => {
+    if (content.current) content.current.scrollTop = 0;
+  }, [metric, branch]);
   reactExports.useEffect(() => {
     if (!detail.branchHeads[branch]) {
       setBranch(detail.currentBranch);
@@ -61459,7 +61470,7 @@ function VersionStatistics({ detail, onSelect, onOpenVersion, onCompare }) {
   const first = data?.baseline?.values[active?.id ?? ""];
   const value = current?.values[active?.id ?? ""];
   const sectionList = Array.from(new Map([...data?.baseline?.sections ?? [], ...current?.sections ?? []].map((s) => [s.id, s])).values());
-  const specials = { activity: "保存活动", distribution: "分类与作者", ranking: "大改版本排行", sections: "章节变化", structure: "结构变化明细", columns: "数值列统计", target: "字数目标" };
+  const specials = { "view:activity": "保存活动", "view:distribution": "分类与作者", "view:ranking": "大改版本排行", "view:sections": "章节变化", "view:structure": "结构变化明细", "view:columns": "数值列统计", "view:target": "字数目标" };
   const activities = /* @__PURE__ */ new Map();
   for (const v of rows) {
     const day = localDate(v.createdAt), key = bucket === "month" ? day.slice(0, 7) : bucket === "week" ? (() => {
@@ -61558,7 +61569,7 @@ function VersionStatistics({ detail, onSelect, onOpenVersion, onCompare }) {
           group,
           "指标"
         ] }),
-        definitions.filter((m) => m.group === group).map((m) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: !specials[metric] && active?.id === m.id ? "active" : "", style: { animationDelay: `${Math.min(450, definitions.indexOf(m) * 38)}ms` }, onClick: () => setMetric(m.id), children: [
+        definitions.filter((m) => m.group === group).map((m) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { "aria-pressed": !specials[metric] && active?.id === m.id, className: !specials[metric] && active?.id === m.id ? "active" : "", style: { animationDelay: `${Math.min(450, definitions.indexOf(m) * 38)}ms` }, onClick: () => setMetric(m.id), children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(FileText, { size: 13 }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: m.label }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: m.unit })
@@ -61566,13 +61577,13 @@ function VersionStatistics({ detail, onSelect, onOpenVersion, onCompare }) {
       ] }, group)),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: "综合视图" }),
-        Object.entries(specials).filter(([id2]) => !["sections", "columns", "structure", "target"].includes(id2) || id2 === "sections" && allRows.some((v) => v.sections?.length) || id2 === "columns" && allRows.some((v) => v.columns?.length) || id2 === "structure" && allRows.some((v) => v.changes?.length) || id2 === "target" && definitions.some((m) => m.id === "wordCount")).map(([id2, label]) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: metric === id2 ? "active" : "", onClick: () => setMetric(id2), children: [
+        Object.entries(specials).filter(([id2]) => !["view:sections", "view:columns", "view:structure", "view:target"].includes(id2) || id2 === "view:sections" && allRows.some((v) => v.sections?.length) || id2 === "view:columns" && allRows.some((v) => v.columns?.length) || id2 === "view:structure" && allRows.some((v) => v.changes?.length) || id2 === "view:target" && definitions.some((m) => m.id === "wordCount")).map(([id2, label]) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { "aria-pressed": metric === id2, className: metric === id2 ? "active" : "", onClick: () => setMetric(id2), children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(CalendarDays, { size: 14 }),
           label
         ] }, id2))
       ] })
     ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "wg-stat-content", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { ref: content, className: "wg-stat-content", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-stat-heading", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "MANUSCRIPT / ANALYTICS" }),
@@ -61677,17 +61688,17 @@ function VersionStatistics({ detail, onSelect, onOpenVersion, onCompare }) {
             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: onlyExclusive ? "本路线独有版本" : "包含共同祖先" })
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: metric === "activity" ? "有记录的周期" : specials[metric] ? "所选视图 / 数量" : "所选版本 / " + unit }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: metric === "activity" ? activities.size : metric === "distribution" ? distribution("category").length : metric === "ranking" ? rows.filter((v) => v.values.changed !== void 0).length : metric === "sections" ? current?.sections?.length ?? 0 : metric === "structure" ? current?.changeCount ?? 0 : metric === "columns" ? current?.columns?.length ?? 0 : metric === "target" ? pretty(current?.values.wordCount) : pretty(value) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: metric === "view:activity" ? "有记录的周期" : specials[metric] ? "所选视图 / 数量" : "所选版本 / " + unit }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: metric === "view:activity" ? activities.size : metric === "view:distribution" ? distribution("category").length : metric === "view:ranking" ? rows.filter((v) => v.values.changed !== void 0).length : metric === "view:sections" ? current?.sections?.length ?? 0 : metric === "view:structure" ? current?.changeCount ?? 0 : metric === "view:columns" ? current?.columns?.length ?? 0 : metric === "view:target" ? pretty(current?.values.wordCount) : pretty(value) }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: current?.title ?? "暂无版本" })
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: metric === "activity" ? "保留覆盖次数" : specials[metric] ? "相同内容的额外版本" : "相对基准版本" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: metric === "activity" ? rows.reduce((n, v) => n + (v.values.revisions ?? 0), 0) : specials[metric] ? rows.length - new Set(rows.map((v) => v.contentId)).size : value !== void 0 && first !== void 0 ? (value - first >= 0 ? "+" : "") + pretty(value - first) : pretty(current?.baselineValues?.[active?.id ?? ""]) }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: metric === "activity" ? "当前保留的修订深度" : specials[metric] ? "二进制内容完全相同" : data?.baseline?.title ?? "相同计数规则" })
+            /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: metric === "view:activity" ? "保留覆盖次数" : specials[metric] ? "相同内容的额外版本" : "相对基准版本" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: metric === "view:activity" ? rows.reduce((n, v) => n + (v.values.revisions ?? 0), 0) : specials[metric] ? rows.length - new Set(rows.map((v) => v.contentId)).size : value !== void 0 && first !== void 0 ? (value - first >= 0 ? "+" : "") + pretty(value - first) : pretty(current?.baselineValues?.[active?.id ?? ""]) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: metric === "view:activity" ? "当前保留的修订深度" : specials[metric] ? "二进制内容完全相同" : data?.baseline?.title ?? "相同计数规则" })
           ] })
         ] }),
-        metric === "activity" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
+        metric === "view:activity" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("h2", { children: [
             "记录活动",
             /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { "aria-label": "活动统计周期", value: bucket, onChange: (e) => setBucket(e.target.value), children: [
@@ -61721,7 +61732,7 @@ function VersionStatistics({ detail, onSelect, onOpenVersion, onCompare }) {
             pretty(data?.summary?.medianHours),
             " 小时。统计新版本创建记录，不代表编辑次数或实际写作时长。"
           ] })
-        ] }) : metric === "distribution" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
+        ] }) : metric === "view:distribution" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "分类与作者分布" }),
           ["category", "author"].map((field) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: field === "category" ? "当前分类" : "作者标签" }),
@@ -61736,7 +61747,7 @@ function VersionStatistics({ detail, onSelect, onOpenVersion, onCompare }) {
             data?.summary?.duplicateVersions ?? 0,
             " 个。"
           ] })
-        ] }) : metric === "ranking" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
+        ] }) : metric === "view:ranking" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "大改版本排行" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-stat-bars", children: rows.filter((v) => v.values.changed !== void 0).sort((a, b) => b.values.changed - a.values.changed).slice(0, 10).map((v) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { onClick: () => choose(v.id), children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: v.title }),
@@ -61748,7 +61759,7 @@ function VersionStatistics({ detail, onSelect, onOpenVersion, onCompare }) {
             ] })
           ] }, v.id)) }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "按相邻版本的新增+删除量排行，净增量不能代替改动量。" })
-        ] }) : metric === "sections" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
+        ] }) : metric === "view:sections" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "章节字数、占比与基准变化" }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
@@ -61792,7 +61803,7 @@ function VersionStatistics({ detail, onSelect, onOpenVersion, onCompare }) {
             ] })
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "基于标题样式分段，按稳定段落标识或同名标题匹配。标题重命名且无稳定标识时显示未匹配，不推测章节含义；空白格不等于零字。" })
-        ] }) : metric === "structure" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
+        ] }) : metric === "view:structure" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("h2", { children: [
             "与上一稿的结构变化 · ",
             current?.changeCount ?? 0,
@@ -61815,7 +61826,7 @@ function VersionStatistics({ detail, onSelect, onOpenVersion, onCompare }) {
             ] }, i)) })
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "最多展开80项、每项前后文字最多180字符；计数仍覆盖完整文件。首稿没有上一稿。" })
-        ] }) : metric === "columns" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
+        ] }) : metric === "view:columns" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "指定数值列" }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
             "工作表 / 列",
@@ -61848,7 +61859,7 @@ function VersionStatistics({ detail, onSelect, onOpenVersion, onCompare }) {
             }) })
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "只统计所选列的数值及公式缓存数值；缺少结果的公式不补算，不混合单位。" })
-        ] }) : metric === "target" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
+        ] }) : metric === "view:target" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-stat-chart-panel", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "字数目标" }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
             "目标字数",
@@ -61942,7 +61953,7 @@ function VersionStatistics({ detail, onSelect, onOpenVersion, onCompare }) {
               if (e.key === "Enter") choose(v.id);
             }, children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: v.title }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: metric === "activity" ? new Date(v.createdAt).toLocaleDateString("zh-CN") : pretty(v.values[active?.id ?? ""]) + " " + unit }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { children: metric === "view:activity" ? new Date(v.createdAt).toLocaleDateString("zh-CN") : pretty(v.values[active?.id ?? ""]) + " " + unit }),
               /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { children: [
                 pretty(v.values.size),
                 " 字节"
@@ -62042,6 +62053,8 @@ function HelpDocument({ repoRoot }) {
   ] });
 }
 const brandIcon = "" + new URL("gaomiao-Cp67HTa9.png", import.meta.url).href;
+const viewLabels = { overview: "总览工作台", graph: "版本关系图", board: "分类看板", stats: "版本统计" };
+const formatLabels = { all: "全部文档", docx: "文稿", xlsx: "表格与数据", pptx: "演示资料", other: "其他格式" };
 const extension = (name) => name.includes(".") ? name.split(".").pop().toLowerCase() : "";
 const baseName = (name) => name.split(/[\\/]/).pop() ?? name;
 function FileIcon({ name, size = 18 }) {
@@ -62326,33 +62339,33 @@ function Workspace() {
           /* @__PURE__ */ jsxRuntimeExports.jsx(Import, { size: 15 }),
           " 导入文档 / 版本"
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-icon-button", "aria-label": "保存与备份设置", onClick: () => setRightPanel("settings"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(Settings, { size: 17 }) })
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-icon-button", "aria-pressed": rightPanel === "settings", "aria-label": "保存与备份设置", onClick: () => setRightPanel("settings"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(Settings, { size: 17 }) })
       ] })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-viewbar", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("nav", { "aria-label": "工作台视图", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: view === "overview" && rightPanel !== "settings" ? "active" : "", onClick: () => {
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { "aria-pressed": view === "overview" && rightPanel !== "settings", className: view === "overview" && rightPanel !== "settings" ? "active" : "", onClick: () => {
           setView("overview");
           setRightPanel("preview");
         }, children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(Files, { size: 16 }),
           " 总览工作台"
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { disabled: !detail, className: view === "graph" && rightPanel !== "settings" ? "active" : "", onClick: () => {
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { "aria-pressed": view === "graph" && rightPanel !== "settings", className: view === "graph" && rightPanel !== "settings" ? "active" : "", onClick: () => {
           setView("graph");
           setRightPanel("preview");
         }, children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(GitBranch, { size: 16 }),
           " 版本关系图"
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { disabled: !detail, className: view === "board" && rightPanel !== "settings" ? "active" : "", onClick: () => {
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { "aria-pressed": view === "board" && rightPanel !== "settings", className: view === "board" && rightPanel !== "settings" ? "active" : "", onClick: () => {
           setView("board");
           setRightPanel("preview");
         }, children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(Columns3, { size: 16 }),
           " 分类看板"
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { disabled: !detail, className: view === "stats" && rightPanel !== "settings" ? "active" : "", onClick: () => {
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { "aria-pressed": view === "stats" && rightPanel !== "settings", className: view === "stats" && rightPanel !== "settings" ? "active" : "", onClick: () => {
           setView("stats");
           setRightPanel("preview");
         }, children: [
@@ -62401,7 +62414,7 @@ function Workspace() {
             /* @__PURE__ */ jsxRuntimeExports.jsx(ArrowLeft, { size: 14 }),
             " 返回总览"
           ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { "aria-label": "查看分支", value: branchFilter, onChange: (e) => setBranchFilter(e.target.value), children: [
+          detail && /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { "aria-label": "查看分支", value: branchFilter, onChange: (e) => setBranchFilter(e.target.value), children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "all", children: "全部分支的版本" }),
             Object.keys(detail?.branchHeads ?? {}).map((branch) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: branch, children: branch }, branch))
           ] })
@@ -62432,7 +62445,7 @@ function Workspace() {
           ] })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-toolbar-spacer" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: `wg-button subtle ${showDeleted ? "is-active" : ""}`, onClick: () => {
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { "aria-pressed": showDeleted, className: `wg-button subtle ${showDeleted ? "is-active" : ""}`, onClick: () => {
           setShowDeleted((s) => !s);
           setCompareIds([]);
         }, children: [
@@ -62456,20 +62469,20 @@ function Workspace() {
         } }, detail.docName) : view === "overview" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-overview", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("aside", { className: "wg-nav", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "文档" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: fileFilter === "all" ? "active" : "", onClick: () => setFileFilter("all"), children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { "aria-pressed": fileFilter === "all", className: fileFilter === "all" ? "active" : "", onClick: () => setFileFilter("all"), children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx(Files, { size: 16 }),
               " 全部文档 ",
               /* @__PURE__ */ jsxRuntimeExports.jsx("small", { children: docs.filter((d) => !d.deletedAt).length })
             ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { onClick: () => setFileFilter("docx"), children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { "aria-pressed": fileFilter === "docx", className: fileFilter === "docx" ? "active" : "", onClick: () => setFileFilter("docx"), children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx(FileText, { size: 16 }),
               " 文稿"
             ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { onClick: () => setFileFilter("xlsx"), children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { "aria-pressed": fileFilter === "xlsx", className: fileFilter === "xlsx" ? "active" : "", onClick: () => setFileFilter("xlsx"), children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx(FileSpreadsheet, { size: 16 }),
               " 表格与数据"
             ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { onClick: () => setFileFilter("pptx"), children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { "aria-pressed": fileFilter === "pptx", className: fileFilter === "pptx" ? "active" : "", onClick: () => setFileFilter("pptx"), children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx(Presentation, { size: 16 }),
               " 演示资料"
             ] }),
@@ -62481,7 +62494,7 @@ function Workspace() {
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-file-center", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-files-heading", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: showDeleted ? "文档回收区" : "受管文档" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: showDeleted ? "文档回收区" : formatLabels[fileFilter] }),
               /* @__PURE__ */ jsxRuntimeExports.jsxs("small", { children: [
                 visibleDocs.length,
                 " 份文档 · 每稿仅一条"
@@ -62517,7 +62530,7 @@ function Workspace() {
               ] }),
               !visibleDocs.length && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-empty", children: [
                 /* @__PURE__ */ jsxRuntimeExports.jsx(Files, { size: 35 }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: search ? "没有匹配的文档" : showDeleted ? "文档回收区为空" : "从第一份文档开始" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: search ? "没有匹配的文档" : showDeleted ? "文档回收区为空" : fileFilter !== "all" ? `暂无${formatLabels[fileFilter]}` : "从第一份文档开始" }),
                 /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: search ? "换一个关键词或文件类型试试。" : "可导入现有稿件，也可创建 Word、Excel 或文本文件。" }),
                 !showDeleted && !search && /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-button primary", onClick: () => open("import"), children: "导入我的文档" })
               ] })
@@ -62528,7 +62541,7 @@ function Workspace() {
                   detail.title,
                   " / 全部分支版本"
                 ] }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setHistoryOpen((v) => !v), children: historyOpen ? "收起 −" : "展开 ＋" })
+                /* @__PURE__ */ jsxRuntimeExports.jsx("button", { "aria-expanded": historyOpen, onClick: () => setHistoryOpen((v) => !v), children: historyOpen ? "收起 −" : "展开 ＋" })
               ] }),
               historyOpen && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-history-rows", children: [
                 versions.map((version) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: version.id === selectedVersionId ? "selected" : "", onClick: () => selectVersion(version.id), onDoubleClick: () => open("edit", version), children: [
@@ -62541,7 +62554,42 @@ function Workspace() {
               ] })
             ] })
           ] })
-        ] }) : detail ? view === "graph" ? /* @__PURE__ */ jsxRuntimeExports.jsx(VersionGraph, { detail, versions: detail.versions.filter((v) => (branchFilter === "all" || v.branches.includes(branchFilter)) && matchesVersion(v)), selectedId: selectedVersionId, compareIds, onSelect: selectVersion, onEdit: (v) => open("edit", v), onPosition: (id2, position) => void mutate({ type: "version", docName: detail.docName, versionId: id2, position }), onMoveBranch: moveBranch }, detail.docName) : /* @__PURE__ */ jsxRuntimeExports.jsx(VersionBoard, { detail, versions, selectedId: selectedVersionId, compareIds, onSelect: selectVersion, onMove: moveVersion, onCategory: categoryAction, onEdit: (v) => open("edit", v) }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-empty", children: "请先在总览工作台选择文档。" }) }, view) }),
+        ] }) : detail ? view === "graph" ? /* @__PURE__ */ jsxRuntimeExports.jsx(VersionGraph, { detail, versions: detail.versions.filter((v) => (branchFilter === "all" || v.branches.includes(branchFilter)) && matchesVersion(v)), selectedId: selectedVersionId, compareIds, onSelect: selectVersion, onEdit: (v) => open("edit", v), onPosition: (id2, position) => void mutate({ type: "version", docName: detail.docName, versionId: id2, position }), onMoveBranch: moveBranch }, detail.docName) : /* @__PURE__ */ jsxRuntimeExports.jsx(VersionBoard, { detail, versions, selectedId: selectedVersionId, compareIds, onSelect: selectVersion, onMove: moveVersion, onCategory: categoryAction, onEdit: (v) => open("edit", v) }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "wg-view-entry", "aria-label": `${viewLabels[view]}文档选择`, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "wg-entry-icon", children: view === "graph" ? /* @__PURE__ */ jsxRuntimeExports.jsx(GitBranch, { size: 32 }) : view === "board" ? /* @__PURE__ */ jsxRuntimeExports.jsx(Columns3, { size: 32 }) : /* @__PURE__ */ jsxRuntimeExports.jsx(GitCompare, { size: 32 }) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: viewLabels[view] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: view === "graph" ? "沿分支追踪每一稿的来路，查看节点、比较版本或继续编辑。" : view === "board" ? "用分类整理草稿、审阅稿和定稿，拖动版本卡片安排顺序。" : "选择文档与分支，查看字数趋势、结构变化和保存活动。" })
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-entry-selection", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "选择要查看的文档" }),
+            docs.filter((d) => !d.deletedAt).length ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "wg-entry-docs", children: docs.filter((d) => !d.deletedAt).map((d) => /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { onClick: () => selectDoc(d.docName), children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(FileIcon, { name: d.docName }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: d.title }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("small", { children: [
+                d.versionCount,
+                " 个版本 →"
+              ] })
+            ] }, d.docName)) }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
+                "文档库暂时为空。导入或新建文档后，即可在这里",
+                view === "graph" ? "查看真实版本关系" : view === "board" ? "整理版本分类" : "分析真实版本数据",
+                "。"
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-entry-actions", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "wg-button primary", onClick: () => open("import"), children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(Import, { size: 16 }),
+                  " 导入文档"
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "wg-button", onClick: () => open("new"), children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(Plus, { size: 16 }),
+                  " 新建文档"
+                ] })
+              ] })
+            ] })
+          ] })
+        ] }) }, view) }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("aside", { className: "wg-inspector", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: detail ? "文稿与版本详情" : "快速查看" }),
@@ -62595,7 +62643,7 @@ function Workspace() {
               /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "wg-icon-button", "aria-label": "删除非当前分支", disabled: busy || Object.keys(detail.branchHeads).length < 2, onClick: () => open("deleteBranch"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(Trash2, { size: 13 }) })
             ] }),
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "wg-compare-controls", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: `wg-button subtle ${compareMode ? "is-active" : ""}`, onClick: () => {
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { "aria-pressed": compareMode, className: `wg-button subtle ${compareMode ? "is-active" : ""}`, onClick: () => {
                 setCompareMode((v) => !v);
                 setCompareIds([]);
               }, children: [
