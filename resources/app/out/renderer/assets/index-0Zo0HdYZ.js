@@ -61377,7 +61377,7 @@ function HelpDocument({ repoRoot }) {
     ] })
   ] });
 }
-const brandIcon = "" + new URL("gaomiao-B2lQ0xQa.png", import.meta.url).href;
+const brandIcon = "" + new URL("gaomiao-xdmXmmtv.png", import.meta.url).href;
 const extension = (name) => name.includes(".") ? name.split(".").pop().toLowerCase() : "";
 const baseName = (name) => name.split(/[\\/]/).pop() ?? name;
 function FileIcon({ name, size = 18 }) {
@@ -62117,15 +62117,13 @@ function Workspace() {
 function MainLayout() {
   return /* @__PURE__ */ jsxRuntimeExports.jsx(Workspace, {});
 }
-const body = "" + new URL("body-C0vhtDje.png", import.meta.url).href;
-const head = "" + new URL("head-6ruR4ECA.png", import.meta.url).href;
-const tail = "" + new URL("tail-0Se1oErE.png", import.meta.url).href;
-const left = "" + new URL("left-paw-X1szK3F2.png", import.meta.url).href;
-const right = "" + new URL("right-paw-BIRp_nit.png", import.meta.url).href;
-const paper = "" + new URL("paper-Dd9REfLF.png", import.meta.url).href;
-const blink = "" + new URL("blink-C256m-ax.png", import.meta.url).href;
-const look = "" + new URL("look-CGIoPHas.png", import.meta.url).href;
-const mascotImages = { body, head, tail, left, right, paper, blink, look };
+const body = "" + new URL("body-D0zqlhw_.png", import.meta.url).href;
+const head = "" + new URL("head-CJZ3_ZYK.png", import.meta.url).href;
+const tail = "" + new URL("tail-DdRZUdld.png", import.meta.url).href;
+const left = "" + new URL("left-paw-BFHLPUy1.png", import.meta.url).href;
+const right = "" + new URL("right-paw-DSaC6A30.png", import.meta.url).href;
+const paper = "" + new URL("paper-DxDhwF9j.png", import.meta.url).href;
+const mascotImages = { body, head, tail, left, right, paper };
 function poseMascot(root, elapsed) {
   const t = Math.min(1, elapsed / 900);
   const clamp2 = (v) => Math.max(0, Math.min(1, v));
@@ -62140,20 +62138,15 @@ function poseMascot(root, elapsed) {
   const y = t < contact ? -100 + 276 * clamp2(t / contact) ** 2 : 176 + 12 * impact + breathe;
   const x = 150 + 24 * (1 - ease2(0, contact));
   const angle = -14 * (1 - ease2(0, contact)) + 3 * impact;
-  const apply = (name, transform, opacity) => {
+  const apply = (name, transform) => {
     const node = root.querySelector('[data-part="' + name + '"]');
     node.style.transform = transform;
-    if (opacity !== void 0) node.style.opacity = String(opacity);
   };
   root.style.opacity = String(ease2(0, 0.08));
   apply("body", `translateY(${7 * impact + breathe}px) scale(${1 + 0.03 * impact},${1 - 0.04 * impact})`);
   apply("tail", `rotate(${-8 * Math.sin(t * Math.PI) + 5 * Math.sin(idle * 2.8)}deg)`);
-  const headTransform = `translateY(${5 * impact + breathe}px) rotate(${-5 * (1 - grip) + 2 * impact}deg)`;
-  const blinking = idle > 0.5 && idle % 3.6 < 0.13 ? 1 : Math.min(1, impact * 2);
-  const looking = 1 - ease2(0.32, 0.65);
-  apply("head", headTransform, (1 - blinking) * (1 - looking));
-  apply("look", headTransform, (1 - blinking) * looking);
-  apply("blink", headTransform, blinking);
+  const headTransform = `translateY(${5 * impact + breathe}px) rotate(${-5 * (1 - grip) + 2 * impact + 1.2 * Math.sin(idle * 1.8)}deg)`;
+  apply("head", headTransform);
   apply("paper", `translate(${x - 150}px,${y - 176}px) rotate(${angle}deg)`);
   const pawY = t < contact ? 22 * ease2(0.18, contact) : y - 176 + 22 * (1 - grip);
   for (const side of ["left", "right"]) {
@@ -62167,8 +62160,6 @@ const Mascot = reactExports.forwardRef(function Mascot2(_, ref) {
     /* @__PURE__ */ jsxRuntimeExports.jsx("img", { "data-part": "tail", src: mascotImages.tail, alt: "" }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("img", { "data-part": "body", src: mascotImages.body, alt: "" }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("img", { "data-part": "head", src: mascotImages.head, alt: "" }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("img", { "data-part": "look", src: mascotImages.look, alt: "" }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("img", { "data-part": "blink", src: mascotImages.blink, alt: "" }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("img", { "data-part": "left-back", src: mascotImages.left, alt: "" }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("img", { "data-part": "right-back", src: mascotImages.right, alt: "" }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("img", { "data-part": "paper", "data-cat-paper": "true", src: mascotImages.paper, alt: "" }),
@@ -62223,9 +62214,10 @@ function StartupScreen({ ready, revealRef, onFinish }) {
     const content = page.querySelector(".wg-page-content");
     const origin = page.querySelector(".wg-page-origin");
     const finish = () => {
-      Object.assign(page.style, { transform: "none", borderRadius: "0px", visibility: "visible" });
+      Object.assign(page.style, { clipPath: "none", visibility: "visible" });
       if (content) content.style.opacity = "1";
       if (origin) origin.style.opacity = "0";
+      if (backdrop.current) Object.assign(backdrop.current.style, { opacity: "0", visibility: "hidden" });
       onFinish();
     };
     exiting.current = true;
@@ -62239,17 +62231,19 @@ function StartupScreen({ ready, revealRef, onFinish }) {
       return;
     }
     const rect = source.getBoundingClientRect();
-    const transform = `translate3d(${rect.left}px,${rect.top}px,0) scale(${rect.width / window.innerWidth},${rect.height / window.innerHeight})`;
-    Object.assign(page.style, { transform, visibility: "visible", borderRadius: "64px" });
-    page.style.zIndex = "101";
+    const inset = `inset(${rect.top}px ${window.innerWidth - rect.right}px ${window.innerHeight - rect.bottom}px ${rect.left}px round 8px)`;
+    const transform = `translate(${rect.left}px,${rect.top}px) scale(${rect.width / window.innerWidth},${rect.height / window.innerHeight})`;
+    Object.assign(page.style, { clipPath: inset, visibility: "visible" });
+    origin.style.transform = transform;
     setPhase("expanding");
     const expansion = page.animate(
-      [{ transform, borderRadius: "64px" }, { transform: "none", borderRadius: "0px" }],
+      [{ clipPath: inset }, { clipPath: "inset(0px 0px 0px 0px round 0px)" }],
       { duration: 420, easing: "cubic-bezier(.32,.72,0,1)", fill: "forwards" }
     );
     const animations2 = [
       expansion,
-      content.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260, delay: 100, fill: "forwards" }),
+      origin.animate([{ transform }, { transform: "none" }], { duration: 420, easing: "cubic-bezier(.32,.72,0,1)", fill: "forwards" }),
+      content.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 240, delay: 60, fill: "forwards" }),
       origin.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 140, delay: 40, fill: "forwards" }),
       backdrop.current.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 380, fill: "forwards" })
     ];
@@ -62258,7 +62252,6 @@ function StartupScreen({ ready, revealRef, onFinish }) {
       if (!active) return;
       finish();
       animations2.forEach((animation) => animation.cancel());
-      page.style.zIndex = "";
     }).catch(() => {
     });
     return () => {
