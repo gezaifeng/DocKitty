@@ -67876,6 +67876,7 @@ function SidebarCat() {
 }
 function EdgeStyleMenu({ x, y, style, onSave, onEdit, onClose }) {
   const menu = reactExports.useRef(null), [value, setValue] = reactExports.useState(resolvedEdgeStyle(style)), [saving, setSaving] = reactExports.useState(false);
+  const [sizeInput, setSizeInput] = reactExports.useState(String(value.arrowSize)), [widthInput, setWidthInput] = reactExports.useState(String(value.width));
   reactExports.useEffect(() => {
     const outside = (e) => {
       if (!menu.current?.contains(e.target)) onClose();
@@ -67913,7 +67914,10 @@ function EdgeStyleMenu({ x, y, style, onSave, onEdit, onClose }) {
     /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
       "箭头大小",
       /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { "aria-label": "箭头大小", type: "number", min: "6", max: "24", step: "1", value: value.arrowSize, onChange: (e) => setValue((v) => ({ ...v, arrowSize: Number(e.target.value) || 0 })) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { "aria-label": "箭头大小", type: "number", min: "6", max: "24", step: "1", value: sizeInput, onChange: (e) => {
+          setSizeInput(e.target.value);
+          setValue((v) => ({ ...v, arrowSize: Number(e.target.value) || 0 }));
+        } }),
         " px"
       ] })
     ] }),
@@ -67928,7 +67932,10 @@ function EdgeStyleMenu({ x, y, style, onSave, onEdit, onClose }) {
     /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { children: [
       "线条粗细",
       /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { "aria-label": "线条粗细", type: "number", min: "1", max: "6", step: "0.5", value: value.width, onChange: (e) => setValue((v) => ({ ...v, width: Number(e.target.value) || 0 })) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { "aria-label": "线条粗细", type: "number", min: "1", max: "6", step: "0.5", value: widthInput, onChange: (e) => {
+          setWidthInput(e.target.value);
+          setValue((v) => ({ ...v, width: Number(e.target.value) || 0 }));
+        } }),
         " px"
       ] })
     ] }),
